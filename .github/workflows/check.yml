@@ -1,0 +1,33 @@
+name: Check
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # PR で回すのはここだけ。実 kintone には接続しない。
+  # 高速・常時グリーンを維持することが、テストがコメントアウトされないための条件。
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Biome
+        run: pnpm run biome:check
+      - name: TypeScript
+        run: pnpm run tsc
+      - name: Tests (型テスト + 凍結フィクスチャに対する検証)
+        run: pnpm run test
+      - name: 採取カスタマイズがビルドできること
+        run: pnpm run probe:build
+      - name: パッケージがビルドできること
+        run: pnpm run build

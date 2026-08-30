@@ -1,0 +1,87 @@
+/**
+ * kintone-record
+ *
+ * 実測に基づく kintone レコードの型・変換関数・構築 API。
+ *
+ * 型は 84 サンプルの実測に基づく（fixtures/report.md）。
+ * 変換の挙動は REST への書き込み 20 ケースの実測に基づく
+ * （fixtures/write-behavior.md）。
+ * 実測の裏づけが無いものは JSDoc に明記してある。
+ */
+
+// --- 型 ---
+/**
+ * REST API のフィールド型。`Saved` / `Editing` と並ぶ 3 つ目の文脈。
+ *
+ * 新しい正規形は作らず、`@kintone/rest-api-client` の型をそのまま Canonical として
+ * 名前だけ揃える。中身は rest-api-client のものと同一なので、
+ * このライブラリを経由しても型の同一性は壊れない。
+ */
+export type { KintoneRecordField as Rest } from "@kintone/rest-api-client";
+// --- 構築・代入 ---
+export { field } from "./build/field";
+export {
+	canSetValue,
+	FieldValueError,
+	setRowValue,
+	setValue,
+} from "./build/setValue";
+// --- 変換 ---
+export {
+	IGNORED_ON_WRITE,
+	isDroppedOnWrite,
+	isRejectedOnWrite,
+	REJECTED_ON_WRITE,
+	UI_ONLY_PROPERTIES,
+} from "./convert/fieldTypes";
+export type {
+	RestWriteParams,
+	RestWriteRecord,
+} from "./convert/toRestWrite";
+export {
+	convertField,
+	toAddParams,
+	toRest,
+	toRestWrite,
+	toUpdateParams,
+} from "./convert/toRestWrite";
+// --- 型ガード ---
+export * as guard from "./guard/record";
+export type {
+	ChangeEvent,
+	CreateShowEvent,
+	CreateSubmitEvent,
+	DeleteSubmitEvent,
+	DetailShowEvent,
+	EditShowEvent,
+	EditSubmitEvent,
+	EventOf,
+	IndexShowEvent,
+	KintoneEventMap,
+	KintoneEventName,
+	ProcessProceedEvent,
+	SubmitSuccessEvent,
+	UnknownKintoneEvent,
+} from "./types/event";
+// 型のみの名前空間なので type 付きで再エクスポートする
+export type {
+	Editing,
+	Entity,
+	FieldOf,
+	FileInformation,
+	Saved,
+} from "./types/field";
+// 変換・代入・ガードの入力型。3 文脈のどのレコードも受け取れる緩い型で、
+// 自前のヘルパを書くときに同じ骨格を再定義しなくて済むよう公開する
+export type {
+	LooseField,
+	LooseRecord,
+	LooseSubtableRow,
+} from "./types/loose";
+export type {
+	CreateRecord,
+	EditingRecord,
+	RestRecord,
+	RestRecordWithMeta,
+	SavedRecord,
+} from "./types/record";

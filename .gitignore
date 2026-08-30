@@ -1,0 +1,21 @@
+node_modules
+dist
+probe-dist
+.env
+.env.*
+!.env.example
+# 実測データはコミットする。
+# Q6 で「PR は凍結フィクスチャに対してテストする」と決めているため、
+# これがリポジトリに無いとテスト戦略が成立しない。
+# fixtures/raw/ はブラウザからのエクスポートを一時的に置く場所（コミットしない）。
+fixtures/raw/*.json
+*.log
+
+# ログインセッション。認証情報そのものなので絶対にコミットしない
+e2e/.auth
+# 正規化前の生の採取結果。個人情報と環境依存値を含むのでコミットしない。
+# 基準として残すのは正規化したもの
+fixtures/live/raw.json
+# Playwright の実行結果
+playwright-report
+test-results
