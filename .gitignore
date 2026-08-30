@@ -1,6 +1,9 @@
 node_modules
-dist
-probe-dist
+# 先頭のスラッシュはリポジトリ直下に限定するため。
+# 付けないとあらゆる階層の dist にマッチし、
+# ビルド成果物を検査する test/dist/ まで巻き込んで除外してしまう
+/dist
+/probe-dist
 .env
 .env.*
 !.env.example
