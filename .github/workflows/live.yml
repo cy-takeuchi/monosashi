@@ -20,7 +20,7 @@ permissions:
   pull-requests: write
 
 # 手動起動とスケジュールが重なると、同じ検証アプリに対して
-# probe の適用と採取が並行して走り、互いの結果を壊す
+# 採取が並行して走り、互いのレコードを見てしまう
 concurrency:
   group: live-verification
   cancel-in-progress: false
@@ -57,26 +57,21 @@ jobs:
       - name: 検証アプリの構成チェック
         run: pnpm run app:verify
 
-      # probe.js は 1 つの成果物。人間が手で貼るのも CI が貼るのも同じもの。
-      # 採取ロジックを二重に持つと、手動で採った実測と CI が検証している実測が
-      # 別物になる。
+      # 適用（updateAppCustomize）は CI から行わない。
+      # あれには **kintone のシステム管理権限**が要り、組織全体に効くため、
+      # 「権限を検証アプリ 2 つに限定する」方針（Q9）が成立しなくなる。
+      # しかも「アプリに任意の JS を仕込める」権限を CI に置くことになる。
       #
-      # リトライするのは、kintone が一過性の 500（GAIA_CS02「予期せぬエラー」）を
-      # 返すことがあるため。実際に踏んだ。そのとき適用が中途半端に終わり、
-      # 続く採取が「パネルが出ない」で失敗する。
-      # kintone が変わったわけではないのに週次ジョブが赤くなるので、ここで吸収する
-      - name: 採取カスタマイズを適用
-        run: |
-          pnpm run probe:build
-          for attempt in 1 2 3; do
-            if pnpm run app:deploy-probe; then
-              exit 0
-            fi
-            echo "::warning::適用に失敗した（$attempt 回目）。30 秒待って再試行する"
-            sleep 30
-          done
-          echo "::error::採取カスタマイズを 3 回とも適用できなかった"
-          exit 1
+      # probe.js は変わらない限り貼り直す必要がない。
+      # 適用は probe を変えたときに人がローカルから行い、ここでは
+      # 貼られているものが手元のビルドと同一かを確認するだけにする。
+      # 配信されている実物をダウンロードしてハッシュで比べるので、
+      # サイズが同じで中身が違う場合も検出できる。
+      #
+      # 古い probe で採った結果を「kintone が変わった」と誤認するのが最悪なので、
+      # 採取の前に必ず確かめる
+      - name: 貼られている採取カスタマイズが最新か確認
+        run: pnpm run probe:build && pnpm run app:check-probe
 
       - name: 実 kintone から採取
         run: pnpm run e2e

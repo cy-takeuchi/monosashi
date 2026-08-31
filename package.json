@@ -38,6 +38,7 @@
 		"probe:write": "tsx tools/probe-write/writeProbe.ts",
 		"probe:converter": "tsx tools/probe-write/verifyConverter.ts",
 		"app:deploy-probe": "tsx tools/fixture-app/deployProbe.ts",
+		"app:check-probe": "tsx tools/fixture-app/checkProbe.ts",
 		"test": "vitest run --typecheck",
 		"e2e": "playwright test",
 		"fixture:build": "tsx tools/fixture/build.ts",
