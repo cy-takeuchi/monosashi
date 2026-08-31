@@ -93,15 +93,16 @@ test("実 kintone から採取する", async ({ page }) => {
 
 	await click(page, ACTION.jsApi); // screen.create
 	await click(page, ACTION.setFlags); // screen.create.afterSet
-	await click(page, ACTION.setValue); // create.change.* + setValue の測定
-	await click(page, ACTION.setRow); // create.change.<表内> + changes.row
-
-	// 行を足すにはどこかのセルに値が要るため、「値の変化を伴わない純粋な行追加」は
-	// set() では作れない。よって行追加で飛ぶ change が、行が増えたことによるものか
-	// 新しい行のセルに値が入ったことによるものかは切り分けられない（#4）。
-	// なお行 0 が空かどうかは無関係（コンソールで別途確認済み）
+	// **行操作を値の変更より先に行う。**
+	// addRow は雛形の行を複製するので、先に setRow を実行すると
+	// 雛形に値が入り、複製した行にも値が入る。すると飛んだ change が
+	// 「行が増えたから」なのか「セルに値が入ったから」なのか区別できない。
+	// 作成画面の初期の行は空なので、この順序なら純粋な行追加になる（#4）
 	await click(page, ACTION.addRow);
 	await click(page, ACTION.removeRow);
+
+	await click(page, ACTION.setValue); // create.change.<コード>
+	await click(page, ACTION.setRow); // create.change.<表内> + changes.row
 
 	// UI 経由の操作。set() とは発火するイベントが違うので、
 	// 同じ操作を両方の経路で測る。kintone の要素に触るが、

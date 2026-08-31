@@ -423,9 +423,8 @@ const measureSet = async (
 	/**
 	 * set() が意図した効果を持ったかの検証。
 	 *
-	 * set() は投げなくても**静かに何もしないこと**がある。
-	 * 実際、値を持たないセルだけで構成した行を足そうとしたとき、
-	 * エラーにならないまま行が増えなかった。
+	 * **set() は不正な入力でも例外を投げない。** kintone がエラーを表示するだけで、
+	 * 呼び出し側からは成功に見える（実測: セルの `value` キーを省いたとき）。
 	 * 効果を確かめずに記録すると、空振りが実測として残る。
 	 */
 	verify?: (after: unknown) => string | undefined,
@@ -464,67 +463,51 @@ const measureSet = async (
 };
 
 /**
- * サブテーブルに行を追加する。
+ * サブテーブルに行を追加する。**雛形の行を全セルそのまま複製する。**
  *
- * 2 つのことを測る。
+ * ## 全セルを渡す理由
  *
- * 1. **行の追加でどのイベント名の change が飛ぶか。**
- * 2. **新規行の id に何を渡せばよいか。**
- *    ここでは **id を渡さない**。渡さなかったときに kintone が何を返すかを見る。
+ * 行の一部のセルだけを渡すと kintone が拒否する（実測 2026-08-31）。
  *
- * ## 切り分けられなかったこと
+ * ```
+ * event.record['subtable'].value[1]['t_multiLineText'] is invalid.
+ * ```
  *
- * 飛んだ change が「行が増えたから」なのか「新しい行のセルに値が入ったから」なのかは
- * `set()` では切り分けられない。行を足すにはどこかのセルに値が要るため、
- * 値の変化を伴わない行追加を作れない。
+ * セルそのものが不正と言われる（`value` を省いたときは `.value` が不正と言われる）。
+ * 行を渡すなら、その表の全セルを揃えなければならない。
  *
- * ## type も value も省略できない
+ * ## 値を変えない理由
  *
- * 省くと kintone が「`.value` が不正です」とエラーを表示する（実測 2026-08-31）。
- * `value: undefined` を明示的に渡すのは通る。キーが存在することが要件。
+ * 値を入れた行を足すと、飛んだ change が「行が増えたから」なのか
+ * 「セルに値が入ったから」なのか区別できない。
+ * 実際それで「`set()` の行追加は表内フィールドの change を発火する」という
+ * 誤った結論を出した。飛んでいたのは値のせいだった。
  *
- * **set() は例外を投げない。** エラーはダイアログに出るだけなので、
- * 呼び出し側からは成功に見える。効果（行数が変わったか）を検証して初めて気づいた。
+ * **作成画面では初期の行が空**なので、その複製は値の変化を伴わない純粋な行追加になる。
+ * 編集画面では雛形に値が入っているため、結果に値の影響が混ざる。
+ * 経路の比較は作成画面の結果で行う。
  */
 const captureAddRow = async (): Promise<void> => {
 	const { tableCode, rows } = takeSubtable();
 	const template = rows[0];
-	if (template === undefined) {
-		throw new Error("雛形にする行がありません");
-	}
+	if (template === undefined) throw new Error("雛形にする行がありません");
 
-	// 雛形の行をそのまま複製する。**値は変えない。**
-	// 値を入れて足すと、飛んだ change が「行が増えたから」なのか
-	// 「セルに値が入ったから」なのか区別できない。
-	// セルの構成はテーブル定義で決まるので、雛形から作らないと
-	// 「その表に無いフィールド」を渡すことになる
+	// 全セルを渡す。value キーは undefined でも必ず付ける（省くと拒否される）
 	const value: LooseRow["value"] = {};
 	for (const [code, cell] of Object.entries(template.value)) {
 		if (cell.type === undefined) {
-			// set() は type を省略できない（実測）。黙って落とすと
-			// 「type が不正です」で原因の分かりにくい失敗になる
 			throw new Error(`表内の ${code} に type がありません`);
 		}
-		// **type も value も必ず付ける。** 省くと kintone が
-		// 「.value が不正です」とエラーを表示する（実測 2026-08-31）。
-		// undefined を明示的に渡すのは通る。キーが存在することが要件。
-		// set() は例外を投げないので、省いても呼び出し側からは成功に見える
-		value[code] = {
-			type: cell.type,
-			value:
-				cell.type === "SINGLE_LINE_TEXT"
-					? `${screenName()}-addRow`
-					: cell.value,
-		};
+		value[code] = { type: cell.type, value: cell.value };
 	}
 
 	const before = rows.length;
-	// id は付けない。付けない場合の挙動が未測定なので、それを測る
+	// id は渡さない。渡さなくてよいことは実測済み
 	await measureSet(
 		"addRow",
 		tableCode,
 		{ [tableCode]: { type: "SUBTABLE", value: [...rows, { value }] } },
-		"id を付けずに行を追加",
+		"雛形の行を値ごと複製（id なし）",
 		(after) => {
 			const now = countRows(after, tableCode);
 			return now === before + 1

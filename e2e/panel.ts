@@ -90,6 +90,12 @@ export const click = async (page: Page, action: ActionId): Promise<void> => {
 	// 実行中は disabled になる。押せる状態に戻ったら完了
 	await expect(button).toBeEnabled();
 
+	// **kintone のエラー表示を最初に見る。**
+	// 一度これが出ると後続の set() も失敗するので、あとに回すと
+	// 「原因を作った操作」ではなく「巻き込まれた操作」で落ちる。
+	// probe は例外を捕まえられないため、これが唯一の検出手段。
+	await assertNoCustomizeError(page, `採取 ${action}`);
+
 	// data-result より先に lastError を見る。
 	// 逆にすると「ok を期待したが error だった」としか出ず、
 	// probe が投げた理由が失敗メッセージに載らない
@@ -101,9 +107,6 @@ export const click = async (page: Page, action: ActionId): Promise<void> => {
 	expect(error, `採取 ${action} が失敗した`).toBeNull();
 
 	await expect(button).toHaveAttribute("data-result", "ok");
-
-	// probe が例外を捕まえられないエラー（kintone のダイアログ）を検出する
-	await assertNoCustomizeError(page, `採取 ${action}`);
 };
 
 export const clearSamples = async (page: Page): Promise<void> => {
