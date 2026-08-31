@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
+import { CUSTOMIZE_ERROR } from "./labels";
 
 /**
  * 採取パネルの操作。
@@ -65,6 +66,23 @@ export const waitForPanel = async (
  * 機械可読な data-result と lastError() で確認する。
  * ここを省くと「静かに空振りした採取」がそのまま基準データになる。
  */
+/**
+ * kintone がカスタマイズの実行時エラーを表示していないことを確かめる。
+ *
+ * `set()` に不正な値を渡しても例外は飛ばず、この表示が出るだけ（実測）。
+ * 「例外が出ていない」を成功と見なすと、誤った実測がそのまま基準データになる。
+ * 実際それで「value を省くと静かに無視される」という誤った結論を出しかけた。
+ */
+export const assertNoCustomizeError = async (
+	page: Page,
+	context: string,
+): Promise<void> => {
+	await expect(
+		page.getByText(CUSTOMIZE_ERROR),
+		`${context} の時点で kintone がカスタマイズのエラーを表示している。この先の採取結果は信用できない`,
+	).toHaveCount(0);
+};
+
 export const click = async (page: Page, action: ActionId): Promise<void> => {
 	const button = page.locator(`[data-testid="${testId(action)}"]`);
 	await button.click();
@@ -83,6 +101,9 @@ export const click = async (page: Page, action: ActionId): Promise<void> => {
 	expect(error, `採取 ${action} が失敗した`).toBeNull();
 
 	await expect(button).toHaveAttribute("data-result", "ok");
+
+	// probe が例外を捕まえられないエラー（kintone のダイアログ）を検出する
+	await assertNoCustomizeError(page, `採取 ${action}`);
 };
 
 export const clearSamples = async (page: Page): Promise<void> => {
@@ -183,6 +204,7 @@ export const measureUiRowChange = async (
 	}
 
 	await endWatch(page, label);
+	await assertNoCustomizeError(page, label);
 };
 
 /**
@@ -273,6 +295,7 @@ export const measureUiFieldChange = async (
 	}
 
 	await endWatch(page, label);
+	await assertNoCustomizeError(page, label);
 };
 
 /**
@@ -339,4 +362,5 @@ export const measureUiCellChange = async (
 	}
 
 	await endWatch(page, label);
+	await assertNoCustomizeError(page, label);
 };

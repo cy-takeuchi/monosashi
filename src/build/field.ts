@@ -103,10 +103,12 @@ export const field = {
 	 * 読み直すと `id: null` の行として返る。既存の行の id はそのまま
 	 * （実測 2026-08-31: 既存行 id="75" のまま、追加した行が id=null）。
 	 *
-	 * **ただしセルの `value` キーは省略できない。** 未設定のセルで `value` ごと
-	 * 省くと、`set()` が受け付けたように見えて行が追加されない（実測）。
-	 * `value: undefined` を明示的に渡すのは通る。
-	 * この構築子は常に `value` を含む形を作るので、通していれば踏まない。
+	 * **ただしセルの `type` と `value` はどちらも省略できない。**
+	 * 省くと kintone が「`.value` が不正です」とエラーを表示する（実測）。
+	 * `value: undefined` を明示的に渡すのは通る。キーが存在することが要件。
+	 *
+	 * しかも `set()` は例外を投げないので、スクリプトからは成功に見える。
+	 * この構築子は常に `{ type, value }` の形を作るので、通していれば踏まない。
 	 */
 	subtableRow: <
 		T extends { [fieldCode: string]: { type: string; value: unknown } },

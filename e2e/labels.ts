@@ -28,5 +28,16 @@ export const SAVE_BUTTON = /^(保存|Save)$/;
  * 一方、フィールドの入力欄には accessible name が無いため、
  * UI での値入力は同じ方法では掴めない。
  */
+/**
+ * カスタマイズの実行時エラー。
+ *
+ * kintone は `set()` に不正な値を渡してもこのダイアログを出すだけで、
+ * **`set()` の呼び出しは例外を投げない**（実測）。
+ * そのためスクリプトからは成功に見え、実際それで誤った実測を記録しかけた。
+ * 採取の途中でこれが出ていたら、その先の結果は信用できない。
+ */
+export const CUSTOMIZE_ERROR =
+	/(カスタマイズ用のJavaScript|JavaScript for customization)/;
+
 export const ADD_ROW = /^(行を追加|Add row)$/;
 export const DELETE_ROW = /^(この行を削除|Delete this row)$/;
