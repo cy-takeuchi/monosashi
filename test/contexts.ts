@@ -151,6 +151,21 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		source: "event.record",
 		why: "編集画面の ChangeEvent。changes.field が record 内と同一オブジェクト参照であること",
 	},
+	// 行の追加・削除の採取。新規行の id の扱いと、
+	// set() での行削除が change を発火しないことの根拠になる
+	{
+		match: "exact",
+		event: "screen.edit.addRow",
+		source: "kintone.app.record.get",
+		why: "保存済みレコードで id を渡さずに行を追加でき、その行の id が null になること",
+	},
+	{
+		match: "exact",
+		event: "screen.edit.removeRow",
+		source: "kintone.app.record.get",
+		why: "set() での行削除が change イベントを発火しないこと",
+	},
+
 	// サブテーブル内の変更は「イベント名」では要求できない。
 	// 実測（2026-08-30）でイベント名は**表内フィールドのコード**
 	// （app.record.create.change.t_singleLineText）であり、

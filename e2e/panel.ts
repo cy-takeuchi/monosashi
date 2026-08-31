@@ -19,6 +19,7 @@ type ProbeApi = {
 	ready: () => boolean;
 	lastError: () => string | null;
 	screen: () => string;
+	changeEvents: () => string[];
 };
 
 /**
@@ -102,4 +103,17 @@ export const sampleCount = (page: Page): Promise<number> =>
 		(
 			window as unknown as { __kintoneRecordProbe: ProbeApi }
 		).__kintoneRecordProbe.count(),
+	);
+
+/**
+ * 実際に登録された change イベント名を取り出す。
+ *
+ * 「このイベントは飛ばなかった」という観測は、聞いていたことを示せて初めて
+ * 意味を持つ。登録漏れと発火しなかったことを取り違えると実測が嘘になる。
+ */
+export const registeredChangeEvents = (page: Page): Promise<string[]> =>
+	page.evaluate(() =>
+		(
+			window as unknown as { __kintoneRecordProbe: ProbeApi }
+		).__kintoneRecordProbe.changeEvents(),
 	);

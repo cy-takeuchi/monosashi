@@ -97,6 +97,11 @@ export const field = {
 	 * id を渡すと既存の行の更新、省略すると新規行になる。
 	 * **既存の行を更新するときに id を落とすと、その行は置き換わって
 	 * 新しい id が振られる**（実測）。意図せず落とさないよう明示的に受け取る。
+	 *
+	 * **新規行に id を渡す必要はない。** 保存済みレコードの表に
+	 * `id` を持たない行を `kintone.app.record.set()` で足すと受け付けられ、
+	 * 読み直すと `id: null` の行として返る。既存の行の id はそのまま
+	 * （実測 2026-08-31: 既存行 id="75" のまま、追加した行が id=null）。
 	 */
 	subtableRow: <
 		T extends { [fieldCode: string]: { type: string; value: unknown } },

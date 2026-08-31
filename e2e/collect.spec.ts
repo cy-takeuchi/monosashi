@@ -4,7 +4,13 @@ import { ACTION } from "../src/probe/testIds";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
 import { SAVE_BUTTON } from "./labels";
-import { clearSamples, click, exportSamples, waitForPanel } from "./panel";
+import {
+	clearSamples,
+	click,
+	exportSamples,
+	registeredChangeEvents,
+	waitForPanel,
+} from "./panel";
 
 /**
  * 実 kintone から採取する。
@@ -66,10 +72,30 @@ test("実 kintone から採取する", async ({ page }) => {
 	await page.reload();
 	await waitForPanel(page, "screen.create");
 
+	// 「テーブルのコードの change は飛ばなかった」と言えるのは、
+	// そのハンドラを登録していた場合だけ。登録漏れを発火しなかったことと
+	// 取り違えないよう、測る前に聞いていたことを確かめる
+	const watched = await registeredChangeEvents(page);
+	const subtableWatchers = watched.filter((name) =>
+		name.endsWith(".change.subtable"),
+	);
+	expect(
+		subtableWatchers,
+		`テーブルのコードの change ハンドラが登録されていない。この状態の観測は根拠にならない（登録済み ${watched.length} 件）`,
+	).not.toHaveLength(0);
+	expect(
+		watched.filter((name) => name.endsWith(".change.t_singleLineText")),
+		`表内フィールドの change ハンドラが登録されていない（登録済み ${watched.length} 件）`,
+	).not.toHaveLength(0);
+
 	await click(page, ACTION.jsApi); // screen.create
 	await click(page, ACTION.setFlags); // screen.create.afterSet
 	await click(page, ACTION.setValue); // create.change.* + setValue の測定
 	await click(page, ACTION.setRow); // create.change.<表> + changes.row
+	// 行の追加・削除でどのイベント名の change が飛ぶか、
+	// 新規行に id を渡さないと何が返るかを測る（#4）
+	await click(page, ACTION.addRow);
+	await click(page, ACTION.removeRow);
 
 	// 保存には必須フィールドが要る。
 	// kintone のフィールド入力欄には accessible name が無いので getByRole で
@@ -106,6 +132,10 @@ test("実 kintone から採取する", async ({ page }) => {
 	await click(page, ACTION.setFlags); // screen.edit.afterSet
 	await click(page, ACTION.setValue); // edit.change.*
 	await click(page, ACTION.setRow); // edit.change.<表>
+	// 保存済みレコードで行を足すと、新規行の id が何になるかを測る。
+	// 作成画面では全行が null なので区別がつかない
+	await click(page, ACTION.addRow);
+	await click(page, ACTION.removeRow);
 
 	// edit.submit と edit.submit.success がここで飛ぶ
 	await page.getByRole("button", { name: SAVE_BUTTON }).click();

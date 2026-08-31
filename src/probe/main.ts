@@ -237,6 +237,24 @@ let changeEventCount = 0;
 let changeEventsRegistered = false;
 
 /**
+ * 実際に登録した change イベント名。
+ *
+ * 「飛ばなかった」と結論する前に「聞いていた」ことを示せる必要がある。
+ * 登録漏れを発火しなかったことと取り違えると、実測が嘘になる。
+ * 実際、行の削除で change が飛ばないという観測をしたとき、
+ * テーブルのコードのハンドラを登録していたかを確認できていなかった。
+ */
+let registeredChangeEvents: string[] = [];
+
+/**
+ * 測定中に発火したイベント名。
+ *
+ * 件数だけでは何が飛んだか分からず、前後のサンプルの時系列から
+ * 推測することになる。推測を実測として扱わないために名前を控える。
+ */
+let firedDuringMeasure: string[] | undefined;
+
+/**
  * set() で「値」を変えたとき change イベントが発火するかを測る。
  *
  * captureAfterSet は disabled / error しか設定していないため、
@@ -280,6 +298,12 @@ const captureSetValue = async (): Promise<void> => {
 	// 「kintone が変わったか」を見るので、こちらが毎回違う値を書き込むと
 	// 本物の変化が埋もれる。画面名を混ぜるのは、編集画面で作成画面と
 	// 同じ値を再設定してしまい change が飛ばなくなるのを避けるため
+	if (targetField.type === undefined) {
+		// set() は type を省略できない（実測）。ここで止めないと
+		// 「type が不正です」という原因の分かりにくい失敗になる
+		throw new Error(`${target} に type がありません`);
+	}
+
 	const newValue = `${screenName()}-setValue`;
 	if (targetField.value === newValue) {
 		throw new Error(
@@ -287,32 +311,14 @@ const captureSetValue = async (): Promise<void> => {
 		);
 	}
 
-	const countBefore = changeEventCount;
 	// 部分更新。変えたいフィールドだけ渡す。
 	// type は省略できない。省くと「type が不正です」で実行時に落ちる（実測）
-	setRecordViaJsApi({
-		[target]: { type: targetField.type, value: newValue },
-	});
-	const countAfterSync = changeEventCount;
-
-	// 同期で飛ばない場合に備えてタスクキューを1周させる。
-	// 固定時間の待機ではなく、マクロタスクを1つ挟むだけ
-	await new Promise((resolve) => {
-		setTimeout(resolve, 0);
-	});
-	const countAfterTick = changeEventCount;
-
-	const after = getRecordViaJsApi();
-	record(`${screenName()}.setValue`, "kintone.app.record.get", after, {
-		structure: inspectStructure(after),
-		setValueProbe: {
-			targetCode: target,
-			newValue,
-			countBefore,
-			countAfterSync,
-			countAfterTick,
-		},
-	});
+	await measureSet(
+		"setValue",
+		target,
+		{ [target]: { type: targetField.type, value: newValue } },
+		newValue,
+	);
 };
 
 /**
@@ -334,8 +340,11 @@ const doRegisterChangeEvents = async (): Promise<void> => {
 	const app = getAppId();
 	if (app === null) return;
 	const codes = await getFieldCodes(app);
-	on(buildChangeEvents(codes), (event) => {
+	const events = buildChangeEvents(codes);
+	registeredChangeEvents = events;
+	on(events, (event) => {
 		changeEventCount += 1;
+		firedDuringMeasure?.push(event.type);
 		// changes.field は record 内のフィールドと同一オブジェクトへの参照なので、
 		// event 全体を 1 回で辿ると循環参照として畳まれて形が見えない。
 		// changes だけを別に辿ることで、field と row の実際の形を採る。
@@ -358,32 +367,150 @@ const doRegisterChangeEvents = async (): Promise<void> => {
  * 新規行に渡すべき id の形（null か省略か）が未測定だから。
  * kintone は作成画面のサブテーブルに空行を 1 つ用意するので、それを使う。
  */
-const captureSetRow = async (): Promise<void> => {
+type LooseRow = {
+	id?: string | null;
+	value: Record<string, { type?: string; value?: unknown }>;
+};
+
+/**
+ * 画面のレコードからサブテーブルを取り出す。
+ *
+ * 行操作の測定は「セルを変える」「行を足す」「行を消す」の 3 つあり、
+ * 入口の処理が同じ。3 回書くとどれかだけ直してずれる。
+ */
+const takeSubtable = (): { tableCode: string; rows: LooseRow[] } => {
 	if (!changeEventsRegistered) {
 		throw new Error(
 			"change ハンドラの登録がまだ終わっていません。数秒待ってから押してください",
 		);
 	}
-
-	const before = getRecordViaJsApi() as
+	const record = getRecordViaJsApi() as
 		| Record<string, { type?: string; value?: unknown }>
 		| undefined;
-	if (before === undefined) throw new Error("レコードを取得できません");
+	if (record === undefined) throw new Error("レコードを取得できません");
 
-	const tableCode = Object.keys(before).find(
-		(code) => before[code]?.type === "SUBTABLE",
+	const tableCode = Object.keys(record).find(
+		(code) => record[code]?.type === "SUBTABLE",
 	);
-	if (tableCode === undefined) {
-		throw new Error("SUBTABLE が見つかりません");
-	}
-	const table = before[tableCode];
+	if (tableCode === undefined) throw new Error("SUBTABLE が見つかりません");
+
+	const table = record[tableCode];
 	if (table === undefined || !Array.isArray(table.value)) {
 		throw new Error("SUBTABLE の値が配列ではありません");
 	}
-	const rows = table.value as {
-		id?: string | null;
-		value: Record<string, { type?: string; value?: unknown }>;
-	}[];
+	return { tableCode, rows: table.value as LooseRow[] };
+};
+
+/**
+ * set() の前後で change イベントを測り、結果を 1 件記録する。
+ *
+ * 「値を変える」「行を足す」「行を消す」で測る内容が同じなので 1 箇所にまとめる。
+ * 別々に書くとどれかだけ直してずれ、比較できない結果が並ぶ。
+ */
+const measureSet = async (
+	label: string,
+	targetCode: string,
+	patch: Record<string, { type: string; value: unknown }>,
+	note: string,
+): Promise<void> => {
+	const countBefore = changeEventCount;
+	firedDuringMeasure = [];
+	setRecordViaJsApi(patch);
+	const countAfterSync = changeEventCount;
+
+	// 同期で飛ばない場合に備えてタスクキューを 1 周させる
+	await new Promise((resolve) => {
+		setTimeout(resolve, 0);
+	});
+	const countAfterTick = changeEventCount;
+	const firedEvents = firedDuringMeasure ?? [];
+	firedDuringMeasure = undefined;
+
+	const after = getRecordViaJsApi();
+	record(`${screenName()}.${label}`, "kintone.app.record.get", after, {
+		structure: inspectStructure(after),
+		setValueProbe: {
+			targetCode,
+			newValue: note,
+			countBefore,
+			countAfterSync,
+			countAfterTick,
+			firedEvents,
+			watchedCount: registeredChangeEvents.length,
+		},
+	});
+};
+
+/**
+ * サブテーブルに行を追加する。
+ *
+ * 2 つのことを同時に測る。
+ *
+ * 1. **行の追加でどのイベント名の change が飛ぶか。**
+ *    セルの変更は `change.<表内フィールドのコード>` だと実測済みだが、
+ *    手動採取していた頃のデータには `change.<テーブルのコード>` も存在した。
+ *    行の追加・削除がそれではないか、という仮説の検証。
+ * 2. **新規行の id に何を渡せばよいか。**
+ *    ここでは **id を渡さない**。渡さなかったときに kintone が何を返すかを見る。
+ *    `field.subtableRow` の JSDoc はこの結果を根拠にする。
+ */
+const captureAddRow = async (): Promise<void> => {
+	const { tableCode, rows } = takeSubtable();
+	const template = rows[0];
+	if (template === undefined) {
+		throw new Error("雛形にする行がありません");
+	}
+
+	// 既存の行の形を写して値だけ変える。セルの構成はテーブル定義で決まるので、
+	// 雛形から作らないと「その表に無いフィールド」を渡すことになる
+	const value: LooseRow["value"] = {};
+	for (const [code, cell] of Object.entries(template.value)) {
+		if (cell.type === undefined) {
+			// set() は type を省略できない（実測）。黙って落とすと
+			// 「type が不正です」で原因の分かりにくい失敗になる
+			throw new Error(`表内の ${code} に type がありません`);
+		}
+		value[code] = {
+			type: cell.type,
+			value:
+				cell.type === "SINGLE_LINE_TEXT"
+					? `${screenName()}-addRow`
+					: cell.value,
+		};
+	}
+
+	// id は付けない。付けない場合の挙動が未測定なので、それを測る
+	await measureSet(
+		"addRow",
+		tableCode,
+		{ [tableCode]: { type: "SUBTABLE", value: [...rows, { value }] } },
+		"id を付けずに行を追加",
+	);
+};
+
+/**
+ * サブテーブルの末尾の行を削除する。
+ *
+ * 追加と同じく、どのイベント名の change が飛ぶかを見る。
+ * 追加では飛ぶが削除では飛ばない、ということもありうるので別に測る。
+ */
+const captureRemoveRow = async (): Promise<void> => {
+	const { tableCode, rows } = takeSubtable();
+	if (rows.length < 2) {
+		throw new Error(
+			`行が ${rows.length} 件しかありません。先に「行を追加」を押してください`,
+		);
+	}
+	await measureSet(
+		"removeRow",
+		tableCode,
+		{ [tableCode]: { type: "SUBTABLE", value: rows.slice(0, -1) } },
+		"末尾の行を削除",
+	);
+};
+
+const captureSetRow = async (): Promise<void> => {
+	const { tableCode, rows } = takeSubtable();
 	const row = rows[0];
 	if (row === undefined) {
 		throw new Error(
@@ -407,28 +534,14 @@ const captureSetRow = async (): Promise<void> => {
 		);
 	}
 
-	const countBefore = changeEventCount;
 	cell.value = newValue;
 	// 表そのものを丸ごと渡す。セルだけを渡す形は未測定
-	setRecordViaJsApi({ [tableCode]: { type: "SUBTABLE", value: rows } });
-	const countAfterSync = changeEventCount;
-
-	await new Promise((resolve) => {
-		setTimeout(resolve, 0);
-	});
-	const countAfterTick = changeEventCount;
-
-	const after = getRecordViaJsApi();
-	record(`${screenName()}.setRow`, "kintone.app.record.get", after, {
-		structure: inspectStructure(after),
-		setValueProbe: {
-			targetCode: `${tableCode}.${cellCode}`,
-			newValue,
-			countBefore,
-			countAfterSync,
-			countAfterTick,
-		},
-	});
+	await measureSet(
+		"setRow",
+		`${tableCode}.${cellCode}`,
+		{ [tableCode]: { type: "SUBTABLE", value: rows } },
+		newValue,
+	);
 };
 
 /**
@@ -545,6 +658,16 @@ const boot = (event: { type?: string }): unknown => {
 						run: captureSetRow,
 					},
 					{
+						id: ACTION.addRow,
+						text: "set() で行を追加",
+						run: captureAddRow,
+					},
+					{
+						id: ACTION.removeRow,
+						text: "set() で行を削除",
+						run: captureRemoveRow,
+					},
+					{
 						id: ACTION.fillRequired,
 						text: "必須を埋める",
 						run: fillRequired,
@@ -577,6 +700,16 @@ const boot = (event: { type?: string }): unknown => {
 						id: ACTION.setRow,
 						text: "set() で表を変更",
 						run: captureSetRow,
+					},
+					{
+						id: ACTION.addRow,
+						text: "set() で行を追加",
+						run: captureAddRow,
+					},
+					{
+						id: ACTION.removeRow,
+						text: "set() で行を削除",
+						run: captureRemoveRow,
 					},
 					{
 						id: ACTION.fillRequired,
@@ -661,6 +794,13 @@ on(
 	ready: (): boolean => changeEventsRegistered,
 	/** 直近の操作の失敗メッセージ。成功していれば null */
 	lastError: getLastError,
+	/**
+	 * 実際に登録した change イベント名。
+	 *
+	 * 「このイベントは飛ばなかった」と言う前に、聞いていたことを確かめるため。
+	 * 登録漏れと発火しなかったことを取り違えると実測が嘘になる。
+	 */
+	changeEvents: (): string[] => registeredChangeEvents,
 	/** 判定された画面。ボタンの出し分けがこれに依存している */
 	screen: (): string => screenName(),
 };

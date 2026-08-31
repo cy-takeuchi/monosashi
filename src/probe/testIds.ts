@@ -27,6 +27,10 @@ export const ACTION = {
 	setValue: "set-value",
 	/** set() でサブテーブル内のセルを変更する。changes.row の根拠になる */
 	setRow: "set-row",
+	/** set() でサブテーブルに行を追加する。行追加時の change と新規行の id を測る */
+	addRow: "add-row",
+	/** set() でサブテーブルの末尾の行を削除する */
+	removeRow: "remove-row",
 	/** 未入力の必須フィールドを set() で埋める。保存できる状態にするため */
 	fillRequired: "fill-required",
 	coverage: "coverage",
