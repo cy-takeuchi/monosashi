@@ -8,6 +8,8 @@ import {
 	clearSamples,
 	click,
 	exportSamples,
+	measureUiCellChange,
+	measureUiFieldChange,
 	measureUiRowChange,
 	registeredChangeEvents,
 	waitForPanel,
@@ -100,9 +102,11 @@ test("実 kintone から採取する", async ({ page }) => {
 	await click(page, ACTION.addRow);
 	await click(page, ACTION.removeRow);
 
-	// UI 経由の行操作。set() とは発火するイベントが違う可能性があるので、
-	// 同じ操作を両方の経路で測る。kintone のボタンを押すが、
-	// 掴むのは役割と名前だけで内部セレクタは使わない
+	// UI 経由の操作。set() とは発火するイベントが違うので、
+	// 同じ操作を両方の経路で測る。kintone の要素に触るが、
+	// 掴むのは役割と、fields.ts で我々が決めたラベルだけ
+	await measureUiFieldChange(page, "uiSetValue", "文字列1行", "ui-文字列1行");
+	await measureUiCellChange(page, "uiSetCell", "文字列1行(表)", "ui-表内");
 	await measureUiRowChange(page, "uiAddRow", ADD_ROW, 1);
 	await measureUiRowChange(page, "uiRemoveRow", DELETE_ROW, -1);
 
@@ -146,6 +150,13 @@ test("実 kintone から採取する", async ({ page }) => {
 	await click(page, ACTION.addRow);
 	await click(page, ACTION.removeRow);
 
+	await measureUiFieldChange(
+		page,
+		"uiSetValue",
+		"文字列1行",
+		"ui-編集-文字列1行",
+	);
+	await measureUiCellChange(page, "uiSetCell", "文字列1行(表)", "ui-編集-表内");
 	await measureUiRowChange(page, "uiAddRow", ADD_ROW, 1);
 	await measureUiRowChange(page, "uiRemoveRow", DELETE_ROW, -1);
 

@@ -214,3 +214,129 @@ export const rowCount = (page: Page): Promise<number> =>
 			window as unknown as { __kintoneRecordProbe: ProbeApi }
 		).__kintoneRecordProbe.rowCount(),
 	);
+
+/**
+ * ラベルから、そのフィールドの入力欄を掴む。
+ *
+ * kintone のフィールド入力欄には accessible name が無いので
+ * `getByRole("textbox", { name })` では取れない（実測）。
+ * 内部セレクタ（`.gaia-*`）は使えないので、**ラベル文字列を起点に**たどる。
+ * ラベルは `tools/fixture-app/fields.ts` で我々が決めたもので、
+ * kintone の内部実装ではないし環境の言語でも変わらない。
+ *
+ * 祖先を 1 段ずつ登り、**入力欄がちょうど 1 件になった段**を使う。
+ * 「2 段上」と決め打ちにすると、kintone が入れ子を 1 段変えただけで壊れる。
+ * 実測では 2 段上だが、そこに依存しない形にしてある。
+ */
+export const fieldInput = async (page: Page, label: string) => {
+	const anchor = page.getByText(label, { exact: true });
+	let path = "..";
+	for (let depth = 1; depth <= 5; depth += 1) {
+		const box = anchor.locator(path).getByRole("textbox");
+		if ((await box.count()) === 1) return box.first();
+		path = `${path}/..`;
+	}
+	throw new Error(
+		`ラベル「${label}」から入力欄を一意に特定できません（5 段上まで探索）`,
+	);
+};
+
+/**
+ * UI でフィールドに入力し、その間に発火した change イベントを採る。
+ *
+ * 値の変更は**フォーカスを外したときに**反映される（開発者による手動確認）。
+ * そのため入力後に blur してからイベントを待つ。
+ */
+export const measureUiFieldChange = async (
+	page: Page,
+	label: string,
+	fieldLabel: string,
+	value: string,
+): Promise<void> => {
+	const input = await fieldInput(page, fieldLabel);
+
+	await beginWatch(page);
+	await input.fill(value);
+	await input.blur();
+
+	try {
+		await page.waitForFunction(
+			() =>
+				(
+					window as unknown as { __kintoneRecordProbe: ProbeApi }
+				).__kintoneRecordProbe.watched().length > 0,
+			undefined,
+			{ timeout: UI_EVENT_TIMEOUT_MS },
+		);
+	} catch {
+		// 上限まで待っても飛ばなかった。それ自体が測定結果
+	}
+
+	await endWatch(page, label);
+};
+
+/**
+ * サブテーブルのセルの入力欄を、列ヘッダーのラベルから掴む。
+ *
+ * 表外のフィールドと違い、ラベル（列ヘッダー）から祖先をたどると
+ * 表全体に着いてしまい、列を特定できない（実測: 入力欄が 17 件）。
+ * そこで列ヘッダーの位置を求め、行の同じ位置のセルを取る。
+ * 使うのは ARIA の標準ロール（table / columnheader / row / cell）だけで、
+ * kintone 固有のセレクタは使わない。
+ *
+ * ヘッダー行の位置は決め打ちにせず、**入力欄を持つ最初の行**を探す。
+ * 「1 行目が本文」と決めると、表の構造が変わったときに黙って別の行を触る。
+ */
+export const subtableCellInput = async (page: Page, header: string) => {
+	const table = page
+		.getByRole("table")
+		.filter({ has: page.getByText(header, { exact: true }) })
+		.first();
+
+	const headers = await table.getByRole("columnheader").allTextContents();
+	const index = headers.findIndex((text) => text.trim() === header);
+	if (index < 0) {
+		throw new Error(`列ヘッダー「${header}」が見つかりません`);
+	}
+
+	const rows = table.getByRole("row");
+	const count = await rows.count();
+	for (let nth = 0; nth < count; nth += 1) {
+		const box = rows.nth(nth).getByRole("cell").nth(index).getByRole("textbox");
+		if ((await box.count()) === 1) return box.first();
+	}
+	throw new Error(
+		`列「${header}」に入力欄を持つ行がありません（${count} 行を確認）`,
+	);
+};
+
+/**
+ * UI で表内のセルに入力し、その間に発火した change イベントを採る。
+ */
+export const measureUiCellChange = async (
+	page: Page,
+	label: string,
+	header: string,
+	value: string,
+): Promise<void> => {
+	const input = await subtableCellInput(page, header);
+
+	await beginWatch(page);
+	await input.fill(value);
+	await input.blur();
+
+	try {
+		await page.waitForFunction(
+			() =>
+				(
+					window as unknown as { __kintoneRecordProbe: ProbeApi }
+				).__kintoneRecordProbe.watched().length > 0,
+			undefined,
+			{ timeout: UI_EVENT_TIMEOUT_MS },
+		);
+	} catch {
+		// 上限まで待っても飛ばなかった。それ自体が測定結果
+	}
+
+	await endWatch(page, label);
+};

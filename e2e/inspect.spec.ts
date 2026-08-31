@@ -51,3 +51,148 @@ test("レコード画面の操作要素を列挙する", async ({ page }) => {
 		console.log(`  <${c.tag}> name="${c.name}"  class=${c.hint}`);
 	}
 });
+
+test("フィールドのラベルと入力欄の関係を調べる", async ({ page }) => {
+	await page.goto(`/k/${env.fixtureAppId()}/edit`);
+	await page.getByRole("button").first().waitFor({ state: "visible" });
+
+	// fields.ts で我々が決めたラベル。環境の言語では変わらない
+	const labels = ["文字列1行", "文字列1行(必須)", "文字列1行(表)"];
+
+	const report = await page.evaluate((targets) => {
+		const out: string[] = [];
+		for (const label of targets) {
+			// ラベル文字列を持つ最も内側の要素を探す
+			const holder = [...document.querySelectorAll("*")]
+				.filter((el) => el.textContent?.trim() === label)
+				.at(-1);
+			if (holder === undefined) {
+				out.push(`${label}: 見つからない`);
+				continue;
+			}
+			// 入力欄を含む最も近い祖先まで登る
+			let node: Element | null = holder;
+			let depth = 0;
+			while (node !== null && depth < 8) {
+				const inputs = node.querySelectorAll("input, textarea, select");
+				if (inputs.length > 0) {
+					out.push(
+						`${label}: 祖先 ${depth} 段上に入力欄 ${inputs.length} 件 ` +
+							`(${[...inputs].map((i) => i.tagName.toLowerCase()).join(",")})` +
+							` / 祖先タグ=${node.tagName.toLowerCase()}`,
+					);
+					break;
+				}
+				node = node.parentElement;
+				depth += 1;
+			}
+			if (node === null || depth >= 8)
+				out.push(`${label}: 入力欄が見つからない`);
+		}
+		return out;
+	}, labels);
+
+	console.log("\n=== ラベルと入力欄の関係 ===");
+	for (const line of report) console.log(`  ${line}`);
+});
+
+test("ラベル起点で入力欄を掴めるかを候補ごとに試す", async ({ page }) => {
+	await page.goto(`/k/${env.fixtureAppId()}/edit`);
+	await page.getByRole("button").first().waitFor({ state: "visible" });
+
+	// fields.ts で我々が決めたラベル。kintone の内部実装ではなく我々の資産で、
+	// 環境の言語でも変わらない
+	const label = "文字列1行";
+
+	const anchor = page.getByText(label, { exact: true });
+	const candidates: {
+		name: string;
+		locator: ReturnType<typeof page.locator>;
+	}[] = [
+		{
+			name: 'getByText(...).locator("..").getByRole("textbox")',
+			locator: anchor.locator("..").getByRole("textbox"),
+		},
+		{
+			name: 'getByText(...).locator("../..").getByRole("textbox")',
+			locator: anchor.locator("../..").getByRole("textbox"),
+		},
+		{
+			name: 'getByText(...).locator("xpath=following::input[1]")',
+			locator: anchor.locator("xpath=following::input[1]"),
+		},
+		{
+			name: 'getByLabel("文字列1行")',
+			locator: page.getByLabel(label, { exact: true }),
+		},
+	];
+
+	console.log(`\n=== "${label}" の入力欄を掴む候補 ===`);
+	console.log(`  ラベル要素そのもの: ${await anchor.count()} 件`);
+	for (const { name, locator } of candidates) {
+		try {
+			const n = await locator.count();
+			// 1 件に絞れて、実際に編集できるかまで見る
+			const editable =
+				n === 1
+					? await locator
+							.first()
+							.isEditable()
+							.catch(() => false)
+					: false;
+			console.log(`  ${n} 件  編集可=${editable}  ${name}`);
+		} catch (error) {
+			console.log(`  失敗  ${name}  (${String(error).split("\n")[0]})`);
+		}
+	}
+});
+
+test("表内セルを列ヘッダーから掴めるかを試す", async ({ page }) => {
+	await page.goto(`/k/${env.fixtureAppId()}/edit`);
+	await page.getByRole("button").first().waitFor({ state: "visible" });
+
+	const header = "文字列1行(表)";
+
+	// 表そのものは ARIA の table ロールで掴む。kintone 固有ではなく標準の役割
+	const table = page
+		.getByRole("table")
+		.filter({ has: page.getByText(header, { exact: true }) })
+		.first();
+
+	console.log("\n=== 表内セルを掴む候補 ===");
+	console.log(`  該当する table: ${await table.count()} 件`);
+
+	const headers = table.getByRole("columnheader");
+	const headerTexts = await headers.allTextContents();
+	console.log(`  列ヘッダー: ${headerTexts.length} 件`);
+	console.log(
+		`    ${headerTexts
+			.map((t) => t.trim())
+			.slice(0, 6)
+			.join(" | ")}`,
+	);
+	const index = headerTexts.findIndex((t) => t.trim() === header);
+	console.log(`  "${header}" は ${index} 列目`);
+
+	const rows = table.getByRole("row");
+	console.log(`  row の数: ${await rows.count()} 件（ヘッダー行を含む）`);
+
+	if (index >= 0) {
+		// 本文の最初の行。ヘッダー行が row に含まれるかは環境依存なので両方見る
+		for (const nth of [0, 1]) {
+			const cell = rows.nth(nth).getByRole("cell").nth(index);
+			const box = cell.getByRole("textbox");
+			const n = await box.count();
+			const editable =
+				n === 1
+					? await box
+							.first()
+							.isEditable()
+							.catch(() => false)
+					: false;
+			console.log(
+				`  rows.nth(${nth}) の ${index} 列目: textbox ${n} 件 編集可=${editable}`,
+			);
+		}
+	}
+});

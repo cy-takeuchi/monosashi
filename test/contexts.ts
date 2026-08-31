@@ -166,6 +166,20 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		why: "set() での行削除が change イベントを発火しないこと",
 	},
 
+	// UI 経由の値変更。set() と同じイベント名であることの根拠になる
+	{
+		match: "exact",
+		event: "screen.edit.uiSetValue",
+		source: "kintone.app.record.get",
+		why: "UI での表外フィールドの値変更が set() と同じイベント名で飛ぶこと",
+	},
+	{
+		match: "exact",
+		event: "screen.edit.uiSetCell",
+		source: "kintone.app.record.get",
+		why: "UI での表内セルの値変更が set() と同じイベント名で飛ぶこと",
+	},
+
 	// UI 経由の行操作。set() とはイベント名が違うことの根拠になる
 	{
 		match: "exact",
