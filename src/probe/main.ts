@@ -60,13 +60,37 @@ const record = (
 // event.record 側。ハンドラ内でしか採れない
 // ---------------------------------------------------------------------------
 
+/**
+ * 次の submit で `error` を返して保存を止める。null なら止めない。
+ *
+ * `CreateSubmitEvent` / `EditSubmitEvent` の `error?: string` は
+ * 「ハンドラの戻り値に設定すると保存を中断できる」という契約のために
+ * optional で持たせているが、**採取時は常に event をそのまま返しており
+ * 一度も確かめていなかった**。
+ *
+ * 保存前の検証は kintone カスタマイズの最頻用途の一つなので、
+ * 型に書いてあるのに未実測という状態を残さない。
+ */
+let blockSubmitWith: string | null = null;
+
 on(EVENTS_WITH_RECORD, (event) => {
 	record(event.type, "event.record", event.record, {
 		envelope: probe(event),
 		structure: inspectStructure(event.record),
 	});
-	// submit 系は必ず event をそのまま返す。返さないと保存が止まる
-	return event;
+
+	// submit 系は既定では event をそのまま返す。返さないと保存が止まる
+	if (blockSubmitWith === null || !event.type.endsWith(".submit")) {
+		return event;
+	}
+
+	const message = blockSubmitWith;
+	blockSubmitWith = null;
+	// 中断したこと自体を 1 件残す。あとから「本当に error を返したのか」を辿れるように
+	record(`${event.type}.blocked`, "event.record", event.record, {
+		envelope: probe({ ...event, error: message }),
+	});
+	return { ...event, error: message };
 });
 
 on(EVENTS_WITH_RECORDS, (event) => {
@@ -871,6 +895,16 @@ on(
 				watchedCount: registeredChangeEvents.length,
 			},
 		});
+	},
+
+	/**
+	 * 次の submit で error を返して保存を止める。
+	 *
+	 * 保存を止める挙動は e2e から起こす必要がある。
+	 * パネルのボタンでは保存そのものを起こせないため。
+	 */
+	blockNextSubmit: (message: string): void => {
+		blockSubmitWith = message;
 	},
 
 	/**

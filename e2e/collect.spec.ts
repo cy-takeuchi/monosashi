@@ -8,6 +8,7 @@ import {
 	clearSamples,
 	click,
 	exportSamples,
+	measureBlockedSubmit,
 	measureUiCellChange,
 	measureUiFieldChange,
 	measureUiRowChange,
@@ -118,6 +119,11 @@ test("実 kintone から採取する", async ({ page }) => {
 	await click(page, ACTION.fillRequired);
 
 	// --- 保存 → 詳細画面 -----------------------------------------------------
+	// まず保存を中断させる。error を返すと止まることの実測（#4 の 5）。
+	// 通常の保存より先に行うのは、止まったあとにそのまま保存すれば
+	// 1 レコードで両方を測れるため
+	await measureBlockedSubmit(page, "保存を止める実測用", "screen.create");
+
 	// create.submit と create.submit.success がここで飛ぶ
 	await page.getByRole("button", { name: SAVE_BUTTON }).click();
 	await waitForPanel(page, "screen.detail");
@@ -161,6 +167,8 @@ test("実 kintone から採取する", async ({ page }) => {
 	await measureUiCellChange(page, "uiSetCell", "文字列1行(表)", "ui-編集-表内");
 	await measureUiRowChange(page, "uiAddRow", ADD_ROW, 1);
 	await measureUiRowChange(page, "uiRemoveRow", DELETE_ROW, -1);
+
+	await measureBlockedSubmit(page, "保存を止める実測用", "screen.edit");
 
 	// edit.submit と edit.submit.success がここで飛ぶ
 	await page.getByRole("button", { name: SAVE_BUTTON }).click();

@@ -166,6 +166,20 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		why: "set() での行削除が change イベントを発火しないこと",
 	},
 
+	// 保存の中断。error を返すと保存が止まることの根拠になる
+	{
+		match: "exact",
+		event: "app.record.create.submit.blocked",
+		source: "event.record",
+		why: "submit の戻り値に error を設定すると保存が中断されること",
+	},
+	{
+		match: "exact",
+		event: "app.record.edit.submit.blocked",
+		source: "event.record",
+		why: "更新時も同じく error で中断できること",
+	},
+
 	// UI 経由の値変更。set() と同じイベント名であることの根拠になる
 	{
 		match: "exact",

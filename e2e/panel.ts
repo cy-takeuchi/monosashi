@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
-import { CUSTOMIZE_ERROR } from "./labels";
+import { CUSTOMIZE_ERROR, SAVE_BUTTON } from "./labels";
 
 /**
  * 採取パネルの操作。
@@ -25,6 +25,7 @@ type ProbeApi = {
 	watched: () => string[];
 	endWatch: (label: string) => void;
 	rowCount: () => number;
+	blockNextSubmit: (message: string) => void;
 };
 
 /**
@@ -366,4 +367,47 @@ export const measureUiCellChange = async (
 
 	await endWatch(page, label);
 	await assertNoCustomizeError(page, label);
+};
+
+/**
+ * submit ハンドラの戻り値に `error` を設定して、保存が止まるかを測る。
+ *
+ * `CreateSubmitEvent` / `EditSubmitEvent` の `error?: string` は
+ * 「保存を中断できる」という契約のために持たせているが、
+ * **採取時は常に event をそのまま返しており一度も確かめていなかった**。
+ *
+ * ## 止まったことをどう判定するか
+ *
+ * 「画面が遷移しないこと」では判定できない。遷移しないのを待つには
+ * 時間を決めるしかなく、遅い遷移と区別がつかない。
+ *
+ * 代わりに **`submit.success` が飛んでいないこと**と
+ * **パネルがまだ編集中の画面を指していること**の 2 つで見る。
+ * 前者は probe が採ったサンプルで分かり、後者は data-screen で分かる。
+ */
+export const measureBlockedSubmit = async (
+	page: Page,
+	message: string,
+	expectedScreen: string,
+): Promise<void> => {
+	await page.evaluate((text) => {
+		(
+			window as unknown as { __kintoneRecordProbe: ProbeApi }
+		).__kintoneRecordProbe.blockNextSubmit(text);
+	}, message);
+
+	await page.getByRole("button", { name: SAVE_BUTTON }).click();
+
+	// kintone が error を画面に出すまで待つ。
+	// これが出れば保存は止まっている（成功なら詳細画面へ遷移してしまう）
+	await expect(page.getByText(message)).toBeVisible();
+
+	// 画面が変わっていないことを確かめる。パネルは画面ごとに描き直されるので、
+	// data-screen が編集中の画面のままなら遷移していない
+	await expect(page.locator(`[data-testid="${PANEL}"]`)).toHaveAttribute(
+		"data-screen",
+		expectedScreen,
+	);
+
+	await assertNoCustomizeError(page, "保存の中断");
 };

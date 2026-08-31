@@ -143,8 +143,20 @@ export type ChangeEvent<Type extends string, Record> = Base<Type> & {
  * record は編集中のフォームの値なので Editing 系。
  * **recordId を持たない**（実測: create.submit には appId しか無い）。
  *
- * `error` は event に最初から生えているわけではない（実測: キーが存在しない）。
- * ハンドラの戻り値に設定すると保存を中断できる、という契約のために optional で持つ。
+ * ## error は受け取る側には無い。返す側で使う
+ *
+ * 受け取る event に `error` キーは**存在しない**（実測: `type` / `appId` / `record` のみ）。
+ * ハンドラの戻り値に設定すると**保存が中断される**（実測 2026-08-31）。
+ *
+ * ```ts
+ * kintone.events.on("app.record.create.submit", (event) => {
+ *   if (だめな条件) return { ...event, error: "保存できません" };
+ *   return event;
+ * });
+ * ```
+ *
+ * 中断すると `submit.success` は飛ばず、メッセージが画面に表示される。
+ * 中断したあと、そのまま再度保存すれば通る（`submit` が再び飛ぶ）。
  */
 export type CreateSubmitEvent<Type extends string> = Base<Type> & {
 	record: CreateRecord;
@@ -156,6 +168,10 @@ export type CreateSubmitEvent<Type extends string> = Base<Type> & {
  *
  * **recordId を持つ（number）**。作成時との違い（実測）。
  * record にはシステムフィールドと $id / $revision も含まれる。
+ *
+ * `error` の扱いは `CreateSubmitEvent` と同じ。
+ * 受け取る event にキーは無く（実測: `type` / `appId` / `recordId` / `record` のみ）、
+ * 戻り値に設定すると保存が中断される（実測 2026-08-31）。
  */
 export type EditSubmitEvent<Type extends string> = Base<Type> & {
 	recordId: number;
