@@ -33,8 +33,14 @@ jobs:
       KINTONE_BASE_URL: ${{ secrets.KINTONE_BASE_URL }}
       KINTONE_USERNAME: ${{ secrets.KINTONE_USERNAME }}
       KINTONE_PASSWORD: ${{ secrets.KINTONE_PASSWORD }}
-      FIXTURE_APP_ID: ${{ secrets.FIXTURE_APP_ID }}
-      FIXTURE_LOOKUP_APP_ID: ${{ secrets.FIXTURE_LOOKUP_APP_ID }}
+      # アプリ ID は Secret ではなく Variable にする。
+      # 秘密ではない（URL に出る）うえ、"1" や "2" のような短い値を Secret にすると
+      # GitHub がログ中のあらゆる 1 と 2 を伏せてしまう。
+      # 実際に "e2e" が "e***e"、"CB_NO02" が "CB_NO0***" になり、
+      # 失敗の原因が読めなくなった。診断が仕事のジョブなので致命的。
+      # 移行中でも動くよう、Variable が無ければ Secret を見る
+      FIXTURE_APP_ID: ${{ vars.FIXTURE_APP_ID || secrets.FIXTURE_APP_ID }}
+      FIXTURE_LOOKUP_APP_ID: ${{ vars.FIXTURE_LOOKUP_APP_ID || secrets.FIXTURE_LOOKUP_APP_ID }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
