@@ -948,6 +948,25 @@ GitHub はリポジトリが 60 日間非アクティブだと `schedule:` を�
 「人が忘れても動く」ことが目的の仕組みなので、この性質は目的と正面から衝突する。
 ワークフローの冒頭にコメントで残してある。
 
+## Actions が PR を作れるようにする設定が要る
+
+`peter-evans/create-pull-request` は既定では失敗する。
+
+```
+GitHub Actions is not permitted to create or approve pull requests.
+```
+
+Settings → Actions → General → Workflow permissions の
+「Allow GitHub Actions to create and approve pull requests」で有効にする。
+
+**この設定は「作成」と「承認」を同じトグルで制御する。**
+承認まで許すので既定で無効なのは妥当。有効にすると、main にマージされた
+ワークフローが PR を自己承認できるようになる。
+このリポジトリにその経路は書いていないが、緩和したことは意識しておく。
+
+避ける手もある。ジョブはブランチを push するだけにして、PR は人が開く方式。
+設定変更は要らないが、「人が忘れても動く」という目的は弱まる。
+
 ## 参照
 
 - 実測の手順: [`../README.md`](../README.md)
