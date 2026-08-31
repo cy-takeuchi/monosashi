@@ -1,0 +1,136 @@
+name: Live verification
+
+# 実 kintone から採取し、コミット済みの基準と差分が出たら
+# フィクスチャ更新 PR を立てる。
+#
+# PR では実 kintone に接続しない（Check ワークフロー）。
+# PR ごとにライブ実行すると遅く不安定になり、やがて無効化されるため。
+# 責務を分けることで、PR は速いまま、実物との乖離は最大 1 週間で検出できる。
+#
+# 【注意】スケジュール実行は、リポジトリが 60 日間非アクティブだと
+# GitHub に自動で無効化される。「人が忘れても動く」ことが目的の仕組みなので、
+# 止まっていないかを時々確認すること（Actions タブに警告が出る）。
+on:
+  schedule:
+    - cron: "0 0 * * 1" # 毎週月曜 09:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: write # フィクスチャ更新 PR のブランチを作る
+  pull-requests: write
+
+# 手動起動とスケジュールが重なると、同じ検証アプリに対して
+# probe の適用と採取が並行して走り、互いの結果を壊す
+concurrency:
+  group: live-verification
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KINTONE_BASE_URL: ${{ secrets.KINTONE_BASE_URL }}
+      KINTONE_USERNAME: ${{ secrets.KINTONE_USERNAME }}
+      KINTONE_PASSWORD: ${{ secrets.KINTONE_PASSWORD }}
+      FIXTURE_APP_ID: ${{ secrets.FIXTURE_APP_ID }}
+      FIXTURE_LOOKUP_APP_ID: ${{ secrets.FIXTURE_LOOKUP_APP_ID }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run e2e:install
+
+      # 環境が壊れているのか kintone が変わったのかを区別する。
+      # 先に前提を確かめておかないと、アプリを誰かが編集しただけでも
+      # 「kintone が変わった」ように見える差分が出る
+      - name: 検証アプリの構成チェック
+        run: pnpm run app:verify
+
+      # probe.js は 1 つの成果物。人間が手で貼るのも CI が貼るのも同じもの。
+      # 採取ロジックを二重に持つと、手動で採った実測と CI が検証している実測が
+      # 別物になる。
+      #
+      # リトライするのは、kintone が一過性の 500（GAIA_CS02「予期せぬエラー」）を
+      # 返すことがあるため。実際に踏んだ。そのとき適用が中途半端に終わり、
+      # 続く採取が「パネルが出ない」で失敗する。
+      # kintone が変わったわけではないのに週次ジョブが赤くなるので、ここで吸収する
+      - name: 採取カスタマイズを適用
+        run: |
+          pnpm run probe:build
+          for attempt in 1 2 3; do
+            if pnpm run app:deploy-probe; then
+              exit 0
+            fi
+            echo "::warning::適用に失敗した（$attempt 回目）。30 秒待って再試行する"
+            sleep 30
+          done
+          echo "::error::採取カスタマイズを 3 回とも適用できなかった"
+          exit 1
+
+      - name: 実 kintone から採取
+        run: pnpm run e2e
+
+      - name: 正規化して基準を更新
+        run: pnpm run fixture:build
+
+      - name: 差分の有無を判定
+        id: diff
+        run: |
+          if git diff --quiet -- fixtures/measured.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "kintone は変わっていない"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "実測に差分が出た"
+          fi
+
+      # 新しい実測に対して既存のテストを走らせる。
+      #
+      # 本来は PR 上の Check ワークフローに判定させたいが、
+      # **GITHUB_TOKEN で作った PR は on: pull_request を起動しない**（GitHub の仕様）。
+      # PAT を増やすより、ここで判定して PR のタイトルに載せるほうが単純。
+      #
+      # continue-on-error にするのは、テストが落ちても PR は立てたいため。
+      # 落ちたときこそ、新しい実測データが手元に必要になる。
+      - name: 新しい実測に対して型の主張を検証
+        id: verify
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        run: pnpm run test
+
+      - name: フィクスチャ更新 PR を立てる
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: fixture-update
+          add-paths: fixtures/measured.json
+          commit-message: "chore: 実測の変化を取り込む"
+          title: >-
+            ${{ steps.verify.outcome == 'failure'
+              && '実測が変わり、型の主張が壊れた'
+              || '実測が変わった（型の主張は保たれている）' }}
+          body: |
+            週次のライブ検証で `fixtures/measured.json` に差分が出た。
+
+            **型の主張の検証結果: ${{ steps.verify.outcome == 'failure' && '❌ 失敗' || '✅ 成功' }}**
+
+            - **失敗** → kintone の振る舞いが変わり、宣言している型が実物と合わなくなった。
+              このジョブのログで `field.test.ts` / `coverage.test.ts` のどの主張が落ちたかを確認し、
+              型を直してからマージする
+            - **成功** → 形は変わっていない。値だけの変化（日時フォーマットなど）なので、
+              diff を見て取り込むか判断する
+
+            差分の読み方は `docs/DECISIONS.md` の「採取結果は決定的である」を参照。
+
+      # 型の主張が壊れたことは通知が飛ぶべき事象なので、PR を立てたうえで落とす。
+      # スケジュール実行の失敗は、ワークフローを最後に更新した人に通知される
+      - name: 型の主張が壊れていたら失敗させる
+        if: steps.verify.outcome == 'failure'
+        run: |
+          echo "::error::実測が変わり、型の主張が壊れた。fixture-update ブランチの PR を確認すること"
+          exit 1
