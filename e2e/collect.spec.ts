@@ -3,11 +3,12 @@ import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
-import { SAVE_BUTTON } from "./labels";
+import { ADD_ROW, DELETE_ROW, SAVE_BUTTON } from "./labels";
 import {
 	clearSamples,
 	click,
 	exportSamples,
+	measureUiRowChange,
 	registeredChangeEvents,
 	waitForPanel,
 } from "./panel";
@@ -91,11 +92,19 @@ test("実 kintone から採取する", async ({ page }) => {
 	await click(page, ACTION.jsApi); // screen.create
 	await click(page, ACTION.setFlags); // screen.create.afterSet
 	await click(page, ACTION.setValue); // create.change.* + setValue の測定
-	await click(page, ACTION.setRow); // create.change.<表> + changes.row
-	// 行の追加・削除でどのイベント名の change が飛ぶか、
-	// 新規行に id を渡さないと何が返るかを測る（#4）
+	await click(page, ACTION.setRow); // create.change.<表内> + changes.row
+
+	// 行を足すにはどこかのセルに値が要るため、「値の変化を伴わない純粋な行追加」は
+	// set() では作れない。よって行追加で飛ぶ change が、行が増えたことによるものか
+	// 新しい行のセルに値が入ったことによるものかは切り分けられない（#4）
 	await click(page, ACTION.addRow);
 	await click(page, ACTION.removeRow);
+
+	// UI 経由の行操作。set() とは発火するイベントが違う可能性があるので、
+	// 同じ操作を両方の経路で測る。kintone のボタンを押すが、
+	// 掴むのは役割と名前だけで内部セレクタは使わない
+	await measureUiRowChange(page, "uiAddRow", ADD_ROW, 1);
+	await measureUiRowChange(page, "uiRemoveRow", DELETE_ROW, -1);
 
 	// 保存には必須フィールドが要る。
 	// kintone のフィールド入力欄には accessible name が無いので getByRole で
@@ -136,6 +145,9 @@ test("実 kintone から採取する", async ({ page }) => {
 	// 作成画面では全行が null なので区別がつかない
 	await click(page, ACTION.addRow);
 	await click(page, ACTION.removeRow);
+
+	await measureUiRowChange(page, "uiAddRow", ADD_ROW, 1);
+	await measureUiRowChange(page, "uiRemoveRow", DELETE_ROW, -1);
 
 	// edit.submit と edit.submit.success がここで飛ぶ
 	await page.getByRole("button", { name: SAVE_BUTTON }).click();

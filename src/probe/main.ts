@@ -401,6 +401,14 @@ const takeSubtable = (): { tableCode: string; rows: LooseRow[] } => {
 	return { tableCode, rows: table.value as LooseRow[] };
 };
 
+/** 画面のレコードから表の行数を数える。set() の効果の確認に使う */
+const countRows = (record: unknown, tableCode: string): number => {
+	const table = (record as Record<string, { value?: unknown }> | undefined)?.[
+		tableCode
+	];
+	return Array.isArray(table?.value) ? table.value.length : -1;
+};
+
 /**
  * set() の前後で change イベントを測り、結果を 1 件記録する。
  *
@@ -412,6 +420,15 @@ const measureSet = async (
 	targetCode: string,
 	patch: Record<string, { type: string; value: unknown }>,
 	note: string,
+	/**
+	 * set() が意図した効果を持ったかの検証。
+	 *
+	 * set() は投げなくても**静かに何もしないこと**がある。
+	 * 実際、値を持たないセルだけで構成した行を足そうとしたとき、
+	 * エラーにならないまま行が増えなかった。
+	 * 効果を確かめずに記録すると、空振りが実測として残る。
+	 */
+	verify?: (after: unknown) => string | undefined,
 ): Promise<void> => {
 	const countBefore = changeEventCount;
 	firedDuringMeasure = [];
@@ -427,6 +444,11 @@ const measureSet = async (
 	firedDuringMeasure = undefined;
 
 	const after = getRecordViaJsApi();
+	const problem = verify?.(after);
+	if (problem !== undefined) {
+		throw new Error(`set() が期待した効果を持ちませんでした: ${problem}`);
+	}
+
 	record(`${screenName()}.${label}`, "kintone.app.record.get", after, {
 		structure: inspectStructure(after),
 		setValueProbe: {
@@ -444,15 +466,26 @@ const measureSet = async (
 /**
  * サブテーブルに行を追加する。
  *
- * 2 つのことを同時に測る。
+ * 2 つのことを測る。
  *
  * 1. **行の追加でどのイベント名の change が飛ぶか。**
- *    セルの変更は `change.<表内フィールドのコード>` だと実測済みだが、
- *    手動採取していた頃のデータには `change.<テーブルのコード>` も存在した。
- *    行の追加・削除がそれではないか、という仮説の検証。
  * 2. **新規行の id に何を渡せばよいか。**
  *    ここでは **id を渡さない**。渡さなかったときに kintone が何を返すかを見る。
- *    `field.subtableRow` の JSDoc はこの結果を根拠にする。
+ *
+ * ## 切り分けられなかったこと
+ *
+ * 飛んだ change が「行が増えたから」なのか「新しい行のセルに値が入ったから」なのかは
+ * `set()` では切り分けられない。行を足すにはどこかのセルに値が要るため、
+ * 値の変化を伴わない行追加を作れない。
+ *
+ * ## value キーは省略できない
+ *
+ * 未設定のセルで `value` ごと省くと、set() が受け付けたように見えて
+ * **行が追加されない**（実測 2026-08-31）。`value: undefined` を明示的に渡すのは通る。
+ * ここでもキーの有無が効いている。
+ *
+ * この制約は、効果の検証（行数が変わったか）を入れて初めて気づいた。
+ * それまでは set() が投げないことを成功として記録していた。
  */
 const captureAddRow = async (): Promise<void> => {
 	const { tableCode, rows } = takeSubtable();
@@ -461,8 +494,11 @@ const captureAddRow = async (): Promise<void> => {
 		throw new Error("雛形にする行がありません");
 	}
 
-	// 既存の行の形を写して値だけ変える。セルの構成はテーブル定義で決まるので、
-	// 雛形から作らないと「その表に無いフィールド」を渡すことになる
+	// 雛形の行をそのまま複製する。**値は変えない。**
+	// 値を入れて足すと、飛んだ change が「行が増えたから」なのか
+	// 「セルに値が入ったから」なのか区別できない。
+	// セルの構成はテーブル定義で決まるので、雛形から作らないと
+	// 「その表に無いフィールド」を渡すことになる
 	const value: LooseRow["value"] = {};
 	for (const [code, cell] of Object.entries(template.value)) {
 		if (cell.type === undefined) {
@@ -470,6 +506,9 @@ const captureAddRow = async (): Promise<void> => {
 			// 「type が不正です」で原因の分かりにくい失敗になる
 			throw new Error(`表内の ${code} に type がありません`);
 		}
+		// **value キーは必ず付ける。** 未設定のセルで value ごと省くと、
+		// set() が受け付けたように見えて行が追加されない（実測 2026-08-31）。
+		// undefined を明示的に渡すのは通る。キーの有無が効いている
 		value[code] = {
 			type: cell.type,
 			value:
@@ -479,12 +518,19 @@ const captureAddRow = async (): Promise<void> => {
 		};
 	}
 
+	const before = rows.length;
 	// id は付けない。付けない場合の挙動が未測定なので、それを測る
 	await measureSet(
 		"addRow",
 		tableCode,
 		{ [tableCode]: { type: "SUBTABLE", value: [...rows, { value }] } },
 		"id を付けずに行を追加",
+		(after) => {
+			const now = countRows(after, tableCode);
+			return now === before + 1
+				? undefined
+				: `行が ${before} → ${now} 件（${before + 1} 件を期待）`;
+		},
 	);
 };
 
@@ -501,11 +547,18 @@ const captureRemoveRow = async (): Promise<void> => {
 			`行が ${rows.length} 件しかありません。先に「行を追加」を押してください`,
 		);
 	}
+	const before = rows.length;
 	await measureSet(
 		"removeRow",
 		tableCode,
 		{ [tableCode]: { type: "SUBTABLE", value: rows.slice(0, -1) } },
 		"末尾の行を削除",
+		(after) => {
+			const now = countRows(after, tableCode);
+			return now === before - 1
+				? undefined
+				: `行が ${before} → ${now} 件（${before - 1} 件を期待）`;
+		},
 	);
 };
 
@@ -803,4 +856,52 @@ on(
 	changeEvents: (): string[] => registeredChangeEvents,
 	/** 判定された画面。ボタンの出し分けがこれに依存している */
 	screen: (): string => screenName(),
+
+	/**
+	 * UI 操作の前後で発火した change イベントを拾うための口。
+	 *
+	 * `set()` と UI 操作では発火するイベントが違う。
+	 * UI 側はパネルのボタンでは起こせないので、Playwright が kintone の
+	 * ボタンを押す。その前後をこの 2 つで挟んで、飛んだイベント名を採る。
+	 *
+	 * 掴むのは役割と名前で特定できるボタンだけ（`Add row` / `Delete this row`）。
+	 * 内部セレクタは使わない。
+	 */
+	beginWatch: (): void => {
+		firedDuringMeasure = [];
+	},
+	/** 監視中に今までに飛んだイベント名。発火を待つためにポーリングする */
+	watched: (): string[] => firedDuringMeasure ?? [],
+	endWatch: (label: string): void => {
+		const firedEvents = firedDuringMeasure ?? [];
+		firedDuringMeasure = undefined;
+		const after = getRecordViaJsApi();
+		record(`${screenName()}.${label}`, "kintone.app.record.get", after, {
+			structure: inspectStructure(after),
+			setValueProbe: {
+				targetCode: "(UI 操作)",
+				newValue: label,
+				countBefore: changeEventCount - firedEvents.length,
+				countAfterSync: changeEventCount,
+				countAfterTick: changeEventCount,
+				firedEvents,
+				watchedCount: registeredChangeEvents.length,
+			},
+		});
+	},
+
+	/**
+	 * 最初のサブテーブルの行数。
+	 *
+	 * UI 操作は非同期に反映されるので、固定時間で待たずにこれをポーリングする。
+	 */
+	rowCount: (): number => {
+		const rec = getRecordViaJsApi() as
+			| Record<string, { type?: string; value?: unknown }>
+			| undefined;
+		if (rec === undefined) return -1;
+		const code = Object.keys(rec).find((k) => rec[k]?.type === "SUBTABLE");
+		const table = code === undefined ? undefined : rec[code];
+		return Array.isArray(table?.value) ? table.value.length : -1;
+	},
 };

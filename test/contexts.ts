@@ -166,6 +166,20 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		why: "set() での行削除が change イベントを発火しないこと",
 	},
 
+	// UI 経由の行操作。set() とはイベント名が違うことの根拠になる
+	{
+		match: "exact",
+		event: "screen.edit.uiAddRow",
+		source: "kintone.app.record.get",
+		why: "UI での行追加が change.<テーブルのコード> を発火すること（set() とは違う）",
+	},
+	{
+		match: "exact",
+		event: "screen.edit.uiRemoveRow",
+		source: "kintone.app.record.get",
+		why: "UI での行削除が change.<テーブルのコード> を発火すること（set() では発火しない）",
+	},
+
 	// サブテーブル内の変更は「イベント名」では要求できない。
 	// 実測（2026-08-30）でイベント名は**表内フィールドのコード**
 	// （app.record.create.change.t_singleLineText）であり、

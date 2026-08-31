@@ -18,3 +18,15 @@ export const LOGIN_NAME = /^(ログイン名|Login name)$/;
 export const PASSWORD = /^(パスワード|Password)$/;
 export const LOGIN_BUTTON = /^(ログイン|Login)$/;
 export const SAVE_BUTTON = /^(保存|Save)$/;
+
+/**
+ * サブテーブルの行操作ボタン。
+ *
+ * **役割と名前で掴める**ことを実物で確認済み（`e2e/inspect.spec.ts`）。
+ * 内部セレクタ（`.add-row-image-gaia` など）は使わない。
+ *
+ * 一方、フィールドの入力欄には accessible name が無いため、
+ * UI での値入力は同じ方法では掴めない。
+ */
+export const ADD_ROW = /^(行を追加|Add row)$/;
+export const DELETE_ROW = /^(この行を削除|Delete this row)$/;
