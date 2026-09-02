@@ -86,6 +86,14 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		why: "Rest 文脈。DROP_DOWN が null になりうること",
 	},
 
+	// --- 印刷画面 ---
+	{
+		match: "exact",
+		event: "app.record.print.show",
+		source: "event.record",
+		why: "印刷画面でもカスタマイズが動き、詳細画面と同じ Saved レコードを持つこと。パネルを載せるヘッダが無いので event.record だけが採れる",
+	},
+
 	// --- 編集画面 ---
 	{
 		match: "exact",

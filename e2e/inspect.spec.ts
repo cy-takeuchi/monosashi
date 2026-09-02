@@ -196,3 +196,46 @@ test("表内セルを列ヘッダーから掴めるかを試す", async ({ page 
 		}
 	}
 });
+
+test("詳細・一覧・印刷の操作要素を調べる", async ({ page }) => {
+	const app = env.fixtureAppId();
+
+	const dump = async (label: string) => {
+		const names = await page.evaluate(() =>
+			[...document.querySelectorAll("button, a")]
+				.map((el) =>
+					(
+						el.getAttribute("aria-label") ??
+						el.getAttribute("title") ??
+						el.textContent ??
+						""
+					)
+						.trim()
+						.slice(0, 30),
+				)
+				.filter((n) => n !== ""),
+		);
+		console.log(`\n=== ${label}: ${names.length} 件 ===`);
+		console.log(`  ${[...new Set(names)].join(" | ")}`);
+		const panel = await page
+			.locator('[data-testid="krp-panel"]')
+			.getAttribute("data-screen")
+			.catch(() => null);
+		console.log(`  パネルの画面判定: ${panel ?? "（パネル無し）"}`);
+	};
+
+	// 詳細画面。プロセス管理のアクションボタンがあるか
+	await page.goto(`/k/${app}/show#record=1`);
+	await page.getByRole("button").first().waitFor({ state: "visible" });
+	await dump("詳細画面");
+
+	// 一覧画面。インライン編集のボタンがあるか
+	await page.goto(`/k/${app}/`);
+	await page.getByRole("button").first().waitFor({ state: "visible" });
+	await dump("一覧画面");
+
+	// 印刷画面。そもそもパネルが出るか（採取できるか）
+	await page.goto(`/k/${app}/print?record=1`);
+	await page.waitForLoadState("load");
+	await dump("印刷画面");
+});

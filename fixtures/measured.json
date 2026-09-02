@@ -49762,6 +49762,3085 @@
 			}
 		},
 		{
+			"event": "app.record.print.show",
+			"source": "event.record",
+			"label": "unlabeled",
+			"appId": -1,
+			"recordId": -1,
+			"isMobile": false,
+			"at": "<at>",
+			"data": {
+				"k": "object",
+				"ctor": "Object",
+				"keys": [
+					"レコード番号",
+					"更新者",
+					"作成者",
+					"更新日時",
+					"作成日時",
+					"ステータス",
+					"作業者",
+					"カテゴリー",
+					"singleLineText",
+					"singleLineTextRequired",
+					"singleLineTextUnique",
+					"multiLineText",
+					"richText",
+					"number",
+					"calc",
+					"calcDateTime",
+					"checkBox",
+					"radioButton",
+					"dropDown",
+					"dropDownWithDefault",
+					"multiSelect",
+					"date",
+					"time",
+					"dateTime",
+					"link",
+					"linkMail",
+					"file",
+					"userSelect",
+					"organizationSelect",
+					"groupSelect",
+					"lookupCopyName",
+					"lookupCopyAmount",
+					"inGroupText",
+					"lookupKey",
+					"subtable",
+					"$revision",
+					"$id"
+				],
+				"props": {
+					"レコード番号": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "RECORD_NUMBER"
+							},
+							"value": {
+								"k": "string",
+								"v": "<record-number>"
+							}
+						}
+					},
+					"更新者": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "MODIFIER"
+							},
+							"value": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"code",
+									"name"
+								],
+								"props": {
+									"code": {
+										"k": "string",
+										"v": "<entity-code>"
+									},
+									"name": {
+										"k": "string",
+										"v": "<entity-name>"
+									}
+								}
+							}
+						}
+					},
+					"作成者": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "CREATOR"
+							},
+							"value": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"code",
+									"name"
+								],
+								"props": {
+									"code": {
+										"k": "string",
+										"v": "<entity-code>"
+									},
+									"name": {
+										"k": "string",
+										"v": "<entity-name>"
+									}
+								}
+							}
+						}
+					},
+					"更新日時": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "UPDATED_TIME"
+							},
+							"value": {
+								"k": "string",
+								"v": "<datetime>"
+							}
+						}
+					},
+					"作成日時": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "CREATED_TIME"
+							},
+							"value": {
+								"k": "string",
+								"v": "<datetime>"
+							}
+						}
+					},
+					"ステータス": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "STATUS"
+							},
+							"value": {
+								"k": "string",
+								"v": "未処理"
+							}
+						}
+					},
+					"作業者": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "STATUS_ASSIGNEE"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"カテゴリー": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "CATEGORY"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"singleLineText": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SINGLE_LINE_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": "ui-文字列1行"
+							}
+						}
+					},
+					"singleLineTextRequired": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SINGLE_LINE_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": "e2e-required-singleLineTextRequired"
+							}
+						}
+					},
+					"singleLineTextUnique": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SINGLE_LINE_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"multiLineText": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "MULTI_LINE_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"richText": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "RICH_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": "<div><br /></div>"
+							}
+						}
+					},
+					"number": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "NUMBER"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"calc": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "CALC"
+							},
+							"value": {
+								"k": "string",
+								"v": "0"
+							}
+						}
+					},
+					"calcDateTime": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "CALC"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"checkBox": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "CHECK_BOX"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"radioButton": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "RADIO_BUTTON"
+							},
+							"value": {
+								"k": "string",
+								"v": "one"
+							}
+						}
+					},
+					"dropDown": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "DROP_DOWN"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"dropDownWithDefault": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "DROP_DOWN"
+							},
+							"value": {
+								"k": "string",
+								"v": "alpha"
+							}
+						}
+					},
+					"multiSelect": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "MULTI_SELECT"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"date": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "DATE"
+							},
+							"value": {
+								"k": "null"
+							}
+						}
+					},
+					"time": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "TIME"
+							},
+							"value": {
+								"k": "null"
+							}
+						}
+					},
+					"dateTime": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "DATETIME"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"link": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "LINK"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"linkMail": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "LINK"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"file": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "FILE"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"userSelect": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "USER_SELECT"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"organizationSelect": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "ORGANIZATION_SELECT"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"groupSelect": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "GROUP_SELECT"
+							},
+							"value": {
+								"k": "array",
+								"length": 0,
+								"items": []
+							}
+						}
+					},
+					"lookupCopyName": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SINGLE_LINE_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"lookupCopyAmount": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "NUMBER"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"inGroupText": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SINGLE_LINE_TEXT"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"lookupKey": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"confirmed",
+							"recordId",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SINGLE_LINE_TEXT"
+							},
+							"confirmed": {
+								"k": "boolean",
+								"v": true
+							},
+							"recordId": {
+								"k": "null"
+							},
+							"value": {
+								"k": "string",
+								"v": ""
+							}
+						}
+					},
+					"subtable": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "SUBTABLE"
+							},
+							"value": {
+								"k": "array",
+								"length": 1,
+								"items": [
+									{
+										"k": "object",
+										"ctor": "Object",
+										"keys": [
+											"id",
+											"value"
+										],
+										"props": {
+											"id": {
+												"k": "string",
+												"v": "<row-id>"
+											},
+											"value": {
+												"k": "object",
+												"ctor": "Object",
+												"keys": [
+													"t_singleLineText",
+													"t_multiLineText",
+													"t_richText",
+													"t_number",
+													"t_calc",
+													"t_checkBox",
+													"t_radioButton",
+													"t_dropDown",
+													"t_multiSelect",
+													"t_date",
+													"t_time",
+													"t_dateTime",
+													"t_link",
+													"t_file",
+													"t_userSelect",
+													"t_organizationSelect",
+													"t_groupSelect"
+												],
+												"props": {
+													"t_singleLineText": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "SINGLE_LINE_TEXT"
+															},
+															"value": {
+																"k": "string",
+																"v": ""
+															}
+														}
+													},
+													"t_multiLineText": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "MULTI_LINE_TEXT"
+															},
+															"value": {
+																"k": "string",
+																"v": ""
+															}
+														}
+													},
+													"t_richText": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "RICH_TEXT"
+															},
+															"value": {
+																"k": "string",
+																"v": "<div><br /></div>"
+															}
+														}
+													},
+													"t_number": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "NUMBER"
+															},
+															"value": {
+																"k": "string",
+																"v": ""
+															}
+														}
+													},
+													"t_calc": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "CALC"
+															},
+															"value": {
+																"k": "string",
+																"v": "0"
+															}
+														}
+													},
+													"t_checkBox": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "CHECK_BOX"
+															},
+															"value": {
+																"k": "array",
+																"length": 0,
+																"items": []
+															}
+														}
+													},
+													"t_radioButton": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "RADIO_BUTTON"
+															},
+															"value": {
+																"k": "string",
+																"v": "x"
+															}
+														}
+													},
+													"t_dropDown": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "DROP_DOWN"
+															},
+															"value": {
+																"k": "string",
+																"v": ""
+															}
+														}
+													},
+													"t_multiSelect": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "MULTI_SELECT"
+															},
+															"value": {
+																"k": "array",
+																"length": 0,
+																"items": []
+															}
+														}
+													},
+													"t_date": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "DATE"
+															},
+															"value": {
+																"k": "null"
+															}
+														}
+													},
+													"t_time": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "TIME"
+															},
+															"value": {
+																"k": "null"
+															}
+														}
+													},
+													"t_dateTime": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "DATETIME"
+															},
+															"value": {
+																"k": "string",
+																"v": ""
+															}
+														}
+													},
+													"t_link": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "LINK"
+															},
+															"value": {
+																"k": "string",
+																"v": ""
+															}
+														}
+													},
+													"t_file": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "FILE"
+															},
+															"value": {
+																"k": "array",
+																"length": 0,
+																"items": []
+															}
+														}
+													},
+													"t_userSelect": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "USER_SELECT"
+															},
+															"value": {
+																"k": "array",
+																"length": 0,
+																"items": []
+															}
+														}
+													},
+													"t_organizationSelect": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "ORGANIZATION_SELECT"
+															},
+															"value": {
+																"k": "array",
+																"length": 0,
+																"items": []
+															}
+														}
+													},
+													"t_groupSelect": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"type",
+															"value"
+														],
+														"props": {
+															"type": {
+																"k": "string",
+																"v": "GROUP_SELECT"
+															},
+															"value": {
+																"k": "array",
+																"length": 0,
+																"items": []
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								]
+							}
+						}
+					},
+					"$revision": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "__REVISION__"
+							},
+							"value": {
+								"k": "string",
+								"v": "1"
+							}
+						}
+					},
+					"$id": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"type",
+							"value"
+						],
+						"props": {
+							"type": {
+								"k": "string",
+								"v": "__ID__"
+							},
+							"value": {
+								"k": "string",
+								"v": "<id>"
+							}
+						}
+					}
+				}
+			},
+			"envelope": {
+				"k": "object",
+				"ctor": "Object",
+				"keys": [
+					"type",
+					"appId",
+					"recordId",
+					"record"
+				],
+				"props": {
+					"type": {
+						"k": "string",
+						"v": "app.record.print.show"
+					},
+					"appId": {
+						"k": "number",
+						"v": -1
+					},
+					"recordId": {
+						"k": "number",
+						"v": -1
+					},
+					"record": {
+						"k": "object",
+						"ctor": "Object",
+						"keys": [
+							"レコード番号",
+							"更新者",
+							"作成者",
+							"更新日時",
+							"作成日時",
+							"ステータス",
+							"作業者",
+							"カテゴリー",
+							"singleLineText",
+							"singleLineTextRequired",
+							"singleLineTextUnique",
+							"multiLineText",
+							"richText",
+							"number",
+							"calc",
+							"calcDateTime",
+							"checkBox",
+							"radioButton",
+							"dropDown",
+							"dropDownWithDefault",
+							"multiSelect",
+							"date",
+							"time",
+							"dateTime",
+							"link",
+							"linkMail",
+							"file",
+							"userSelect",
+							"organizationSelect",
+							"groupSelect",
+							"lookupCopyName",
+							"lookupCopyAmount",
+							"inGroupText",
+							"lookupKey",
+							"subtable",
+							"$revision",
+							"$id"
+						],
+						"props": {
+							"レコード番号": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "RECORD_NUMBER"
+									},
+									"value": {
+										"k": "string",
+										"v": "<record-number>"
+									}
+								}
+							},
+							"更新者": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "MODIFIER"
+									},
+									"value": {
+										"k": "object",
+										"ctor": "Object",
+										"keys": [
+											"code",
+											"name"
+										],
+										"props": {
+											"code": {
+												"k": "string",
+												"v": "<entity-code>"
+											},
+											"name": {
+												"k": "string",
+												"v": "<entity-name>"
+											}
+										}
+									}
+								}
+							},
+							"作成者": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "CREATOR"
+									},
+									"value": {
+										"k": "object",
+										"ctor": "Object",
+										"keys": [
+											"code",
+											"name"
+										],
+										"props": {
+											"code": {
+												"k": "string",
+												"v": "<entity-code>"
+											},
+											"name": {
+												"k": "string",
+												"v": "<entity-name>"
+											}
+										}
+									}
+								}
+							},
+							"更新日時": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "UPDATED_TIME"
+									},
+									"value": {
+										"k": "string",
+										"v": "<datetime>"
+									}
+								}
+							},
+							"作成日時": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "CREATED_TIME"
+									},
+									"value": {
+										"k": "string",
+										"v": "<datetime>"
+									}
+								}
+							},
+							"ステータス": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "STATUS"
+									},
+									"value": {
+										"k": "string",
+										"v": "未処理"
+									}
+								}
+							},
+							"作業者": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "STATUS_ASSIGNEE"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"カテゴリー": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "CATEGORY"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"singleLineText": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SINGLE_LINE_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": "ui-文字列1行"
+									}
+								}
+							},
+							"singleLineTextRequired": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SINGLE_LINE_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": "e2e-required-singleLineTextRequired"
+									}
+								}
+							},
+							"singleLineTextUnique": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SINGLE_LINE_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"multiLineText": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "MULTI_LINE_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"richText": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "RICH_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": "<div><br /></div>"
+									}
+								}
+							},
+							"number": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "NUMBER"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"calc": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "CALC"
+									},
+									"value": {
+										"k": "string",
+										"v": "0"
+									}
+								}
+							},
+							"calcDateTime": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "CALC"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"checkBox": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "CHECK_BOX"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"radioButton": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "RADIO_BUTTON"
+									},
+									"value": {
+										"k": "string",
+										"v": "one"
+									}
+								}
+							},
+							"dropDown": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "DROP_DOWN"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"dropDownWithDefault": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "DROP_DOWN"
+									},
+									"value": {
+										"k": "string",
+										"v": "alpha"
+									}
+								}
+							},
+							"multiSelect": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "MULTI_SELECT"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"date": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "DATE"
+									},
+									"value": {
+										"k": "null"
+									}
+								}
+							},
+							"time": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "TIME"
+									},
+									"value": {
+										"k": "null"
+									}
+								}
+							},
+							"dateTime": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "DATETIME"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"link": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "LINK"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"linkMail": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "LINK"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"file": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "FILE"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"userSelect": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "USER_SELECT"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"organizationSelect": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "ORGANIZATION_SELECT"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"groupSelect": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "GROUP_SELECT"
+									},
+									"value": {
+										"k": "array",
+										"length": 0,
+										"items": []
+									}
+								}
+							},
+							"lookupCopyName": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SINGLE_LINE_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"lookupCopyAmount": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "NUMBER"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"inGroupText": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SINGLE_LINE_TEXT"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"lookupKey": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"confirmed",
+									"recordId",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SINGLE_LINE_TEXT"
+									},
+									"confirmed": {
+										"k": "boolean",
+										"v": true
+									},
+									"recordId": {
+										"k": "null"
+									},
+									"value": {
+										"k": "string",
+										"v": ""
+									}
+								}
+							},
+							"subtable": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "SUBTABLE"
+									},
+									"value": {
+										"k": "array",
+										"length": 1,
+										"items": [
+											{
+												"k": "object",
+												"ctor": "Object",
+												"keys": [
+													"id",
+													"value"
+												],
+												"props": {
+													"id": {
+														"k": "string",
+														"v": "<row-id>"
+													},
+													"value": {
+														"k": "object",
+														"ctor": "Object",
+														"keys": [
+															"t_singleLineText",
+															"t_multiLineText",
+															"t_richText",
+															"t_number",
+															"t_calc",
+															"t_checkBox",
+															"t_radioButton",
+															"t_dropDown",
+															"t_multiSelect",
+															"t_date",
+															"t_time",
+															"t_dateTime",
+															"t_link",
+															"t_file",
+															"t_userSelect",
+															"t_organizationSelect",
+															"t_groupSelect"
+														],
+														"props": {
+															"t_singleLineText": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "SINGLE_LINE_TEXT"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": ""
+																	}
+																}
+															},
+															"t_multiLineText": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "MULTI_LINE_TEXT"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": ""
+																	}
+																}
+															},
+															"t_richText": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "RICH_TEXT"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": "<div><br /></div>"
+																	}
+																}
+															},
+															"t_number": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "NUMBER"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": ""
+																	}
+																}
+															},
+															"t_calc": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "CALC"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": "0"
+																	}
+																}
+															},
+															"t_checkBox": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "CHECK_BOX"
+																	},
+																	"value": {
+																		"k": "array",
+																		"length": 0,
+																		"items": []
+																	}
+																}
+															},
+															"t_radioButton": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "RADIO_BUTTON"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": "x"
+																	}
+																}
+															},
+															"t_dropDown": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "DROP_DOWN"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": ""
+																	}
+																}
+															},
+															"t_multiSelect": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "MULTI_SELECT"
+																	},
+																	"value": {
+																		"k": "array",
+																		"length": 0,
+																		"items": []
+																	}
+																}
+															},
+															"t_date": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "DATE"
+																	},
+																	"value": {
+																		"k": "null"
+																	}
+																}
+															},
+															"t_time": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "TIME"
+																	},
+																	"value": {
+																		"k": "null"
+																	}
+																}
+															},
+															"t_dateTime": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "DATETIME"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": ""
+																	}
+																}
+															},
+															"t_link": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "LINK"
+																	},
+																	"value": {
+																		"k": "string",
+																		"v": ""
+																	}
+																}
+															},
+															"t_file": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "FILE"
+																	},
+																	"value": {
+																		"k": "array",
+																		"length": 0,
+																		"items": []
+																	}
+																}
+															},
+															"t_userSelect": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "USER_SELECT"
+																	},
+																	"value": {
+																		"k": "array",
+																		"length": 0,
+																		"items": []
+																	}
+																}
+															},
+															"t_organizationSelect": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "ORGANIZATION_SELECT"
+																	},
+																	"value": {
+																		"k": "array",
+																		"length": 0,
+																		"items": []
+																	}
+																}
+															},
+															"t_groupSelect": {
+																"k": "object",
+																"ctor": "Object",
+																"keys": [
+																	"type",
+																	"value"
+																],
+																"props": {
+																	"type": {
+																		"k": "string",
+																		"v": "GROUP_SELECT"
+																	},
+																	"value": {
+																		"k": "array",
+																		"length": 0,
+																		"items": []
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										]
+									}
+								}
+							},
+							"$revision": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "__REVISION__"
+									},
+									"value": {
+										"k": "string",
+										"v": "1"
+									}
+								}
+							},
+							"$id": {
+								"k": "object",
+								"ctor": "Object",
+								"keys": [
+									"type",
+									"value"
+								],
+								"props": {
+									"type": {
+										"k": "string",
+										"v": "__ID__"
+									},
+									"value": {
+										"k": "string",
+										"v": "<id>"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"structure": [
+				{
+					"path": "$",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"レコード番号",
+						"更新者",
+						"作成者",
+						"更新日時",
+						"作成日時",
+						"ステータス",
+						"作業者",
+						"カテゴリー",
+						"singleLineText",
+						"singleLineTextRequired",
+						"singleLineTextUnique",
+						"multiLineText",
+						"richText",
+						"number",
+						"calc",
+						"calcDateTime",
+						"checkBox",
+						"radioButton",
+						"dropDown",
+						"dropDownWithDefault",
+						"multiSelect",
+						"date",
+						"time",
+						"dateTime",
+						"link",
+						"linkMail",
+						"file",
+						"userSelect",
+						"organizationSelect",
+						"groupSelect",
+						"lookupCopyName",
+						"lookupCopyAmount",
+						"inGroupText",
+						"lookupKey",
+						"subtable",
+						"$revision",
+						"$id"
+					],
+					"allOwnStringKeys": [
+						"レコード番号",
+						"更新者",
+						"作成者",
+						"更新日時",
+						"作成日時",
+						"ステータス",
+						"作業者",
+						"カテゴリー",
+						"singleLineText",
+						"singleLineTextRequired",
+						"singleLineTextUnique",
+						"multiLineText",
+						"richText",
+						"number",
+						"calc",
+						"calcDateTime",
+						"checkBox",
+						"radioButton",
+						"dropDown",
+						"dropDownWithDefault",
+						"multiSelect",
+						"date",
+						"time",
+						"dateTime",
+						"link",
+						"linkMail",
+						"file",
+						"userSelect",
+						"organizationSelect",
+						"groupSelect",
+						"lookupCopyName",
+						"lookupCopyAmount",
+						"inGroupText",
+						"lookupKey",
+						"subtable",
+						"$revision",
+						"$id"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.レコード番号",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.更新者",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.作成者",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.更新日時",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.作成日時",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.ステータス",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.作業者",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.カテゴリー",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.singleLineText",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.singleLineTextRequired",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.singleLineTextUnique",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.multiLineText",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.richText",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.number",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.calc",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.calcDateTime",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.checkBox",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.radioButton",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.dropDown",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.dropDownWithDefault",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.multiSelect",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.date",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.time",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.dateTime",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.link",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.linkMail",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.file",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.userSelect",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.organizationSelect",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.groupSelect",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.lookupCopyName",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.lookupCopyAmount",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.inGroupText",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.lookupKey",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"confirmed",
+						"recordId",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"confirmed",
+						"recordId",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.subtable",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.$revision",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				},
+				{
+					"path": "$.$id",
+					"ctor": "Object",
+					"prototype": "null-prototype",
+					"frozen": false,
+					"sealed": false,
+					"extensible": true,
+					"enumerableOwnKeys": [
+						"type",
+						"value"
+					],
+					"allOwnStringKeys": [
+						"type",
+						"value"
+					],
+					"ownSymbolKeys": [],
+					"accessorKeys": [],
+					"nonWritableKeys": [],
+					"nonConfigurableKeys": []
+				}
+			]
+		},
+		{
 			"event": "app.record.edit.show",
 			"source": "event.record",
 			"label": "unlabeled",

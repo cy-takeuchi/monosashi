@@ -17,6 +17,7 @@ type ProbeApi = {
 	export: () => string;
 	clear: () => void;
 	count: () => number;
+	coverage: () => { key: string; n: number }[];
 	ready: () => boolean;
 	lastError: () => string | null;
 	screen: () => string;
@@ -129,6 +130,30 @@ export const exportSamples = async (page: Page): Promise<string> =>
 		(
 			window as unknown as { __kintoneRecordProbe: ProbeApi }
 		).__kintoneRecordProbe.export(),
+	);
+
+/**
+ * 指定した (イベント, 経路) が採れるまで待つ。
+ *
+ * 印刷画面にはヘッダが無くパネルが出ないので `waitForPanel` が使えない。
+ * 代わりに採取そのものが済んだことを待つ。
+ *
+ * 固定時間の待機にしないのは、待ち足りなければ採取漏れを
+ * 「その画面では採れない」と誤って結論づけてしまうため。
+ */
+export const waitForSample = (
+	page: Page,
+	event: string,
+	source: string,
+): Promise<unknown> =>
+	page.waitForFunction(
+		(key) =>
+			(
+				window as unknown as { __kintoneRecordProbe?: ProbeApi }
+			).__kintoneRecordProbe
+				?.coverage()
+				.some((entry) => entry.key === key) === true,
+		`${event} / ${source}`,
 	);
 
 export const sampleCount = (page: Page): Promise<number> =>

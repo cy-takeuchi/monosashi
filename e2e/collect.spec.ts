@@ -14,6 +14,7 @@ import {
 	measureUiRowChange,
 	registeredChangeEvents,
 	waitForPanel,
+	waitForSample,
 } from "./panel";
 
 /**
@@ -21,7 +22,7 @@ import {
  *
  * ## 流れ
  *
- * レコード追加 → 詳細 → 編集 → 一覧 → 削除。
+ * レコード追加 → 詳細 → 印刷 → 編集 → 一覧 → 削除。
  *
  * 既存レコードを触らないので、実行を重ねても状態が累積的に汚れない。
  * リセット処理も要らない。毎回まっさらなレコードから始まるので
@@ -141,6 +142,21 @@ test("実 kintone から採取する", async ({ page }) => {
 
 	await click(page, ACTION.jsApi); // screen.detail
 	await click(page, ACTION.rest); // screen.detail / rest.getRecord
+
+	// --- 印刷画面 -----------------------------------------------------------
+	// この画面にはパネルを載せるヘッダが無い。だが採取に必要なのは
+	// ハンドラが動くことだけで、パネルは要らない（実測 2026-09-02）。
+	// 採れるのは event.record だけ。get() / REST はボタン起動なので採れない。
+	//
+	// kintone は印刷画面で window.print() を呼ぶ。ブラウザの印刷ダイアログは
+	// Playwright から閉じられず、開くと以降の操作が全て止まる。遷移前に無効化する。
+	// 差し替えるのは window の API で、kintone の DOM には触っていない
+	await page.addInitScript(() => {
+		window.print = () => {};
+	});
+	await page.goto(`/k/${app}/print?record=${recordId}`);
+	// パネルが無いので waitForPanel が使えない。採取そのものを待つ
+	await waitForSample(page, "app.record.print.show", "event.record");
 
 	// --- 編集画面 -----------------------------------------------------------
 	// 編集ボタンを押さず URL で直接遷移する。ボタン名は表示言語で変わるが

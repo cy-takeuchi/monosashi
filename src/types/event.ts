@@ -231,7 +231,13 @@ type ShowEvents = {
 } & {
 	[K in WithMobile<"app.record.index.show">]: IndexShowEvent<K>;
 } & {
-	/** 印刷画面。PC のみ。実測なし・詳細画面と同形として扱う */
+	/**
+	 * 印刷画面。PC のみ。
+	 *
+	 * 2026-09-02 実測。`type` 以外は詳細画面と完全に一致した
+	 * （envelope のキーは `type` / `appId` / `recordId` / `record`、
+	 * `recordId` は number、`record` は同一の Saved レコード）。
+	 */
 	"app.record.print.show": DetailShowEvent<"app.record.print.show">;
 };
 
