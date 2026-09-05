@@ -86,6 +86,14 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		why: "Rest 文脈。DROP_DOWN が null になりうること",
 	},
 
+	// --- プロセス管理 ---
+	{
+		match: "exact",
+		event: "app.record.detail.process.proceed",
+		source: "event.record",
+		why: "ProcessProceedEvent の action / status / nextStatus / recordId。型に書いてあるが実測が無かった",
+	},
+
 	// --- 印刷画面 ---
 	{
 		match: "exact",
@@ -144,6 +152,61 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		event: "screen.index",
 		source: "rest.getRecords",
 		why: "getRecords が返す複数レコードの形",
+	},
+
+	// --- 一覧のインライン編集 ---
+	// 一覧にしか無いイベント。型には最初から書いてあったが根拠が無かった
+	{
+		match: "exact",
+		event: "app.record.index.edit.show",
+		source: "event.record",
+		why: "IndexEditShowEvent の recordId / record の形。一覧から開いた編集が詳細画面の編集と同じ形か",
+	},
+	{
+		match: "prefix",
+		event: "app.record.index.edit.change.",
+		source: "event.record",
+		why: "インライン編集でも change イベントが飛び、changes を持つこと",
+	},
+	{
+		match: "exact",
+		event: "app.record.index.edit.submit",
+		source: "event.record",
+		why: "IndexEditSubmitEvent が recordId を持つこと",
+	},
+	{
+		match: "exact",
+		event: "app.record.index.edit.submit.success",
+		source: "event.record",
+		why: "インライン編集の保存完了イベントも record と recordId を持つこと",
+	},
+
+	// --- モバイル ---
+	// mobile.* のイベントはモバイル画面でしか飛ばない。
+	// PC と同形として型を書いているので、その根拠がここに要る
+	{
+		match: "exact",
+		event: "mobile.app.record.index.show",
+		source: "event.records",
+		why: "モバイルの一覧も event.records を持ち、PC と同じ形であること",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.create.show",
+		source: "event.record",
+		why: "モバイルの作成画面も Editing のレコードを持つこと",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.detail.show",
+		source: "event.record",
+		why: "モバイルの詳細画面も Saved のレコードを持つこと",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.edit.show",
+		source: "event.record",
+		why: "モバイルの編集画面の record がまだサーバ由来（Saved）であること",
 	},
 
 	// --- 値の変更 ---

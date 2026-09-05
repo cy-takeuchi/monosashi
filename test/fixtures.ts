@@ -27,6 +27,11 @@ export const isSavedContext = (sample: Sample): boolean => {
 	if (source.startsWith("rest.")) return false;
 	if (event.endsWith(".detail.show")) return true;
 	if (event.endsWith(".index.show")) return true;
+	// **モバイルの編集画面だけ例外。** PC の編集画面はサーバ由来だが、
+	// モバイルは値の無いフィールドが undefined になる（2026-09-05 実測）。
+	// 同じ待ち方で採ったモバイルの詳細画面は PC と同形だったので、
+	// 読み込み途中を拾ったわけではない
+	if (event === "mobile.app.record.edit.show") return false;
 	if (event.endsWith(".edit.show")) return true;
 	if (event.endsWith(".submit.success")) return true;
 	return event === "screen.detail" || event === "screen.index";
@@ -39,6 +44,8 @@ export const isEditingContext = (sample: Sample): boolean => {
 	if (event.includes(".change.")) return true;
 	if (event.endsWith(".submit")) return true;
 	if (event.endsWith(".create.show")) return true;
+	// モバイルの編集画面は作成画面と同じ形（isSavedContext のコメント参照）
+	if (event === "mobile.app.record.edit.show") return true;
 	return event.startsWith("screen.create") || event.startsWith("screen.edit");
 };
 

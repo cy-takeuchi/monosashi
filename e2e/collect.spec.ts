@@ -3,12 +3,13 @@ import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
-import { ADD_ROW, DELETE_ROW, SAVE_BUTTON } from "./labels";
+import { ADD_ROW, DELETE_ROW, PROCESS_CONFIRM, SAVE_BUTTON } from "./labels";
 import {
 	clearSamples,
 	click,
 	exportSamples,
 	measureBlockedSubmit,
+	measureInlineEdit,
 	measureUiCellChange,
 	measureUiFieldChange,
 	measureUiRowChange,
@@ -22,7 +23,7 @@ import {
  *
  * ## 流れ
  *
- * レコード追加 → 詳細 → 印刷 → 編集 → 一覧 → 削除。
+ * レコード追加 → 詳細 → プロセス管理 → 印刷 → 編集 → 一覧 → モバイル → 削除。
  *
  * 既存レコードを触らないので、実行を重ねても状態が累積的に汚れない。
  * リセット処理も要らない。毎回まっさらなレコードから始まるので
@@ -143,6 +144,27 @@ test("実 kintone から採取する", async ({ page }) => {
 	await click(page, ACTION.jsApi); // screen.detail
 	await click(page, ACTION.rest); // screen.detail / rest.getRecord
 
+	// --- プロセス管理 ---------------------------------------------------------
+	// ProcessProceedEvent の action / status / nextStatus はどれも未実測だった。
+	// 詳細画面の採取の**あと**に実行する。先に進めると、詳細画面のサンプルが
+	// 遷移後のステータスのものになる。
+	//
+	// **アクションは button ではなく `<span title="処理開始">`**（実測 2026-09-05）。
+	// role が無いので getByRole では掴めない。title は標準の HTML 属性で、
+	// 値は build.ts で我々が決めたアクション名なので環境の言語では変わらない。
+	// 作業者が空だとこのボタン自体が出ない（だから build.ts で作成者を入れた）。
+	//
+	// **押しただけでは実行されない。** 次のステータスと作業者を示す
+	// ポップアップが開き、確定して初めてイベントが飛ぶ（実測 2026-09-05）。
+	// 作業者は既に選択済みなので、確定を押すだけでよい
+	await page.getByTitle("処理開始").click();
+	await page.getByRole("button", { name: PROCESS_CONFIRM }).click();
+	await waitForSample(
+		page,
+		"app.record.detail.process.proceed",
+		"event.record",
+	);
+
 	// --- 印刷画面 -----------------------------------------------------------
 	// この画面にはパネルを載せるヘッダが無い。だが採取に必要なのは
 	// ハンドラが動くことだけで、パネルは要らない（実測 2026-09-02）。
@@ -191,10 +213,62 @@ test("実 kintone から採取する", async ({ page }) => {
 	await waitForPanel(page, "screen.detail");
 
 	// --- 一覧画面 -----------------------------------------------------------
-	await page.goto(`/k/${app}/`);
+	// **一覧を id で指定する。** view を付けないと着地先が kintone 任せになり、
+	// プロセス管理が自動で作る「（作業者が自分）」に着くことがある。
+	// そこは作業者が付くまで 0 件なので、行が無くインライン編集を測れない。
+	// 「すべて」は build.ts で我々が宣言した一覧なので、名前で引ける
+	const { views } = await createClient().app.getViews({ app });
+	const listView = Object.values(views).find((view) => view.name === "すべて");
+	if (listView === undefined) {
+		throw new Error("「すべて」一覧がありません。app:build を実行してください");
+	}
+
+	await page.goto(`/k/${app}/?view=${listView.id}`);
 	await waitForPanel(page, "screen.index");
 
 	await click(page, ACTION.rest); // screen.index / rest.getRecords
+
+	// 一覧のインライン編集。app.record.index.edit.* はここでしか採れない。
+	// **rest の採取より後に行う。** 先に編集すると、一覧から採るレコードが
+	// 編集済みのものになり、何を採ったのかが操作順に左右される
+	//
+	// **「文字列1行」は使えない。** インライン編集で入力欄にならず、値が
+	// ただの文字のまま出る（実測 2026-09-05）。関連レコード一覧の
+	// 「表示するレコードの条件」に指定されているフィールドだから
+	//（fields.ts の referenceTable の condition.field。開発者が実機で確認）。
+	// 「文字列1行(必須)」と「数値」は入力欄になる
+	await measureInlineEdit(
+		page,
+		recordId,
+		"文字列1行(必須)",
+		"ui-インライン編集",
+		"singleLineTextRequired",
+	);
+
+	// --- モバイル -------------------------------------------------------------
+	// mobile.* のイベントはここでしか採れない。probe はモバイル名前空間に
+	// 対応していて（isMobile / appNamespace）、パネルも載る
+	// （kintone.mobile.app.getHeaderSpaceElement がある。実測 2026-09-05）。
+	//
+	// **ボタン起動の採取はしない。** screenName() は PC と同じ値を返すので、
+	// サンプルのキーが PC 側とぶつかり、どちらの経路で採ったのか分からなくなる。
+	// 採るのは mobile.* のイベントだけにする。
+	//
+	// **show イベントは load より後に飛ぶ**（実測）。パネルの表示ではなく
+	// 採取そのものを待つ
+	await page.goto(`/k/m/${app}/?view=${listView.id}`);
+	await waitForSample(page, "mobile.app.record.index.show", "event.records");
+
+	await page.goto(`/k/m/${app}/edit`);
+	await waitForSample(page, "mobile.app.record.create.show", "event.record");
+
+	await page.goto(`/k/m/${app}/show?record=${recordId}`);
+	await waitForSample(page, "mobile.app.record.detail.show", "event.record");
+
+	// 編集は URL で直接開く。/edit?record=N は show?record=N#mode=edit に
+	// 転送される（実測）
+	await page.goto(`/k/m/${app}/edit?record=${recordId}`);
+	await waitForSample(page, "mobile.app.record.edit.show", "event.record");
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

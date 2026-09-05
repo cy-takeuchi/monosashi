@@ -41,3 +41,25 @@ export const CUSTOMIZE_ERROR =
 
 export const ADD_ROW = /^(行を追加|Add row)$/;
 export const DELETE_ROW = /^(この行を削除|Delete this row)$/;
+
+/**
+ * 一覧のインライン編集を開くボタン。行の右端にある。
+ *
+ * `aria-label` を持つので役割と名前で掴める（実測 2026-09-05）。
+ * 保存ボタンは開いてから現れ、名前は `SAVE_BUTTON` と同じだった。
+ */
+export const EDIT_RECORD = /^(編集|Edit)$/;
+
+/**
+ * プロセス管理のアクションを確定するボタン。
+ *
+ * アクション（`処理開始` など）を押すと、次のステータスと作業者を示す
+ * ポップアップが開くだけで、**そこで確定するまでイベントは飛ばない**
+ * （実測 2026-09-05。押しただけでは `detail.process.proceed` が採れなかった）。
+ *
+ * アクション名そのものは `build.ts` で我々が決めたものなので言語に依存しないが、
+ * この確定ボタンは kintone の UI の文字なので依存する。
+ * 実測できたのは英語表示の `Confirm` だけで、日本語側はこのファイルの
+ * 他の項目と同じく kintone の UI からの想定。
+ */
+export const PROCESS_CONFIRM = /^(確認|Confirm)$/;

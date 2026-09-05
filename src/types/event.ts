@@ -11,9 +11,23 @@ import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
  *
  * ## 実測の裏づけがあるもの / ないもの
  *
- * レコード系イベント（`app.record.*`）は 84 サンプルの実測に基づく。
- * mobile 系、ポータル、スペース、グラフは**実測していない**。
- * それらは公式ドキュメント準拠で、各型の JSDoc に明記する。
+ * レコード系イベント（`app.record.*`）と、モバイルの
+ * `create.show` / `edit.show` / `detail.show` / `index.show` は
+ * `fixtures/measured.json` の実測に基づく（e2e で毎回採り直す）。
+ *
+ * モバイルのそれ以外（submit / change / process）、ポータル、スペース、
+ * グラフは**実測していない**。公式ドキュメント準拠で、各型の JSDoc に明記する。
+ *
+ * ## 「PC と同形」は当てにならない
+ *
+ * 実測するまで、モバイルも一覧のインライン編集もプロセス管理も
+ * 「PC と同形」として書いていた。2026-09-05 の実測でどれも外れた。
+ *
+ * - `mobile.app.record.edit.show` の record は Saved ではなく Editing
+ * - `app.record.index.edit.*` は `appId` / `recordId` が文字列で来る
+ * - `app.record.detail.process.proceed` は `appId` も `recordId` も持たない
+ *
+ * 同形だと**思える**ことは根拠にならない。採ってから書く。
  *
  * ## 条件型について
  *
@@ -46,10 +60,17 @@ export type DetailShowEvent<Type extends string> = Base<Type> & {
  * 編集画面の表示。
  * この時点の record はまだサーバ由来。
  * 画面を触ったあとに `kintone.app.record.get()` で取ると Editing になる。
+ *
+ * **モバイルは違う。** `RecordShape` を差し替えられるようにしてあるのは
+ * そのため。詳細は `mobile.app.record.edit.show` の JSDoc を見ること。
  */
-export type EditShowEvent<Type extends string> = Base<Type> & {
-	recordId: number;
-	record: SavedRecord;
+export type EditShowEvent<
+	Type extends string,
+	RecordShape = SavedRecord,
+	RecordId = number,
+> = Base<Type> & {
+	recordId: RecordId;
+	record: RecordShape;
 };
 
 /**
@@ -131,10 +152,40 @@ export type IndexShowEvent<Type extends string> = Base<Type> & {
  */
 export type ChangeEvent<Type extends string, Record> = Base<Type> & {
 	record: Record;
-	changes: {
-		field: Editing.OneOf;
-		row: Editing.SubtableRow | null;
-	};
+	changes: ChangeBody;
+};
+
+/** change イベントが共通で持つ変更内容 */
+type ChangeBody = {
+	field: Editing.OneOf;
+	row: Editing.SubtableRow | null;
+};
+
+/**
+ * 編集画面の change。
+ *
+ * **作成画面とは違い `recordId` を持つ**（2026-09-05 実測）。
+ * 当初は作成画面と同じ型を使っていたが、実測では
+ * `create.change.*` に `recordId` が無く、`edit.change.*` にはあった。
+ */
+export type EditChangeEvent<Type extends string, Record> = Base<Type> & {
+	recordId: number;
+	record: Record;
+	changes: ChangeBody;
+};
+
+/**
+ * 一覧のインライン編集の change。
+ *
+ * **`appId` も `recordId` も文字列**（2026-09-05 実測）。
+ * 編集画面の change はどちらも number なので、`Base` を継承できない。
+ */
+export type IndexEditChangeEvent<Type extends string> = {
+	type: Type;
+	appId: string;
+	recordId: string;
+	record: EditingRecord;
+	changes: ChangeBody;
 };
 
 /**
@@ -193,20 +244,58 @@ export type SubmitSuccessEvent<Type extends string> = Base<Type> & {
 	record: SavedRecord;
 };
 
+/**
+ * 一覧のインライン編集の保存直前。
+ *
+ * `EditSubmitEvent` と分けてあるのは、**`appId` まで文字列で来る**ため
+ * （2026-09-05 実測）。`Base` は `appId: number` を主張するので継承できない。
+ * kintone 側の一貫性の無さで、こちらの都合で揃えるわけにいかない。
+ */
+export type IndexEditSubmitEvent<Type extends string> = {
+	type: Type;
+	appId: string;
+	recordId: string;
+	record: EditingRecord;
+	/** 設定すると保存を中断できる */
+	error?: string;
+};
+
 /** 削除の直前。record を持たない */
 export type DeleteSubmitEvent<Type extends string> = Base<Type> & {
 	recordId: number;
 };
 
-/** プロセス管理のアクション実行 */
-export type ProcessProceedEvent<Type extends string> = Base<Type> & {
-	recordId: number;
+/**
+ * プロセス管理のアクション実行。
+ *
+ * **他のレコードイベントと形が違う**（2026-09-05 実測）。
+ *
+ * - `appId` も `recordId` も**持たない**。envelope のキーは
+ *   `type` / `action` / `status` / `nextStatus` / `record` の 5 つだけ
+ * - `action` / `status` / `nextStatus` は文字列ではなく
+ *   **`{ value: string }` のオブジェクト**
+ * - `status` は遷移**前**、`nextStatus` が遷移**後**
+ *   （実測値: `status.value = "未処理"` / `nextStatus.value = "処理中"`）
+ *
+ * 当初は `Base` を継承し、3 つとも `string` として書いていた。
+ * どれも実測で否定された。
+ *
+ * なお UI からアクションを実行すると、次のステータスと作業者を示す
+ * ポップアップが開き、そこで確定して初めてこのイベントが飛ぶ。
+ */
+export type ProcessProceedEvent<Type extends string> = {
+	type: Type;
 	record: SavedRecord;
 	/** 実行したアクション名 */
-	action: string;
+	action: { value: string };
+	/** 遷移前のステータス名 */
+	status: { value: string };
 	/** 遷移後のステータス名 */
-	status: string;
-	nextStatus: string;
+	nextStatus: { value: string };
+	/**
+	 * 設定すると遷移を中断できる（公式ドキュメント準拠）。
+	 * submit の error と違い、こちらは未実測
+	 */
 	error?: string;
 };
 
@@ -225,7 +314,22 @@ type WithMobile<T extends string> = T | `mobile.${T}`;
 type ShowEvents = {
 	[K in WithMobile<"app.record.detail.show">]: DetailShowEvent<K>;
 } & {
-	[K in WithMobile<"app.record.edit.show">]: EditShowEvent<K>;
+	"app.record.edit.show": EditShowEvent<"app.record.edit.show">;
+	/**
+	 * モバイルの編集画面。
+	 *
+	 * **PC と record の形が違う**（2026-09-05 実測）。
+	 * PC はサーバ由来で、値の無いフィールドが `""` や `null` になる。
+	 * モバイルは**値が設定されていないフィールドが `undefined`** で、
+	 * 作成画面と同じ形をしている。
+	 *
+	 * 読み込み途中を拾ったのではない。同じ待ち方で採った
+	 * `mobile.app.record.detail.show` は PC と同形（`""` / `null`）だった。
+	 */
+	"mobile.app.record.edit.show": EditShowEvent<
+		"mobile.app.record.edit.show",
+		EditingRecord
+	>;
 } & {
 	[K in WithMobile<"app.record.create.show">]: CreateShowEvent<K>;
 } & {
@@ -250,8 +354,20 @@ type SubmitEvents = {
 } & {
 	[K in WithMobile<"app.record.edit.submit.success">]: SubmitSuccessEvent<K>;
 } & {
-	/** 一覧のインライン編集。PC のみ。実測なし・編集画面と同形として扱う */
-	"app.record.index.edit.submit": EditSubmitEvent<"app.record.index.edit.submit">;
+	/**
+	 * 一覧のインライン編集の保存。PC のみ。
+	 *
+	 * **編集画面と同形ではなかった**（2026-09-05 実測）。
+	 * `app.record.edit.submit` は `appId` も `recordId` も number だが、
+	 * こちらは**どちらも文字列**で来る。
+	 */
+	"app.record.index.edit.submit": IndexEditSubmitEvent<"app.record.index.edit.submit">;
+	/**
+	 * 一覧のインライン編集の保存完了。PC のみ。
+	 *
+	 * 2026-09-05 実測。`appId` は number、`recordId` は string で、
+	 * 詳細画面から保存したときの `submit.success` と同形だった。
+	 */
 	"app.record.index.edit.submit.success": SubmitSuccessEvent<"app.record.index.edit.submit.success">;
 };
 
@@ -269,17 +385,20 @@ type ChangeEvents = {
 		CreateRecord
 	>;
 } & {
-	[K in `app.record.edit.change.${string}`]: ChangeEvent<K, EditingRecord>;
+	[K in `app.record.edit.change.${string}`]: EditChangeEvent<K, EditingRecord>;
 } & {
 	[K in `mobile.app.record.edit.change.${string}`]: ChangeEvent<
 		K,
 		EditingRecord
 	>;
 } & {
-	[K in `app.record.index.edit.change.${string}`]: ChangeEvent<
-		K,
-		EditingRecord
-	>;
+	/**
+	 * 一覧のインライン編集の change。PC のみ。
+	 *
+	 * 2026-09-05 実測。`appId` / `recordId` がどちらも文字列で、
+	 * 編集画面の change（どちらも number）とは形が違う。
+	 */
+	[K in `app.record.index.edit.change.${string}`]: IndexEditChangeEvent<K>;
 };
 
 type OtherRecordEvents = {
@@ -288,7 +407,17 @@ type OtherRecordEvents = {
 	[K in WithMobile<"app.record.detail.process.proceed">]: ProcessProceedEvent<K>;
 } & {
 	"app.record.index.delete.submit": DeleteSubmitEvent<"app.record.index.delete.submit">;
-	"app.record.index.edit.show": EditShowEvent<"app.record.index.edit.show">;
+	/**
+	 * 一覧のインライン編集を開いたとき。PC のみ。
+	 *
+	 * 2026-09-05 実測。`record` は編集画面と同じくサーバ由来（Saved）だが、
+	 * **`recordId` は string**（`app.record.edit.show` は number）。
+	 */
+	"app.record.index.edit.show": EditShowEvent<
+		"app.record.index.edit.show",
+		SavedRecord,
+		string
+	>;
 };
 
 /** レコードを扱わない画面。実測なし・公式ドキュメント準拠 */

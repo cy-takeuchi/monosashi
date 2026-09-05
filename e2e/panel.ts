@@ -1,6 +1,6 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
-import { CUSTOMIZE_ERROR, SAVE_BUTTON } from "./labels";
+import { CUSTOMIZE_ERROR, EDIT_RECORD, SAVE_BUTTON } from "./labels";
 
 /**
  * 採取パネルの操作。
@@ -145,6 +145,7 @@ export const waitForSample = (
 	page: Page,
 	event: string,
 	source: string,
+	timeout?: number,
 ): Promise<unknown> =>
 	page.waitForFunction(
 		(key) =>
@@ -154,6 +155,7 @@ export const waitForSample = (
 				?.coverage()
 				.some((entry) => entry.key === key) === true,
 		`${event} / ${source}`,
+		timeout === undefined ? undefined : { timeout },
 	);
 
 export const sampleCount = (page: Page): Promise<number> =>
@@ -435,4 +437,130 @@ export const measureBlockedSubmit = async (
 	);
 
 	await assertNoCustomizeError(page, "保存の中断");
+};
+
+/**
+ * 一覧のインライン編集を測る。
+ *
+ * 一覧にしか無いイベント（`app.record.index.edit.*`）の唯一の採取経路。
+ * 型には最初から書いてあるのに、根拠が無いままだった。
+ *
+ * ## パネルのボタンでは起こせない
+ *
+ * インライン編集は kintone の UI からしか開けない。
+ * 行の右端の「編集」ボタンには `aria-label` があるので、
+ * 内部セレクタを使わずに役割と名前で掴める（実測 2026-09-05）。
+ *
+ * ## どの行を触るか
+ *
+ * **先頭行と決め打ちにしない。** 並び順は一覧の設定で変わる。
+ * この実行で作ったレコードへのリンクを持つ行を選ぶ。
+ * 掴みどころは `href` の中の `record=<id>` で、これは URL なので
+ * 環境の言語では変わらない（編集画面へ URL で直接遷移するのと同じ考え方）。
+ *
+ * 自分で作ったレコードだけを触るので、検証アプリのテストレコードは汚れない。
+ *
+ * ## 触れない列がある
+ *
+ * インライン編集では、一覧に出ている列でも入力欄にならないものがある
+ * （関連レコード一覧の「表示するレコードの条件」に指定されたフィールド。
+ * 実測 2026-09-05）。呼び出す側が編集できる列を選ぶ。
+ *
+ * `fieldCode` は `header` の列に対応するフィールドコード。
+ * change イベント名にフィールドコードが埋まるので、
+ * 「その change が飛んだか」を待つために要る。
+ */
+export const measureInlineEdit = async (
+	page: Page,
+	recordId: string,
+	header: string,
+	value: string,
+	fieldCode: string,
+): Promise<void> => {
+	const row = page
+		.getByRole("row")
+		.filter({ has: page.locator(`a[href*="record=${recordId}&"]`) });
+	await expect(
+		row,
+		`レコード ${recordId} の行が一覧で一意に決まらない`,
+	).toHaveCount(1);
+
+	await row.getByRole("button", { name: EDIT_RECORD }).click();
+	// 開いたことをイベントで確かめる。入力欄を探しに行くのはそのあと
+	await waitForSample(page, "app.record.index.edit.show", "event.record");
+
+	const input = await inlineCellInput(page, row, header);
+	await input.fill(value);
+	await input.blur();
+
+	// **保存の前に change を待つ。** 待たずに保存すると、change が飛ばなかったのか
+	// 保存に巻き込まれて採れなかったのかを区別できない。
+	// 上限に達したら「発火なし」として先へ進む（`measureUiRowChange` と同じ考え方）
+	try {
+		await waitForSample(
+			page,
+			`app.record.index.edit.change.${fieldCode}`,
+			"event.record",
+			UI_EVENT_TIMEOUT_MS,
+		);
+	} catch {
+		// 上限まで待っても飛ばなかった。それ自体が測定結果なので保存に進む。
+		// 採れていなければ REQUIRED_CONTEXTS の検査が落とす
+	}
+
+	// 保存ボタンは開いてから現れる。行の中に限って掴む
+	await row.getByRole("button", { name: SAVE_BUTTON }).click();
+	await waitForSample(
+		page,
+		"app.record.index.edit.submit.success",
+		"event.record",
+	);
+
+	await assertNoCustomizeError(page, "一覧のインライン編集");
+};
+
+/**
+ * インライン編集中の行から、列ヘッダーのラベルでセルの入力欄を掴む。
+ *
+ * サブテーブルと同じ考え方（`subtableCellInput`）。列ヘッダーの位置を求め、
+ * 行の同じ位置のセルを取る。使うのは ARIA の標準ロールだけ。
+ */
+const inlineCellInput = async (
+	page: Page,
+	row: Locator,
+	header: string,
+): Promise<Locator> => {
+	const table = page
+		.getByRole("table")
+		.filter({ has: page.getByText(header, { exact: true }) })
+		.first();
+
+	const headers = await table.getByRole("columnheader").allTextContents();
+	const index = headers.findIndex((text) => text.trim() === header);
+	if (index < 0) {
+		throw new Error(
+			`列ヘッダー「${header}」が一覧にありません（${headers.length} 列）`,
+		);
+	}
+
+	const box = row.getByRole("cell").nth(index).getByRole("textbox");
+	const count = await box.count();
+	if (count !== 1) {
+		// **どの列に入力欄があったかを出す。**
+		// これが無いと「列の対応がずれた」のか「その列は編集できない」のかを
+		// エラーから切り分けられず、実物を見に行くことになる（実測でそうなった）
+		const editable: string[] = [];
+		for (const [nth, name] of headers.entries()) {
+			const cell = row.getByRole("cell").nth(nth);
+			if ((await cell.getByRole("textbox").count()) > 0) {
+				editable.push(`${nth}:${name.trim() === "" ? "(無題)" : name.trim()}`);
+			}
+		}
+		throw new Error(
+			`列「${header}」(${index} 列目) の入力欄が ${count} 件で一意に決まりません。` +
+				`入力欄を持つ列: ${editable.length === 0 ? "なし" : editable.join(", ")}。` +
+				`列の対応がずれているか、この列がインライン編集できないかのどちらか`,
+		);
+	}
+	return box.first();
 };

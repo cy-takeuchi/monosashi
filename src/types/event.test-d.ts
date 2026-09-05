@@ -81,11 +81,83 @@ describe("submit 系", () => {
 	});
 });
 
+describe("一覧のインライン編集（2026-09-05 実測）", () => {
+	test("show の recordId は string。編集画面（number）と違う", () => {
+		expectTypeOf<
+			EventOf<"app.record.index.edit.show">["recordId"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EventOf<"app.record.edit.show">["recordId"]
+		>().toEqualTypeOf<number>();
+	});
+
+	test("change も appId / recordId が string", () => {
+		type E = EventOf<"app.record.index.edit.change.singleLineText">;
+		expectTypeOf<E["appId"]>().toEqualTypeOf<string>();
+		expectTypeOf<E["recordId"]>().toEqualTypeOf<string>();
+	});
+
+	test("submit は appId まで string。編集画面の submit は number", () => {
+		expectTypeOf<
+			EventOf<"app.record.index.edit.submit">["appId"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EventOf<"app.record.index.edit.submit">["recordId"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EventOf<"app.record.edit.submit">["appId"]
+		>().toEqualTypeOf<number>();
+	});
+});
+
+describe("プロセス管理（2026-09-05 実測）", () => {
+	test("appId も recordId も持たない", () => {
+		type E = EventOf<"app.record.detail.process.proceed">;
+		// @ts-expect-error 実測では envelope に appId が無かった
+		type _appId = E["appId"];
+		// @ts-expect-error 実測では envelope に recordId が無かった
+		type _recordId = E["recordId"];
+	});
+
+	test("action / status / nextStatus は文字列ではなくオブジェクト", () => {
+		type E = EventOf<"app.record.detail.process.proceed">;
+		expectTypeOf<E["action"]>().toEqualTypeOf<{ value: string }>();
+		expectTypeOf<E["status"]>().toEqualTypeOf<{ value: string }>();
+		expectTypeOf<E["nextStatus"]>().toEqualTypeOf<{ value: string }>();
+	});
+});
+
+describe("モバイル（2026-09-05 実測）", () => {
+	test("編集画面の record だけ Editing。PC とも詳細画面とも違う", () => {
+		expectTypeOf<
+			EventOf<"mobile.app.record.edit.show">["record"]
+		>().toEqualTypeOf<EditingRecord>();
+		expectTypeOf<
+			EventOf<"app.record.edit.show">["record"]
+		>().toEqualTypeOf<SavedRecord>();
+		expectTypeOf<
+			EventOf<"mobile.app.record.detail.show">["record"]
+		>().toEqualTypeOf<SavedRecord>();
+	});
+});
+
 describe("change 系", () => {
 	test("フィールドコードが埋まったイベント名を引ける", () => {
 		type E = EventOf<"app.record.edit.change.singleLineText">;
 		expectTypeOf<E["record"]>().toEqualTypeOf<EditingRecord>();
 		expectTypeOf<E["changes"]["row"]>().not.toBeNever();
+	});
+
+	test("recordId の有無が画面で違う（2026-09-05 実測）", () => {
+		// 作成画面の change は recordId を持たない
+		type Create = EventOf<"app.record.create.change.singleLineText">;
+		// @ts-expect-error 実測では create.change に recordId が無かった
+		type _ = Create["recordId"];
+
+		// 編集画面は持つ
+		expectTypeOf<
+			EventOf<"app.record.edit.change.singleLineText">["recordId"]
+		>().toEqualTypeOf<number>();
 	});
 
 	test("作成画面の change は CreateRecord", () => {

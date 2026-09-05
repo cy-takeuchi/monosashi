@@ -46,6 +46,15 @@ const PLACEHOLDER = {
 	viewId: -1,
 	viewName: "<view-name>",
 	appId: -1,
+	/**
+	 * 文字列で来る appId 用。
+	 *
+	 * `app.record.index.edit.submit` だけ appId が**文字列**で来る
+	 * （2026-09-05 実測。他のイベントは number）。数値だけを伏せていると
+	 * ここが実際のアプリ ID のまま残り、環境ごとに差分が出る。
+	 * 型の違いは根拠なので、伏せても string / number の区別は保つ。
+	 */
+	appIdText: "<app-id>",
 	number: -1,
 } as const;
 
@@ -208,7 +217,10 @@ export const maskProbed = (node: Probed): Probed => {
 		if (child === undefined) continue;
 		switch (key) {
 			case "appId":
-				props[key] = maskNumber(child, PLACEHOLDER.appId) ?? child;
+				props[key] =
+					child.k === "number"
+						? (maskNumber(child, PLACEHOLDER.appId) ?? child)
+						: (maskString(child, PLACEHOLDER.appIdText) ?? child);
 				break;
 			case "recordId":
 				props[key] =
