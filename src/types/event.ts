@@ -270,7 +270,15 @@ export type IndexEditSubmitEvent<Type extends string> = {
 	error?: string;
 };
 
-/** 削除の直前。record を持たない */
+/**
+ * 削除の直前。record を持たない。
+ *
+ * **未実測。** probe はハンドラを登録しているが、採取の流れでは
+ * レコードを REST で消していて、JS のイベントが飛ばない。
+ * `appId` / `recordId` の型は他のイベントから類推したもので、
+ * 実測では画面ごとに違っていた例が複数ある（一覧のインライン編集、
+ * モバイルの submit.success）。ここも違う可能性がある。
+ */
 export type DeleteSubmitEvent<Type extends string> = Base<Type> & {
 	recordId: number;
 };
