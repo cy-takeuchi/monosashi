@@ -1,4 +1,5 @@
 import { test } from "@playwright/test";
+import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
 
 /**
@@ -194,5 +195,121 @@ test("表内セルを列ヘッダーから掴めるかを試す", async ({ page 
 				`  rows.nth(${nth}) の ${index} 列目: textbox ${n} 件 編集可=${editable}`,
 			);
 		}
+	}
+});
+
+test("モバイルの操作要素を調べる", async ({ page }) => {
+	const app = env.fixtureAppId();
+
+	// 保存・プロセス管理のアクション・削除を、モバイルでどう掴めるかを見る。
+	// PC では別物だった（アクションは button ではなく span、確認が要る）ので
+	// モバイルでも実物を見てから書く
+	const client = createClient();
+	const created = await client.record.addRecord({
+		app,
+		record: { singleLineTextRequired: { value: "モバイル操作の調査用" } },
+	});
+
+	try {
+		const dump = async (label: string) => {
+			// パネルが載る＝カスタマイズが動いている画面。
+			// show イベントは load より後に飛ぶので、パネルを待つ
+			await page
+				.locator('[data-testid="krp-panel"]')
+				.waitFor({ state: "visible" })
+				.catch(() => undefined);
+
+			const found = await page.evaluate(() => {
+				// **`??` で繋がない。** `<button>` の `value` は `""` を返すので、
+				// そこで止まって textContent に届かず、ボタンの文字が全部消える。
+				// 実測でそれに引っかかり、採取パネルのボタン 10 個を
+				// 「無い」と読み違えた（2026-09-05）
+				const nameOf = (el: Element): string => {
+					const candidates = [
+						el.getAttribute("aria-label"),
+						el.getAttribute("title"),
+						el instanceof HTMLInputElement ? el.value : null,
+						el.textContent,
+					];
+					return (
+						candidates.find((text) => (text ?? "").trim() !== "") ?? ""
+					).trim();
+				};
+
+				const named = [...document.querySelectorAll("a, button, [role], input")]
+					.map((el) => ({
+						tag: el.tagName.toLowerCase(),
+						role: el.getAttribute("role"),
+						name: nameOf(el).slice(0, 24),
+					}))
+					.filter((el) => el.name !== "");
+
+				// アクション名は build.ts で我々が決めたもの。
+				// 要素の種類を仮定せず、文字列で探す（PC では span だった）
+				const actions = [...document.querySelectorAll("*")]
+					.filter((el) =>
+						[...el.childNodes]
+							.filter((n) => n.nodeType === Node.TEXT_NODE)
+							.map((n) => n.textContent ?? "")
+							.join("")
+							.trim()
+							.startsWith("処理開始"),
+					)
+					.map((el) => ({
+						tag: el.tagName.toLowerCase(),
+						role: el.getAttribute("role"),
+						title: el.getAttribute("title"),
+						parent: el.parentElement?.tagName.toLowerCase() ?? null,
+					}));
+
+				return {
+					named,
+					actions,
+					// 画面のどこかに文字として在るか。無いならメニューの中か、
+					// そもそもモバイルでは出ないということ
+					hasActionText: document.body.innerText.includes("処理開始"),
+					hasStatusText: document.body.innerText.includes("未処理"),
+					panel:
+						document
+							.querySelector('[data-testid="krp-panel"]')
+							?.getAttribute("data-screen") ?? null,
+					// パネルは在るのにボタンが列挙されなかった。
+					// 推測を重ねずに中身そのものを見る
+					panelHtml: (
+						document.querySelector('[data-testid="krp-panel"]')?.outerHTML ?? ""
+					).slice(0, 400),
+					panelButtons: document.querySelectorAll(
+						'[data-testid="krp-panel"] button',
+					).length,
+					// 画面に出ている文字。保存やアクションがどこにあるかの手がかり
+					// 保存は画面の下にあることが多い。先頭だけ見ると切れる
+					textTail: document.body.innerText.replace(/\s+/g, " ").slice(-500),
+				};
+			});
+
+			console.log(`\n=== ${label} ===`);
+			console.log(
+				`  名前を持つ要素: ${[...new Set(found.named.map((el) => `${el.tag}:${el.name}`))].join(" | ")}`,
+			);
+			console.log(
+				`  パネル: ${found.panel ?? "（無し）"} / ボタン ${found.panelButtons} 個`,
+			);
+			console.log(`  パネル HTML: ${found.panelHtml}`);
+			console.log(`  画面の文字（末尾）: ${found.textTail}`);
+			console.log(
+				`  「処理開始」: 文字として在る=${found.hasActionText} / 「未処理」=${found.hasStatusText} / 要素=${JSON.stringify(found.actions)}`,
+			);
+		};
+
+		await page.goto(`/k/m/${app}/edit`);
+		await dump("モバイル 作成");
+
+		await page.goto(`/k/m/${app}/show?record=${created.id}`);
+		await dump("モバイル 詳細");
+
+		await page.goto(`/k/m/${app}/edit?record=${created.id}`);
+		await dump("モバイル 編集");
+	} finally {
+		await client.record.deleteRecords({ app, ids: [created.id] });
 	}
 });

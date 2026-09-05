@@ -165,6 +165,20 @@ let currentScreen: Screen = screenFromUrl();
 
 const screenName = (): Screen => currentScreen;
 
+/**
+ * サンプルのキーに使う画面名。
+ *
+ * **モバイルでは `mobile.` を付ける。** 付けないと PC と同じキーになり、
+ * どちらの経路で採ったサンプルなのか区別できない。
+ * モバイルの編集画面は record の形が PC と違う（2026-09-05 実測）ので、
+ * 混ざったものは根拠にならない。
+ *
+ * 画面の判定そのもの（`screenName()`）は変えない。
+ * ボタンの出し分けとパネルの `data-screen` がそれに依存している。
+ */
+const sampleScreen = (): string =>
+	isMobile() ? `mobile.${screenName()}` : screenName();
+
 const isIndex = (): boolean => currentScreen === "screen.index";
 
 const captureJsApi = (): void => {
@@ -176,7 +190,7 @@ const captureJsApi = (): void => {
 		);
 	}
 	const value = getRecordViaJsApi();
-	record(screenName(), "kintone.app.record.get", value, {
+	record(sampleScreen(), "kintone.app.record.get", value, {
 		structure: inspectStructure(value),
 	});
 };
@@ -189,7 +203,7 @@ const captureRest = async (): Promise<void> => {
 	// 代わりに画面と同じ絞り込み条件で getRecords し、event.records と突き合わせる。
 	if (isIndex()) {
 		const value = await getRecordsViaRest(app, getQueryCondition());
-		record(screenName(), "rest.getRecords", value);
+		record(sampleScreen(), "rest.getRecords", value);
 		return;
 	}
 
@@ -200,7 +214,7 @@ const captureRest = async (): Promise<void> => {
 		);
 	}
 	const value = await getRecordViaRest(app, id);
-	record(screenName(), "rest.getRecord", value);
+	record(sampleScreen(), "rest.getRecord", value);
 };
 
 /**
@@ -236,7 +250,7 @@ const captureAfterSet = (): void => {
 	setRecordViaJsApi(before);
 
 	const after = getRecordViaJsApi();
-	record(`${screenName()}.afterSet`, "kintone.app.record.get", after, {
+	record(`${sampleScreen()}.afterSet`, "kintone.app.record.get", after, {
 		structure: inspectStructure(after),
 	});
 };
@@ -328,7 +342,7 @@ const captureSetValue = async (): Promise<void> => {
 		throw new Error(`${target} に type がありません`);
 	}
 
-	const newValue = `${screenName()}-setValue`;
+	const newValue = `${sampleScreen()}-setValue`;
 	if (targetField.value === newValue) {
 		throw new Error(
 			`${target} は既に ${newValue} です。値が変わらないと change は発火せず、測定になりません`,
@@ -472,7 +486,7 @@ const measureSet = async (
 		throw new Error(`set() が期待した効果を持ちませんでした: ${problem}`);
 	}
 
-	record(`${screenName()}.${label}`, "kintone.app.record.get", after, {
+	record(`${sampleScreen()}.${label}`, "kintone.app.record.get", after, {
 		structure: inspectStructure(after),
 		setValueProbe: {
 			targetCode,
@@ -587,7 +601,7 @@ const captureSetRow = async (): Promise<void> => {
 	const cell = row.value[cellCode];
 	if (cell === undefined) throw new Error("セルを取得できません");
 
-	const newValue = `${screenName()}-setRow`;
+	const newValue = `${sampleScreen()}-setRow`;
 	if (cell.value === newValue) {
 		throw new Error(
 			`${cellCode} は既に ${newValue} です。値が変わらないと change は発火しません`,
@@ -883,7 +897,7 @@ on(
 		const firedEvents = firedDuringMeasure ?? [];
 		firedDuringMeasure = undefined;
 		const after = getRecordViaJsApi();
-		record(`${screenName()}.${label}`, "kintone.app.record.get", after, {
+		record(`${sampleScreen()}.${label}`, "kintone.app.record.get", after, {
 			structure: inspectStructure(after),
 			setValueProbe: {
 				targetCode: "(UI 操作)",

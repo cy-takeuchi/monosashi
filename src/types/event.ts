@@ -15,8 +15,9 @@ import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
  * `create.show` / `edit.show` / `detail.show` / `index.show` は
  * `fixtures/measured.json` の実測に基づく（e2e で毎回採り直す）。
  *
- * モバイルのそれ以外（submit / change / process）、ポータル、スペース、
- * グラフは**実測していない**。公式ドキュメント準拠で、各型の JSDoc に明記する。
+ * モバイルの submit / change / process も実測済み。
+ * ポータル、スペース、グラフ、削除イベントは**実測していない**。
+ * 公式ドキュメント準拠で、各型の JSDoc に明記する。
  *
  * ## 「PC と同形」は当てにならない
  *
@@ -26,8 +27,11 @@ import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
  * - `mobile.app.record.edit.show` の record は Saved ではなく Editing
  * - `app.record.index.edit.*` は `appId` / `recordId` が文字列で来る
  * - `app.record.detail.process.proceed` は `appId` も `recordId` も持たない
+ * - `mobile.*.submit.success` は `appId` が文字列
  *
  * 同形だと**思える**ことは根拠にならない。採ってから書く。
+ * 一方で `mobile` の submit / change / process は実際に PC と同形だった。
+ * 「違うはずだ」も同じく根拠にならない。
  *
  * ## 条件型について
  *
@@ -239,7 +243,13 @@ export type EditSubmitEvent<Type extends string> = Base<Type> & {
  *
  * **recordId は string**。show 系や submit は number なので、ここだけ型が違う（実測）。
  */
-export type SubmitSuccessEvent<Type extends string> = Base<Type> & {
+export type SubmitSuccessEvent<Type extends string, AppId = number> = {
+	type: Type;
+	/**
+	 * **モバイルでは文字列で来る**（2026-09-05 実測）。
+	 * PC は number。`Base` を継承していないのはこのため
+	 */
+	appId: AppId;
 	recordId: string;
 	record: SavedRecord;
 };
@@ -350,9 +360,22 @@ type SubmitEvents = {
 } & {
 	[K in WithMobile<"app.record.edit.submit">]: EditSubmitEvent<K>;
 } & {
-	[K in WithMobile<"app.record.create.submit.success">]: SubmitSuccessEvent<K>;
-} & {
-	[K in WithMobile<"app.record.edit.submit.success">]: SubmitSuccessEvent<K>;
+	/**
+	 * 保存完了。
+	 *
+	 * **モバイルは `appId` が文字列**（2026-09-05 実測）。PC は number。
+	 * `recordId` はどちらも文字列で、show 系（number）と違う。
+	 */
+	"app.record.create.submit.success": SubmitSuccessEvent<"app.record.create.submit.success">;
+	"mobile.app.record.create.submit.success": SubmitSuccessEvent<
+		"mobile.app.record.create.submit.success",
+		string
+	>;
+	"app.record.edit.submit.success": SubmitSuccessEvent<"app.record.edit.submit.success">;
+	"mobile.app.record.edit.submit.success": SubmitSuccessEvent<
+		"mobile.app.record.edit.submit.success",
+		string
+	>;
 } & {
 	/**
 	 * 一覧のインライン編集の保存。PC のみ。
@@ -387,7 +410,13 @@ type ChangeEvents = {
 } & {
 	[K in `app.record.edit.change.${string}`]: EditChangeEvent<K, EditingRecord>;
 } & {
-	[K in `mobile.app.record.edit.change.${string}`]: ChangeEvent<
+	/**
+	 * モバイルの編集画面の change。
+	 *
+	 * 2026-09-05 実測。PC と同形で、`recordId: number` を持つ。
+	 * `create.change` が `recordId` を持たないのも PC と同じだった。
+	 */
+	[K in `mobile.app.record.edit.change.${string}`]: EditChangeEvent<
 		K,
 		EditingRecord
 	>;

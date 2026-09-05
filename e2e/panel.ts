@@ -1,6 +1,11 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
-import { CUSTOMIZE_ERROR, EDIT_RECORD, SAVE_BUTTON } from "./labels";
+import {
+	CUSTOMIZE_ERROR,
+	EDIT_RECORD,
+	PROCESS_CONFIRM,
+	SAVE_BUTTON,
+} from "./labels";
 
 /**
  * 採取パネルの操作。
@@ -140,23 +145,32 @@ export const exportSamples = async (page: Page): Promise<string> =>
  *
  * 固定時間の待機にしないのは、待ち足りなければ採取漏れを
  * 「その画面では採れない」と誤って結論づけてしまうため。
+ *
+ * `event` が `.` で終わっていれば前方一致で待つ。change イベントは
+ * 名前にフィールドコードが埋まり、どのフィールドを触るかは probe の都合で
+ * 決まるので、そこまで固定すると採取側を不必要に縛る
+ * （`REQUIRED_CONTEXTS` の prefix と同じ考え方）。
  */
 export const waitForSample = (
 	page: Page,
 	event: string,
 	source: string,
 	timeout?: number,
-): Promise<unknown> =>
-	page.waitForFunction(
-		(key) =>
+): Promise<unknown> => {
+	const prefix = event.endsWith(".");
+	return page.waitForFunction(
+		({ key, byPrefix }) =>
 			(
 				window as unknown as { __kintoneRecordProbe?: ProbeApi }
 			).__kintoneRecordProbe
 				?.coverage()
-				.some((entry) => entry.key === key) === true,
-		`${event} / ${source}`,
+				.some((entry) =>
+					byPrefix ? entry.key.startsWith(key) : entry.key === key,
+				) === true,
+		{ key: prefix ? event : `${event} / ${source}`, byPrefix: prefix },
 		timeout === undefined ? undefined : { timeout },
 	);
+};
 
 export const sampleCount = (page: Page): Promise<number> =>
 	page.evaluate(() =>
@@ -498,6 +512,25 @@ export const measureBlockedSubmit = async (
 	);
 
 	await assertNoCustomizeError(page, "保存の中断");
+};
+
+/**
+ * プロセス管理のアクションを実行する。
+ *
+ * **押しただけでは実行されない。** 次のステータスと作業者を示すダイアログが
+ * 開き、確定して初めてイベントが飛ぶ（実測 2026-09-05。PC・モバイル共通）。
+ *
+ * アクションの掴み方だけが画面で違うので、呼ぶ側から渡してもらう。
+ *  - PC: role を持たない `<span title="処理開始">`
+ *  - モバイル: 本物の button。名前は「処理開始 (Proceed status)」で、
+ *    アクション名のあとに kintone の説明が付く
+ */
+export const proceedProcess = async (
+	page: Page,
+	action: Locator,
+): Promise<void> => {
+	await action.click();
+	await page.getByRole("button", { name: PROCESS_CONFIRM }).click();
 };
 
 /**

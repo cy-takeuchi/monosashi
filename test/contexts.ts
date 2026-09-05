@@ -206,7 +206,49 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		match: "exact",
 		event: "mobile.app.record.edit.show",
 		source: "event.record",
-		why: "モバイルの編集画面の record がまだサーバ由来（Saved）であること",
+		why: "**モバイルの編集画面の record は Editing**（PC は Saved）。この差の唯一の根拠",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.create.submit.success",
+		source: "event.record",
+		why: "モバイルの保存完了イベントの形",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.edit.submit.success",
+		source: "event.record",
+		why: "モバイルの更新完了イベントの形",
+	},
+	{
+		match: "prefix",
+		event: "mobile.app.record.create.change.",
+		source: "event.record",
+		why: "モバイルの作成画面でも change が飛び、changes を持つこと",
+	},
+	{
+		match: "prefix",
+		event: "mobile.app.record.edit.change.",
+		source: "event.record",
+		why: "モバイルの編集画面でも change が飛ぶこと",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.detail.process.proceed",
+		source: "event.record",
+		why: "モバイルのプロセス管理。PC と同形かどうかの根拠",
+	},
+	{
+		match: "exact",
+		event: "mobile.screen.detail",
+		source: "kintone.app.record.get",
+		why: "モバイルの get() が返すレコードの形。PC と混ざらないよう probe がキーに mobile. を付けている",
+	},
+	{
+		match: "exact",
+		event: "mobile.screen.edit",
+		source: "kintone.app.record.get",
+		why: "モバイルの編集画面の get()。event.record が Editing だったので get() も確かめる",
 	},
 
 	// --- 値の変更 ---

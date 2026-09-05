@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
-import { ADD_ROW, DELETE_ROW, PROCESS_CONFIRM, SAVE_BUTTON } from "./labels";
+import { ADD_ROW, DELETE_ROW, SAVE_BUTTON } from "./labels";
 import {
 	clearSamples,
 	click,
@@ -13,6 +13,7 @@ import {
 	measureUiCellChange,
 	measureUiFieldChange,
 	measureUiRowChange,
+	proceedProcess,
 	registeredChangeEvents,
 	waitForPanel,
 	waitForSample,
@@ -23,7 +24,9 @@ import {
  *
  * ## 流れ
  *
- * レコード追加 → 詳細 → プロセス管理 → 印刷 → 編集 → 一覧 → モバイル → 削除。
+ * PC: レコード追加 → 詳細 → プロセス管理 → 印刷 → 編集 → 一覧（インライン編集）。
+ * モバイル: 一覧 → 作成 → 保存 → 詳細 → プロセス管理 → 編集 → 保存。
+ * 最後に作ったレコードをすべて消す。
  *
  * 既存レコードを触らないので、実行を重ねても状態が累積的に汚れない。
  * リセット処理も要らない。毎回まっさらなレコードから始まるので
@@ -55,17 +58,42 @@ const app = env.fixtureAppId();
  * 消さないとレコードが実行のたびに増え、一覧画面の採取結果が毎回変わる。
  * 「操作を固定すれば同じ結果」という前提が崩れる。
  */
-let createdRecordId: string | undefined;
+const createdRecordIds: string[] = [];
 
 test.afterEach(async () => {
-	if (createdRecordId === undefined) return;
-	const id = createdRecordId;
-	createdRecordId = undefined;
+	const ids = createdRecordIds.splice(0);
+	if (ids.length === 0) return;
 	// 採取が途中で落ちても消す。afterEach なので失敗時も走る
-	await createClient().record.deleteRecords({ app, ids: [id] });
+	await createClient().record.deleteRecords({ app, ids });
 });
 
+/**
+ * 前の実行が途中で落ちて残ったレコードを消す。
+ *
+ * **採取の途中で失敗すると、作ったレコードの id を控える前に落ちることがある**
+ * （実測 2026-09-05。モバイルの保存直後に落ちて 1 件残った）。
+ * 残ったまま次を走らせると一覧の採取結果が変わり、
+ * 「操作を固定すれば同じ結果」という前提が崩れる。
+ *
+ * `app:build` が投入するテストレコードは 2 件で、必ず最初に作られる。
+ * つまり `$id` が小さい 2 件が本物で、それより後のものは全て取りこぼし。
+ */
+const removeLeftovers = async (): Promise<void> => {
+	const client = createClient();
+	const { records } = await client.record.getRecords({ app, fields: ["$id"] });
+	const ids = records
+		.map((record) => String(record.$id?.value ?? ""))
+		.filter((id) => id !== "")
+		.sort((a, b) => Number(a) - Number(b))
+		.slice(2);
+	if (ids.length === 0) return;
+	console.log(`前回の取りこぼしを削除: ${ids.join(", ")}`);
+	await client.record.deleteRecords({ app, ids });
+};
+
 test("実 kintone から採取する", async ({ page }) => {
+	await removeLeftovers();
+
 	// --- 作成画面 -----------------------------------------------------------
 	await page.goto(`/k/${app}/edit`);
 	await waitForPanel(page, "screen.create");
@@ -139,7 +167,7 @@ test("実 kintone から採取する", async ({ page }) => {
 			`作成したレコードの id を URL から取得できない: ${page.url()}`,
 		);
 	}
-	createdRecordId = recordId;
+	createdRecordIds.push(recordId);
 
 	await click(page, ACTION.jsApi); // screen.detail
 	await click(page, ACTION.rest); // screen.detail / rest.getRecord
@@ -157,8 +185,7 @@ test("実 kintone から採取する", async ({ page }) => {
 	// **押しただけでは実行されない。** 次のステータスと作業者を示す
 	// ポップアップが開き、確定して初めてイベントが飛ぶ（実測 2026-09-05）。
 	// 作業者は既に選択済みなので、確定を押すだけでよい
-	await page.getByTitle("処理開始").click();
-	await page.getByRole("button", { name: PROCESS_CONFIRM }).click();
+	await proceedProcess(page, page.getByTitle("処理開始"));
 	await waitForSample(
 		page,
 		"app.record.detail.process.proceed",
@@ -246,29 +273,81 @@ test("実 kintone から採取する", async ({ page }) => {
 	);
 
 	// --- モバイル -------------------------------------------------------------
-	// mobile.* のイベントはここでしか採れない。probe はモバイル名前空間に
-	// 対応していて（isMobile / appNamespace）、パネルも載る
-	// （kintone.mobile.app.getHeaderSpaceElement がある。実測 2026-09-05）。
+	// mobile.* のイベントはここでしか採れない。
 	//
-	// **ボタン起動の採取はしない。** screenName() は PC と同じ値を返すので、
-	// サンプルのキーが PC 側とぶつかり、どちらの経路で採ったのか分からなくなる。
-	// 採るのは mobile.* のイベントだけにする。
+	// **モバイルでもパネルは完全に動く**（実測 2026-09-05。
+	// `kintone.mobile.app.getHeaderSpaceElement` がある）。
+	// ボタン起動の採取もできる。サンプルのキーは probe 側で `mobile.` を
+	// 前置してあるので、PC と混ざらない。
 	//
-	// **show イベントは load より後に飛ぶ**（実測）。パネルの表示ではなく
-	// 採取そのものを待つ
+	// **show イベントは load より後に飛ぶ**ので、採取そのものを待つ。
+	//
+	// PC のレコードを使い回さず、モバイルで 1 件作って辿る。
+	// 作成 → 保存 → 詳細 → プロセス管理 → 編集 → 保存 を 1 本で通せば、
+	// mobile の submit / change / process をまとめて採れる
 	await page.goto(`/k/m/${app}/?view=${listView.id}`);
 	await waitForSample(page, "mobile.app.record.index.show", "event.records");
 
 	await page.goto(`/k/m/${app}/edit`);
+	await waitForPanel(page, "screen.create");
 	await waitForSample(page, "mobile.app.record.create.show", "event.record");
 
-	await page.goto(`/k/m/${app}/show?record=${recordId}`);
-	await waitForSample(page, "mobile.app.record.detail.show", "event.record");
+	await click(page, ACTION.jsApi); // mobile.screen.create
+	// 必須を埋めると set() が走り、それ自体が change イベントになる。
+	// 保存に必要な操作がそのまま採取になる
+	await click(page, ACTION.fillRequired);
+	await waitForSample(page, "mobile.app.record.create.change.", "event.record");
 
-	// 編集は URL で直接開く。/edit?record=N は show?record=N#mode=edit に
-	// 転送される（実測）
-	await page.goto(`/k/m/${app}/edit?record=${recordId}`);
+	await page.getByRole("button", { name: SAVE_BUTTON }).click();
+	await waitForSample(
+		page,
+		"mobile.app.record.create.submit.success",
+		"event.record",
+	);
+
+	// **submit.success は遷移の前に飛ぶ。**
+	// この時点の URL はまだ作成画面のまま（実測: `/k/m/2/edit#command=save`）。
+	// 詳細画面に移るのを待ってから id を採る
+	await waitForPanel(page, "screen.detail");
+
+	const mobileRecordId = new URL(page.url()).searchParams.get("record");
+	if (mobileRecordId === null) {
+		throw new Error(
+			`モバイルで作ったレコードの id を URL から取得できない: ${page.url()}`,
+		);
+	}
+	createdRecordIds.push(mobileRecordId);
+	await click(page, ACTION.jsApi); // mobile.screen.detail
+	await click(page, ACTION.rest); // mobile.screen.detail / rest.getRecord
+
+	// プロセス管理。**PC とは掴み方が違う。**
+	// PC は role を持たない `<span title="処理開始">` だったが、
+	// モバイルは本物の button で、名前が「処理開始 (Proceed status)」になる
+	// （アクション名のあとに kintone の説明が付く）。前方一致で掴む。
+	// 確定のダイアログが開くところは PC と同じ
+	await proceedProcess(page, page.getByRole("button", { name: /^処理開始/ }));
+	await waitForSample(
+		page,
+		"mobile.app.record.detail.process.proceed",
+		"event.record",
+	);
+
+	// 編集。URL で直接開く（`show?record=N#mode=edit` に転送される）
+	await page.goto(`/k/m/${app}/edit?record=${mobileRecordId}`);
+	await waitForPanel(page, "screen.edit");
 	await waitForSample(page, "mobile.app.record.edit.show", "event.record");
+
+	await click(page, ACTION.jsApi); // mobile.screen.edit
+	await click(page, ACTION.rest); // mobile.screen.edit / rest.getRecord
+	await click(page, ACTION.setValue); // mobile.app.record.edit.change.<コード>
+	await waitForSample(page, "mobile.app.record.edit.change.", "event.record");
+
+	await page.getByRole("button", { name: SAVE_BUTTON }).click();
+	await waitForSample(
+		page,
+		"mobile.app.record.edit.submit.success",
+		"event.record",
+	);
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

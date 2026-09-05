@@ -642,6 +642,9 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **一覧の行は `load` では出ていない** | ヘッダのボタンが見えた時点で数えると 0 行になり、「レコードが無い」と誤解する | 行が出るまで待つ |
 | **UI で行を追加した直後は計算フィールドがまだ計算されていない** | 追加された行の `t_calc` が、実行によって `undefined` だったり `"0"` だったりした。同じ操作なのに基準データに差分が出る。`set()` で足した行は `undefined` のままで安定する | 計算フィールドに値が入るまで待ってから採る。最初は「2 回続けて同じ結果」を条件にしたが、**再計算が始まる前の安定した `undefined` を拾って**しまい直らなかった。待つ対象が分かったなら、それを直接の条件にする |
 | **モバイルの show イベントは `load` より後に飛ぶ** | `load` 直後に見ると 1 画面前までの採取しか見えない | 採取そのものを待つ |
+| **`submit.success` は画面遷移の前に飛ぶ** | 保存直後の URL はまだ作成画面のまま（`/k/m/2/edit#command=save`）。ここでレコード id を読もうとして失敗した | 遷移を待ってから URL を読む |
+| **採取が途中で落ちるとレコードが残る** | id を控える前に落ちると後始末できず、次の実行で一覧の採取結果が変わる | 採取の最初に、`app:build` が入れる 2 件（`$id` が小さい 2 件）以外を消す |
+| **`<button>` の `value` は `""` を返す** | 調査コードで `aria-label ?? title ?? value ?? textContent` と繋いだら、`value` が `""` で止まって**すべてのボタンの文字が消えた**。採取パネルのボタン 10 個を「無い」と読み違えた | 空でない最初の候補を選ぶ。`??` は空文字を通す |
 | **印刷画面は `window.print()` を呼ぶ** | Playwright ではブラウザの印刷ダイアログを閉じられず、開くと以降の操作が全て止まる（実測: テストが 30 秒でタイムアウト） | 遷移前に `addInitScript` で `window.print` を空関数に差し替える。kintone の DOM には触らない |
 | `op run` は秘密値と一致する文字列を出力から全てマスクする | スペース ID のような短い数値を 1Password に入れると、出力中の同じ数字が全部 `<concealed>` になる | 秘密でない値は `.env` に直値で書く |
 
@@ -668,6 +671,8 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | モバイルは PC と同形か | **違う**。`mobile.app.record.edit.show` の record は Saved ではなく **Editing**（値の無いフィールドが `undefined`）。詳細画面は PC と同形だったので、読み込み途中を拾ったわけではない | 2026-09-05 |
 | 一覧のインライン編集は編集画面と同形か | **違う**。`app.record.index.edit.*` は `recordId` が文字列。`submit` と `change` は `appId` まで文字列（他のイベントは number） | 2026-09-05 |
 | `change` イベントは画面によらず同形か | **違う**。`create.change.*` は `recordId` を持たず、`edit.change.*` は number、`index.edit.change.*` は string | 2026-09-05 |
+| モバイルの submit / change / process は PC と同形か | **`submit.success` だけ違う。`appId` が文字列**（PC は number）。`submit` / `change` / `process.proceed` は同形で、`create.change` が `recordId` を持たないところまで一致した。`kintone.app.record.get()` の戻りも PC と同じ | 2026-09-05 |
+| モバイルのプロセス管理は PC と同じか | イベントの形は同じ。**掴み方だけ違う**。PC は role を持たない `<span title="処理開始">`、モバイルは本物の button で名前が「処理開始 (Proceed status)」。確認ダイアログで確定してから飛ぶのは共通 | 2026-09-05 |
 | `ProcessProceedEvent` の形 | `appId` も `recordId` も**持たない**。`action` / `status` / `nextStatus` は文字列ではなく `{ value: string }`。`status` は遷移**前**、`nextStatus` が遷移**後** | 2026-09-05 |
 
 ## 型の名前

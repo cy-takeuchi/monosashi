@@ -128,6 +128,27 @@ describe("プロセス管理（2026-09-05 実測）", () => {
 });
 
 describe("モバイル（2026-09-05 実測）", () => {
+	test("submit.success の appId は文字列。PC は number", () => {
+		expectTypeOf<
+			EventOf<"mobile.app.record.create.submit.success">["appId"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EventOf<"mobile.app.record.edit.submit.success">["appId"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EventOf<"app.record.create.submit.success">["appId"]
+		>().toEqualTypeOf<number>();
+	});
+
+	test("change と submit は PC と同形だった", () => {
+		expectTypeOf<
+			EventOf<"mobile.app.record.edit.change.singleLineText">["recordId"]
+		>().toEqualTypeOf<number>();
+		expectTypeOf<
+			EventOf<"mobile.app.record.edit.submit">["appId"]
+		>().toEqualTypeOf<number>();
+	});
+
 	test("編集画面の record だけ Editing。PC とも詳細画面とも違う", () => {
 		expectTypeOf<
 			EventOf<"mobile.app.record.edit.show">["record"]
