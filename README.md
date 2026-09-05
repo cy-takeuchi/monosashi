@@ -106,6 +106,26 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 | `setValue` / `canSetValue` | 型安全な代入 |
 | `guard.*` | 型ガード |
 
+### 公開前に、利用者の立場で確かめる
+
+```sh
+pnpm run pack:check
+```
+
+`pnpm pack` した tarball を空のプロジェクトに入れ、
+**`kintone-record` という名前で**読めるかを確かめる。kintone には接続しない。
+
+`build:check`（`test/dist/consumer.ts`）は `.d.ts` の劣化を捕まえるが、
+`../../dist/index` と**相対パスで**読んでいるので
+
+- `exports` マップ
+- `files` に入れ忘れたファイル
+- `moduleResolution` の違い（`bundler` / `nodenext`）
+- 実行時に読み込めるか
+
+を通らない。実際、`exports` から `./kintone` を消しても `build:check` は緑のまま、
+`pack:check` は落ちることを確認してある。
+
 ## セットアップ
 
 ```sh

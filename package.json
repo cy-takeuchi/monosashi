@@ -27,6 +27,7 @@
 		"build:types": "tsc -p tsconfig.build.json",
 		"build:js": "vite build",
 		"build:check": "tsc -p tsconfig.dist.json",
+		"pack:check": "pnpm run build && tsx tools/package/packCheck.ts",
 		"prepublishOnly": "pnpm run build",
 		"tsc": "tsc --noEmit",
 		"biome": "biome check --write .",
