@@ -48,6 +48,7 @@
 > [!NOTE]
 > **まだ npm に公開していない**（[#3](../../issues/3)）。
 > 今は `pnpm pack` した tarball を参照するか、リポジトリを直接指定して使う。
+> 公開の器（`version` / `LICENSE` / `repository` / `publishConfig`）は整えてある。
 
 ```sh
 pnpm add kintone-record
@@ -358,4 +359,4 @@ PR ごとにライブ実行すると遅く不安定になり、やがてテス�
 
 ## ライセンス
 
-MIT を予定しているが、**LICENSE ファイルはまだ置いていない**（[#3](../../issues/3)）。
+[MIT](LICENSE)

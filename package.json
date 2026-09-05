@@ -1,10 +1,31 @@
 {
 	"name": "kintone-record",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"type": "module",
 	"packageManager": "pnpm@11.6.0",
 	"description": "Accurate, measurement-backed kintone record types, converters and typeguards.",
 	"license": "MIT",
+	"author": "Yoshihiko Takeuchi",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/cy-takeuchi/kintone-record.git"
+	},
+	"homepage": "https://github.com/cy-takeuchi/kintone-record#readme",
+	"bugs": {
+		"url": "https://github.com/cy-takeuchi/kintone-record/issues"
+	},
+	"keywords": [
+		"kintone",
+		"cybozu",
+		"typescript",
+		"types",
+		"typeguard",
+		"rest-api"
+	],
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
 	"files": [
 		"dist"
 	],
