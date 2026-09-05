@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { shapeOf } from "../../tools/analyze/shape";
+import { shapeOf } from "../../test/shape";
 import { inspectStructure, probe } from "./serialize";
 
 /**

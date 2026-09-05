@@ -849,7 +849,7 @@ kintone は詳細→編集をページ再読み込みなしで遷移するので
 遷移のたびに change ハンドラが増えていた。
 
 凍結フィクスチャにも同じ重複がある（`edit.change` の件数が 8 / 4 / 4 / 2 / 2 と全て偶数）。
-同一データなので型の導出は誤っていないが、`report.md` の `n` を水増ししていた。
+同一データなので型の導出は誤っていないが、当時の実測レポートの `n` を水増ししていた。
 
 **e2e では致命的**になる。「操作を固定すれば同じ結果」という前提が、
 画面遷移の経路によって崩れるため。登録呼び出しを 1 つのプロミスに畳んで修正した。
@@ -1186,7 +1186,7 @@ change イベントは行数の反映より遅れて飛ぶため、
 ## 参照
 
 - 実測の手順: [`../README.md`](../README.md)
-- 実測レポート: [`../fixtures/report.md`](../fixtures/report.md)（生データは `fixtures/measured-*.json`）
+- 実測データ: [`../fixtures/measured.json`](../fixtures/measured.json)（e2e が採り、`pnpm run fixture:build` が正規化する）
 - REST 書き込みの受け入れ挙動: [`../fixtures/write-behavior.md`](../fixtures/write-behavior.md)
 - 採取シリアライザとその不変条件: `src/probe/serialize.ts` / `src/probe/serialize.test.ts`
 - 検証アプリのフィールド定義: `tools/fixture-app/fields.ts`

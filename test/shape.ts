@@ -1,7 +1,10 @@
-import type { Probed } from "../../src/probe/serialize";
+import type { Probed } from "../src/probe/serialize";
 
 /**
- * Probed から「型の形」を表す文字列を作る。
+ * Probed から「型の形」を表す文字列を作る。テストヘルパ。
+ *
+ * 旧 `tools/analyze/shape.ts`。手採取時代の分析スクリプトの一部だったが、
+ * 分析側は e2e 採取に置き換わって消えた。残ったのはこれだけ。
  *
  * 値そのものではなく形に潰すことで、多数のサンプルを突き合わせられるようにする。
  * ただし "" と null と undefined と [] は潰さない。
@@ -54,12 +57,4 @@ export const shapeOf = (
 			return `{ ${entries.join("; ")} }`;
 		}
 	}
-};
-
-/** フィールドの type プロパティを取り出す。type が無いフィールドは null */
-export const fieldTypeOf = (probed: Probed): string | null => {
-	if (probed.k !== "object") return null;
-	const type = probed.props.type;
-	if (type === undefined || type.k !== "string") return null;
-	return type.v;
 };

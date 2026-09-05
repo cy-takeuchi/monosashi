@@ -1,7 +1,7 @@
 /**
  * kintone のレコードフィールド型。
  *
- * すべて実測に基づく。根拠は fixtures/report.md と fixtures/measured-*.json。
+ * すべて実測に基づく。根拠は fixtures/measured.json（e2e が実 kintone から採る）。
  * 実測の裏づけが無いものは書かない。推測で書かれた型が正しくないことが
  * このプロジェクトの出発点であるため。
  *

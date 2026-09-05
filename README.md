@@ -13,27 +13,41 @@
 
 ## 現在地
 
-実測 → 型 → 変換 → 構築 / 代入 → ガード → パッケージまで完成。
-残るのは定期ライブ検証。
+型・変換・構築 / 代入・ガード・定期ライブ検証まで完成。
+**残るのは npm 公開の器（#3）と、実プロジェクトへの適用（#5）。**
 
-- [x] 検証アプリの REST 構築スクリプト
-- [x] 実測採取カスタマイズ
-- [x] 差分レポート生成
-- [x] シリアライザのテスト
-- [x] 実測の実施（84 サンプル + REST 書き込み挙動 20 ケース）
-- [x] フィールド型・レコード型（`Saved` / `Editing` / `Rest`）
-- [x] イベント型（`KintoneEventMap`）と `kintone.d.ts` のレコード周り
-- [x] 変換関数（`toRestWrite` / `toRest`）
-- [x] 構築 API（`field.*`）・代入 API（`setValue`）
-- [x] 型ガード（`guard.*`）
-- [x] パッケージのビルド（`pnpm pack` して別プロジェクトから利用できることを確認済み）
-- [x] 種別の網羅を突き合わせるテスト（`test/coverage.test.ts`）
-- [x] ビルド成果物に対する型検査（`build:check`）
-- [x] Playwright による採取（2 回の実行がバイト単位で一致することを確認済み）
-- [x] 実測の根拠を e2e 採取に置き換え
-- [x] 定期ライブ検証のワークフロー（`.github/workflows/live.yml`。Secrets の設定待ち）
+実測の状況:
+
+- `fixtures/measured.json` に **82 サンプル / 67 文脈**。e2e が実 kintone から採る
+- **フィールド種別 28 種**すべてに裏づけがある
+  （`GROUP` と `REFERENCE_TABLE` は「レコードには現れない」ことを確かめた上で除外）
+- **採取対象の 30 イベントすべて**に裏づけがある。
+  作成 / 詳細 / 編集 / 一覧 / 印刷 / モバイル、
+  `submit` / `change` / プロセス管理 / インライン編集 / 削除
+- 2 回続けて実行すると**バイト単位で同じ結果**になる。
+  だから差分が出たら「kintone が変わった」と言える
+
+### 実測が型の主張を否定した例
+
+「PC と同形だろう」で書いていた型は、実際に測ると 5 つ外れた。
+
+| 書いてあったこと | 実測 |
+| --- | --- |
+| モバイルの編集画面も `Saved` | **`Editing`**。値の無いフィールドが `undefined` |
+| 一覧のインライン編集は編集画面と同形 | `recordId` が**文字列**。`submit` と `change` は `appId` まで文字列 |
+| `process.proceed` は `appId` / `recordId` を持つ | **持たない**。`action` / `status` / `nextStatus` は `{ value: string }` |
+| 削除は `record` を持たない | **持つ**（37 フィールドの `Saved` レコード） |
+| `change` は画面によらず同形 | `create` は `recordId` 無し / `edit` は number / `index.edit` は string |
+
+一方で、印刷画面が詳細画面と一致することや、
+モバイルの `submit` / `change` / `process` が PC と同形であることも実測で確かめた。
+**同形だと思えることも、違うはずだということも、根拠にならない。**
 
 ## 使う
+
+> [!NOTE]
+> **まだ npm に公開していない**（[#3](../../issues/3)）。
+> 今は `pnpm pack` した tarball を参照するか、リポジトリを直接指定して使う。
 
 ```sh
 pnpm add kintone-record
@@ -170,13 +184,21 @@ KINTONE_GUEST_SPACE_ID=      # ゲストスペースの場合はこちらだけ�
 
 ## 実測の手順
 
-```sh
-# 以下の kintone に接続するコマンドは、op を使う場合すべて
-#   op run --account <アカウント> --env-file=.env -- <コマンド>
-# の形で実行する
+kintone に接続するコマンドは、`op` を使う場合すべて
 
-# 1. 検証アプリを構築（測定用アプリ + ルックアップ参照先アプリ + テストレコード）
-#    完了後 .env に FIXTURE_APP_ID / FIXTURE_LOOKUP_APP_ID が書き込まれる
+```sh
+env $(env | grep -o '^[A-Z_]*=op://' | sed 's/=op:\/\//\ /' | sed 's/^/-u /') \
+  op run --account <アカウント> --env-file=.env -- <コマンド>
+```
+
+の形で実行する（`env -u` の理由は「認証情報の渡し方」を参照）。
+
+### 一度だけ: 検証アプリを用意する
+
+```sh
+# 1. 検証アプリを構築（測定用 + ルックアップ参照先 + テストレコード 2 件）
+#    完了後 .env に FIXTURE_APP_ID / FIXTURE_LOOKUP_APP_ID が書き込まれる。
+#    再実行すると既存のアプリを作り直す（アプリは増えない）
 pnpm run app:build
 
 # 2. カテゴリー設定を手動で有効化
@@ -186,42 +208,82 @@ pnpm run app:build
 # 3. 構成を検証（カテゴリー設定漏れ・ルックアップ未実行などを検出）
 pnpm run app:verify
 
-# 4. 採取カスタマイズをビルドしてアプリに適用
+# 4. 採取カスタマイズを適用（システム管理権限 + アプリ管理権限が要る）
 pnpm run probe:build
 pnpm run app:deploy-probe
-
-# 5. ブラウザで各画面を開いて採取
-#    ヘッダに操作パネルが出る
-
-# 6. エクスポートした JSON を fixtures/raw/ に置いてレポート生成
-pnpm exec tsx tools/analyze/report.ts
 ```
 
-### 採取の進め方
+### 毎回: 採取して基準データを作り直す
 
-各画面のヘッダに出るパネルで操作する。
+```sh
+pnpm run e2e            # 実 kintone を操作して採取（fixtures/live/raw.json）
+pnpm run fixture:build  # 正規化して fixtures/measured.json を作る
+pnpm test               # 型の主張を新しい実測に対して検証
+```
+
+`e2e/collect.spec.ts` が 1 本のテストで次を辿る。
+
+| | 流れ |
+| --- | --- |
+| PC | レコード追加 → 詳細 → プロセス管理 → 印刷 → 編集 → 一覧（インライン編集） |
+| モバイル | 一覧 → 作成 → 保存 → 詳細 → プロセス管理 → 編集 → 保存 |
+| 最後 | 3 経路（PC 詳細 / モバイル詳細 / PC 一覧）から UI で削除 |
+
+削除を UI で行うのは、**REST で消すと削除イベントが飛ばない**ため。
+後始末がそのまま採取になっている。
+
+### 採取を変えたら必ず確かめること
+
+**2 回続けて実行し、`fixtures/measured.json` に差分が出ないこと。**
+
+```sh
+pnpm run e2e && pnpm run fixture:build && git diff --stat fixtures/measured.json
+```
+
+UI 操作の直後は kintone がまだ計算中のことがあり、
+動いている対象を採ると同じ操作でも結果が変わる（実際 `t_calc` でそうなった）。
+差分が出るなら待ち方が足りていない。
+
+また、新しい採取を足したら **`test/contexts.ts` の `REQUIRED_CONTEXTS` にも足す**。
+足さないと、その採取を将来落としてもテストが緑のまま根拠だけ消える。
+
+### 手で採ることもできる
+
+各画面のヘッダに操作パネルが出る。e2e はこのパネルを押している。
 
 | 操作 | 内容 |
-|---|---|
+| --- | --- |
 | ラベル欄 | `未入力` / `入力済み` などを入れる。分析時の突き合わせに使う |
 | JS API で採取 | `kintone.app.record.get()` の結果を採る |
 | REST で採取 | 同じレコードを REST `getRecord` で採る |
-| 両方採取 | 上記2つを続けて実行。**同一レコードでの突き合わせが目的なのでこれを推奨** |
+| 両方採取 | 上記 2 つを続けて実行。**同一レコードでの突き合わせが目的なのでこれを推奨** |
+| set() 系 | 値・表・行の追加削除。`change` イベントの発火条件を測る |
 | カバレッジ | 採取済みの (イベント, 経路) の組を console に出す |
-| エクスポート | 蓄積した全サンプルを1ファイルでダウンロード |
+| エクスポート | 蓄積した全サンプルを 1 ファイルでダウンロード |
 
 `event.record` は `kintone.events.on` のハンドラ内で自動的に採取される
 （`kintone.app.record.get()` はハンドラ内では動作しないため、経路を分けている）。
 
-採取すべき文脈は、作成 / 詳細 / 編集 / 一覧 / 印刷 の各画面 ×
-`event.record` / JS API / REST、それぞれで未入力レコードと入力済みレコードの両方。
-`submit`・`submit.success`・`change.<field>`・インライン編集も対象。
+### 画面の要素を調べる
+
+kintone の DOM をどう掴めるかは推測せず実物を見る。
+`e2e/inspect.spec.ts` が調査用で、`INSPECT=1` のときだけ動く。
+
+```sh
+INSPECT=1 pnpm run e2e --grep "ラベル起点"
+```
+
+答えの出た調査は消してよい。判明したことは `docs/DECISIONS.md` に残す。
 
 ## ドキュメント
 
 - [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、そして**何を捨てたか、なぜ捨てたか**。
-  実測で判明した事実（現行の型が書き込みを検査していないこと等）と、
-  調査済みの kintone / API の制約もここにまとめてある。
+  実測で判明した kintone / API の制約と、
+  **測り方を間違えた記録**（何を根拠と誤認したか）もここにまとめてある。
+- [`fixtures/measured.json`](fixtures/measured.json) — 型の唯一の根拠。e2e が採り直せる
+- [`fixtures/write-behavior.md`](fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
+- [`test/contexts.ts`](test/contexts.ts) — 採取が満たすべき下限。
+  「この採取が無いと、どの主張の根拠が消えるか」を 1 件ずつ書いてある
 
 ## 設計上の要点
 
@@ -236,11 +298,18 @@ JSON.stringify({ error: undefined }) === "{}"   // キーが消える
 `src/probe/serialize.ts` は `Object.keys()` でキー集合を保持し、
 各値を種別つきで包むことで `undefined` / `null` / `""` / `[]` を区別する。
 
-### 採取と分析を分離する
+### 採取と正規化を分離する
 
-ブラウザ側は生データの採取のみを行い、スキーマ化・型生成は
-`tools/analyze/` の Node スクリプトが担当する。
-これにより採取カスタマイズを再アップロードせずに分析だけ何度でも回せる。
+ブラウザ側（`src/probe/`）は生データの採取だけを行い、
+環境依存の値を伏せるのは Node 側（`tools/fixture/normalize.ts`）が担当する。
+
+分けている理由は 2 つ。採取カスタマイズを再アップロードせずに
+正規化の規則だけ何度でも直せること。そして
+**採取したままの生データにはレコード ID・時刻・ユーザー情報が入る**ので、
+コミットするものと切り離せること（`fixtures/live/raw.json` は gitignore）。
+
+正規化はフィールドの**コードではなく `type` で判定する**。
+組み込みフィールドのコードは環境の言語で変わるため。
 
 ### 採取コードを二重に持たない
 
@@ -269,4 +338,4 @@ PR ごとにライブ実行すると遅く不安定になり、やがてテス�
 
 ## ライセンス
 
-MIT
+MIT を予定しているが、**LICENSE ファイルはまだ置いていない**（[#3](../../issues/3)）。
