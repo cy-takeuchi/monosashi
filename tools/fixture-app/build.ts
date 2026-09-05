@@ -109,6 +109,9 @@ const rebuildFixtureAppForm = async (
 		}
 	}
 
+	// 組み込みフィールドのコードは環境の言語で変わる（レコード番号 / Record_number）。
+	// 一覧の定義でも使うので、type から引けるようにしておく
+	const builtInCodeOf: Record<string, string> = {};
 	const builtInCodes = builtInFieldTypes.map((type) => {
 		const found = Object.values(properties).find(
 			(property) => property.type === type,
@@ -116,6 +119,7 @@ const rebuildFixtureAppForm = async (
 		if (found === undefined) {
 			throw new Error(`組み込みフィールド ${type} が見つかりません`);
 		}
+		builtInCodeOf[type] = found.code;
 		return found.code;
 	});
 	log(`  組み込みフィールドを解決 (${builtInCodes.join(", ")})`);
@@ -126,21 +130,56 @@ const rebuildFixtureAppForm = async (
 	});
 	log("  レイアウト設定");
 
+	// 作業者に指定する「作成者」フィールドのコード。これも言語で変わる
+	const creatorCode = builtInCodeOf.CREATOR;
+	if (creatorCode === undefined) {
+		throw new Error("作成者フィールドのコードを解決できません");
+	}
+
 	log("[4/6] プロセス管理を有効化 (STATUS / STATUS_ASSIGNEE を作る)");
 	await client.app.updateProcessManagement({
 		app,
 		enable: true,
 		states: {
+			// **作業者を空にしない。** 空だと誰もアクションを実行できず、
+			// 詳細画面にアクションボタン（「処理開始」）が出ない。
+			// それでは detail.process.proceed を測れない（実測 2026-09-02）。
+			//
+			// 作業者は「作成者」フィールドを指す。ユーザーのログイン名を書くと
+			// 環境ごとに違うものが必要になるが、これなら誰が実行しても同じ。
+			//
+			// entity.type: "CREATOR" ではなく FIELD_ENTITY を使う。
+			// 先頭のステータスは kintone が指定できるものを制限しており、
+			// CREATOR は次で弾かれる（実測 2026-09-05）:
+			//   states[未処理].assignee: 先頭のステータスでは、作業者は空、
+			//   またはレコードの作成者フィールドを指定します。
 			未処理: {
 				name: "未処理",
 				index: "0",
-				assignee: { type: "ONE", entities: [] },
+				assignee: {
+					type: "ONE",
+					entities: [
+						{
+							entity: { type: "FIELD_ENTITY", code: creatorCode },
+							includeSubs: false,
+						},
+					],
+				},
 			},
 			処理中: {
 				name: "処理中",
 				index: "1",
-				assignee: { type: "ONE", entities: [] },
+				assignee: {
+					type: "ONE",
+					entities: [
+						{
+							entity: { type: "FIELD_ENTITY", code: creatorCode },
+							includeSubs: false,
+						},
+					],
+				},
 			},
+			// 完了は終端。ここから進む先が無いので作業者は要らない
 			完了: {
 				name: "完了",
 				index: "2",
@@ -152,6 +191,64 @@ const rebuildFixtureAppForm = async (
 			{ name: "完了する", from: "処理中", to: "完了", filterCond: "" },
 		],
 	});
+
+	// 空文字を混ぜると updateViews が通ってしまい、列の消えた一覧ができる。
+	// 解決できなかったことをここで落とす
+	const recordNumberCode = builtInCodeOf.RECORD_NUMBER;
+	if (recordNumberCode === undefined) {
+		throw new Error("レコード番号フィールドのコードを解決できません");
+	}
+
+	// 一覧をコードで宣言する。
+	//
+	// **kintone が既定で用意する一覧は getViews が返さない**（実測 2026-09-05:
+	// プロセス管理が足した「（作業者が自分）」1 件しか返らず、しかもその一覧は
+	// 作業者が付くまで 0 件なので、レコードの見える一覧に REST から辿り着けない）。
+	// 一覧のインライン編集を測るには、レコードが見える一覧が要る。
+	//
+	// updateViews は一覧を全置換する。ただし**自動作成された一覧は消せない**
+	// （実測 2026-09-05: GAIA_IL44 「（作業者が自分）」は自動作成された一覧の
+	// ため、削除できません）。消せないものは残したまま我々の一覧を足す。
+	//
+	// preview: true で引くのは、直前のプロセス管理の変更がまだ
+	// 運用環境に反映されていないため（deployApp はこの後）
+	const { views: currentViews } = await client.app.getViews({
+		app,
+		preview: true,
+	});
+	const builtinViews = Object.entries(currentViews).filter(
+		([, view]) => view.builtinType !== undefined,
+	);
+
+	await client.app.updateViews({
+		app,
+		views: {
+			// 我々の一覧を先頭にする。view を指定せずにアプリを開いたときの
+			// 着地先がここになる。「（作業者が自分）」が先頭だと、
+			// 作業者が付くまで 0 件の画面に着いてしまう
+			...Object.fromEntries(
+				builtinViews.map(([name, view], order) => [
+					name,
+					{ ...view, index: String(order + 1) },
+				]),
+			),
+			すべて: {
+				type: "LIST",
+				name: "すべて",
+				index: "0",
+				// 組み込みフィールドのコードは環境の言語で変わるので決め打ちしない。
+				// 残りは我々が付けたコードなので言語に依存しない
+				fields: [
+					recordNumberCode,
+					"singleLineTextRequired",
+					"singleLineText",
+					"number",
+				],
+				filterCond: "",
+			},
+		},
+	});
+	log("  一覧を設定");
 
 	await client.app.deployApp({ apps: [{ app }] });
 	await waitForDeploy(client, [app]);
