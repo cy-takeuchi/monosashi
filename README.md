@@ -304,7 +304,22 @@ INSPECT=1 pnpm run e2e --grep "ラベル起点"
 
 答えの出た調査は消してよい。判明したことは `docs/DECISIONS.md` に残す。
 
-## 公開する前に確かめる
+## 検査する
+
+```sh
+pnpm run check
+```
+
+**CI（`.github/workflows/check.yml`）が走らせるのはこれだけ。**
+手元と CI で同じものが回る。ワークフローにステップを並べると、
+手元で「CI と同じもの」を回すのに YAML を読むことになり、
+片方だけ更新されても誰も気づかない。定義は `package.json` の 1 箇所に置く。
+
+中身は Biome / `tsc` / テスト / 採取カスタマイズのビルド / `pack:check`。
+実 kintone には接続しないので数秒で終わる。
+**高速で常時グリーンであることが、テストがコメントアウトされないための条件。**
+
+### 公開の器を確かめる（`pack:check`）
 
 ```sh
 pnpm run pack:check

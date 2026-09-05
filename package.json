@@ -44,6 +44,7 @@
 		"./package.json": "./package.json"
 	},
 	"scripts": {
+		"check": "pnpm run biome:check && pnpm run tsc && pnpm run test && pnpm run probe:build && pnpm run pack:check",
 		"build": "pnpm run build:types && pnpm run build:js && pnpm run build:check",
 		"build:types": "tsc -p tsconfig.build.json",
 		"build:js": "vite build",

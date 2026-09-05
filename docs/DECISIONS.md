@@ -655,6 +655,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `kintone-record/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
 | **peerDependency が無いと型は黙って `any` になる** | 入れずに読み、`Rest.Number` に `{ type: "SINGLE_LINE_TEXT", value: 123 }` を代入しても `skipLibCheck: true`（TS の既定）ではエラーにならない。`skipLibCheck: false` なら `TS2307` で落ちる | **消せない**ので、被る範囲を「REST の型を明示的に読んだ人」に限定する。挙動自体は `pack:check` で固定し、変わったら気づけるようにする |
 | **既定の registry が npmjs とは限らない** | この環境では `https://npm.flatt.tech/`（社内プロキシ）を向いていた。明示しないと `pnpm publish` がそちらへ行く | `publishConfig.registry` で公開先を固定する |
+| **CI がステップを並べると、手元と CI がずれる** | 手元で「CI と同じもの」を回すのに YAML を読む必要があり、片方だけ更新されても気づかない。実際、CI に `pack:check` が入っておらず `exports` が壊れても緑のままだった | 検査の定義は `package.json` の `check` 1 箇所に置き、CI はそれを呼ぶだけにする |
 | **相対パスで dist を読む検査は `exports` を通らない** | `test/dist/consumer.ts` は `../../dist/index` を読むので、`exports` マップが壊れていても緑のまま。`exports` から `./kintone` を消して確認した | `pnpm pack` した tarball を空のプロジェクトに入れ、パッケージ名で読む検査を別に持つ（`pack:check`） |
 | `moduleResolution: node10` は TypeScript 7 で削除された | `Option 'moduleResolution=node10' has been removed` | 検査対象は `bundler` と `nodenext` の 2 つ |
 | `op run` は秘密値と一致する文字列を出力から全てマスクする | スペース ID のような短い数値を 1Password に入れると、出力中の同じ数字が全部 `<concealed>` になる | 秘密でない値は `.env` に直値で書く |

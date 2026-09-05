@@ -21,13 +21,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Biome
-        run: pnpm run biome:check
-      - name: TypeScript
-        run: pnpm run tsc
-      - name: Tests (型テスト + 凍結フィクスチャに対する検証)
-        run: pnpm run test
-      - name: 採取カスタマイズがビルドできること
-        run: pnpm run probe:build
-      - name: パッケージがビルドできること
-        run: pnpm run build
+
+      # **ここでステップを並べない。** 並べると、手元で「CI と同じもの」を
+      # 回すのに毎回この YAML を読むことになり、片方だけ更新されても
+      # 誰も気づかない。定義は package.json の check ひとつに置く。
+      #
+      # 中身は biome / tsc / test / probe:build / pack:check。
+      # pack:check は build も兼ねる（tarball を作る前にビルドする）。
+      - name: すべての検査
+        run: pnpm run check
