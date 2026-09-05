@@ -234,6 +234,7 @@ export const measureUiRowChange = async (
 		// 上限まで待っても飛ばなかった。それ自体が測定結果なので記録に進む
 	}
 
+	await waitForCalculations(page);
 	await endWatch(page, label);
 	await assertNoCustomizeError(page, label);
 };
@@ -246,6 +247,64 @@ export const measureUiRowChange = async (
  * 過去の観測と比較できなくなることに注意する。
  */
 const UI_EVENT_TIMEOUT_MS = 3000;
+
+/**
+ * kintone が計算フィールドを計算し終えるまで待つ。
+ *
+ * **UI で行を追加した直後、追加された行の計算フィールドがまだ計算されていない
+ * ことがある。** 実測 2026-09-05、`screen.edit.uiAddRow` の
+ * `t_calc` がある実行では `undefined`、別の実行では `"0"` になり、
+ * 同じ操作なのに基準データに差分が出た。動いている対象を採っていた。
+ *
+ * 最初は「2 回続けて同じ結果」を条件にしたが、それでは弱かった。
+ * 再計算が始まる前の**安定した undefined** を拾ってしまい、まだ揺れた。
+ * 待つべきものが分かった以上、そちらを直接の条件にする。
+ *
+ * `set()` で足した行の計算フィールドは `undefined` のままで正しい
+ * （`screen.edit.addRow`。実測で毎回そうなる）。この待ちは UI 操作の
+ * 測定にだけ置いてあるので、そちらには影響しない。
+ *
+ * `kintone.app.record.get()` を直接呼ぶ。probe を経由しないのは、
+ * ここに手を入れるためだけにカスタマイズを再デプロイしたくないため。
+ * 公開 API なので内部実装には触れていない。
+ */
+const waitForCalculations = async (page: Page): Promise<void> => {
+	try {
+		await page.waitForFunction(
+			() => {
+				const get = (
+					window as unknown as {
+						kintone?: {
+							app?: { record?: { get?: () => { record?: unknown } | null } };
+						};
+					}
+				).kintone?.app?.record?.get;
+				if (get === undefined) return true;
+
+				const record = get()?.record;
+				if (record === null || typeof record !== "object") return true;
+
+				type Cell = { type?: string; value?: unknown };
+				const pending = (fields: object): boolean =>
+					Object.values(fields).some((cell: Cell) => {
+						if (cell?.type === "CALC") return cell.value === undefined;
+						if (cell?.type !== "SUBTABLE") return false;
+						const rows = cell.value;
+						if (!Array.isArray(rows)) return false;
+						return rows.some((row: { value?: object }) =>
+							row?.value === undefined ? false : pending(row.value),
+						);
+					});
+
+				return !pending(record);
+			},
+			undefined,
+			{ timeout: UI_EVENT_TIMEOUT_MS },
+		);
+	} catch {
+		// 計算が終わらなかった。基準データの差分として現れるので、そこで気づく
+	}
+};
 
 const beginWatch = (page: Page): Promise<void> =>
 	page.evaluate(() => {
@@ -325,6 +384,7 @@ export const measureUiFieldChange = async (
 		// 上限まで待っても飛ばなかった。それ自体が測定結果
 	}
 
+	await waitForCalculations(page);
 	await endWatch(page, label);
 	await assertNoCustomizeError(page, label);
 };
@@ -392,6 +452,7 @@ export const measureUiCellChange = async (
 		// 上限まで待っても飛ばなかった。それ自体が測定結果
 	}
 
+	await waitForCalculations(page);
 	await endWatch(page, label);
 	await assertNoCustomizeError(page, label);
 };

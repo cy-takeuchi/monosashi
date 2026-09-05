@@ -94367,7 +94367,8 @@
 																"v": "CALC"
 															},
 															"value": {
-																"k": "undefined"
+																"k": "string",
+																"v": "0"
 															}
 														}
 													},
