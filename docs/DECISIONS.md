@@ -1191,9 +1191,64 @@ change イベントは行数の反映より遅れて飛ぶため、
 
 どちらも待ち時間に依存しない。
 
+## この環境で `pnpm publish` を実行しない
+
+**`--dry-run` を付けても実行してはいけない。** 2026-09-05 に踏んで、
+手元の pnpm を丸ごと壊した。
+
+### 何が起きたか
+
+`pnpm publish --dry-run` が**出力ゼロのまま固まった**。`~/.npmrc` の既定レジストリが
+社内のプロキシに向いていて、その認証待ちだったと見ている。止めるしかなかった。
+
+問題はその副作用で、**`--dry-run` でも `package.json` が書き換わっていた**。
+
+| キー | 前 | 後 |
+| --- | --- | --- |
+| `packageManager` | `pnpm@11.6.0` | `pnpm@11.25.0` |
+| `@biomejs/biome` | `2.5.11` | `2.5.12` |
+| `@playwright/test` | `^1.62.1` | `^1.63.0` |
+| `@types/node` | `^26.4.0` | `^26.4.1` |
+| `tsx` | `^4.23.12` | `^4.23.13` |
+| `vitest` | `^4.1.11` | **`^5.0.0`**（メジャー） |
+
+### なぜそれが pnpm を壊すか
+
+pnpm 11 は `packageManager` を見て、一致しないバージョンを自分で取りに行く
+（manage-package-manager-versions）。ところが `~/.npmrc` に `ignore-scripts=true` があるため、
+本体バイナリを取り込む postinstall が走らない。結果、
+`~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0/` には**殻だけ**が残る。
+
+以降このリポジトリで `pnpm` を打つと必ずそれに委譲され、こうなる。
+
+```
+node_modules/@pnpm/exe/pnpm: line 1: This: command not found
+```
+
+**リポジトリの外の pnpm まで道連れになる**のが厄介なところ。`pnpm` 自体が動かないので
+`pnpm install` で戻すこともできない。
+
+### 戻し方
+
+```sh
+git checkout package.json                                    # packageManager を戻す
+rm -rf ~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0      # 殻を消す
+pnpm --version                                               # 11.6.0 に戻ることを確認
+```
+
+### 代わりに何で確かめるか
+
+公開物が利用者から読めるかは **`pnpm run pack:check`** で見る。
+`pnpm pack` した tarball を空のプロジェクトに入れて、`exports` / `files` /
+`moduleResolution` / 実行時 import / 依存が入らないことまで通す。
+レジストリに触らないので、この事故は起きない。
+
+publish 自体の検証は手元でやらず、**CI 上のリリースワークフローで
+`workflow_dispatch` の入力を使って publish 手前まで通す**。
+
 ## 参照
 
-- 実測の手順: [`../README.md`](../README.md)
+- 実測の手順: [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
 - 実測データ: [`../fixtures/measured.json`](../fixtures/measured.json)（e2e が採り、`pnpm run fixture:build` が正規化する）
 - REST 書き込みの受け入れ挙動: [`../fixtures/write-behavior.md`](../fixtures/write-behavior.md)
 - 採取シリアライザとその不変条件: `src/probe/serialize.ts` / `src/probe/serialize.test.ts`
