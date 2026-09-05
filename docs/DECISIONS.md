@@ -651,6 +651,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **`getClientRects()` は `visibility: hidden` を見抜けない** | 閉じたメニューの中の項目を「押せる」と誤判断して空振りした。`offsetParent` は逆に `position: fixed` を隠れていると誤判断する | 押せるかどうかは Playwright の判定に任せる。DOM の走査は候補を見つけるまでにとどめる |
 | **`<button>` の `value` は `""` を返す** | 調査コードで `aria-label ?? title ?? value ?? textContent` と繋いだら、`value` が `""` で止まって**すべてのボタンの文字が消えた**。採取パネルのボタン 10 個を「無い」と読み違えた | 空でない最初の候補を選ぶ。`??` は空文字を通す |
 | **印刷画面は `window.print()` を呼ぶ** | Playwright ではブラウザの印刷ダイアログを閉じられず、開くと以降の操作が全て止まる（実測: テストが 30 秒でタイムアウト） | 遷移前に `addInitScript` で `window.print` を空関数に差し替える。kintone の DOM には触らない |
+| **委譲は「検出できない `any`」と引き換えだった** | `Rest` を `@kintone/rest-api-client` に委ねていたが、利用者がそれを入れていないと `skipLibCheck: true`（TS の既定）で型が `any` に落ち、`strict` も `noImplicitAny` も警告も効かない。緩和策も全て効かなかった（optional peer は無信号、必須 peer も pnpm は自動インストールも警告もしない、型側の `any` 検出はモジュール未解決時に型エイリアス全体が `any` になり条件型に到達しない） | **自前で持つ。** 解決すべき外部モジュールが無くなり構造的に消える。定義は 55 行で、`Entity` / `FileInformation` は既存のものを使える。乖離は `rest.test-d.ts` の等価性テストで縛る（devDependency はこのリポジトリに常に在る） |
 | **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `kintone-record/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
 | **peerDependency が無いと型は黙って `any` になる** | 入れずに読み、`Rest.Number` に `{ type: "SINGLE_LINE_TEXT", value: 123 }` を代入しても `skipLibCheck: true`（TS の既定）ではエラーにならない。`skipLibCheck: false` なら `TS2307` で落ちる | **消せない**ので、被る範囲を「REST の型を明示的に読んだ人」に限定する。挙動自体は `pack:check` で固定し、変わったら気づけるようにする |
 | **既定の registry が npmjs とは限らない** | この環境では `https://npm.flatt.tech/`（社内プロキシ）を向いていた。明示しないと `pnpm publish` がそちらへ行く | `publishConfig.registry` で公開先を固定する |
@@ -676,6 +677,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | --- | --- | --- |
 | ルックアップのコピー先を REST 書き込みに含めるとどうなるか | **無視される**。変換にメタ情報は不要 | 2026-08-30 |
 | メタ有無で戻り値をブランド型で区別するか | **不要**。区別する対象が消えた | 2026-08-30 |
+| `Rest` を `@kintone/rest-api-client` に委ねるか | **委ねない。自前で持つ。** 2026-08-30 に「新しい正規形は作らない」と決めていたが、**その決定を実測で覆した**。委譲の代償が検出できない `any` だと分かり、緩和策も全て効かなかった。守るものが 2 つあるので、テストも 2 つ置く（あちらとの等価性 / 実測との一致） | 2026-09-05 |
 | 印刷画面で採取できるか | **できる**。ヘッダが無いのでパネルは出ないが、カスタマイズ JS は動き `app.record.print.show` が飛ぶ。パネルの有無と採取可否は別物だった。採れるのは `event.record` だけで、ボタン起動の `get()` / REST は採れない | 2026-09-02 |
 | モバイルで採取できるか | **できる**。`kintone.mobile.app.getHeaderSpaceElement` があるのでパネルも載る。`create` / `edit` / `detail` / `index` の show が飛ぶ | 2026-09-05 |
 | モバイルは PC と同形か | **違う**。`mobile.app.record.edit.show` の record は Saved ではなく **Editing**（値の無いフィールドが `undefined`）。詳細画面は PC と同形だったので、読み込み途中を拾ったわけではない | 2026-09-05 |

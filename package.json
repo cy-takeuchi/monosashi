@@ -41,10 +41,6 @@
 			"types": "./dist/kintone.d.ts",
 			"default": "./dist/kintone.js"
 		},
-		"./rest": {
-			"types": "./dist/rest.d.ts",
-			"default": "./dist/rest.js"
-		},
 		"./package.json": "./package.json"
 	},
 	"scripts": {
@@ -81,13 +77,5 @@
 		"vite": "^8.2.2",
 		"vitest": "^4.1.11"
 	},
-	"sideEffects": false,
-	"peerDependencies": {
-		"@kintone/rest-api-client": "^6.2.1"
-	},
-	"peerDependenciesMeta": {
-		"@kintone/rest-api-client": {
-			"optional": true
-		}
-	}
+	"sideEffects": false
 }

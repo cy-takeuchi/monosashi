@@ -1,5 +1,5 @@
 import { expectTypeOf, test } from "vitest";
-import type { Editing, Saved } from "../src/types/field";
+import type { Editing, Rest, Saved } from "../src/types/field";
 import type { ObservedFieldType } from "./fieldTypes";
 
 /**
@@ -16,4 +16,18 @@ test("Saved.OneOf は観測された全種別を覆う", () => {
 
 test("Editing.OneOf は観測された全種別を覆う", () => {
 	expectTypeOf<Editing.OneOf["type"]>().toEqualTypeOf<ObservedFieldType>();
+});
+
+/**
+ * Rest も同じ軸に載せる。
+ *
+ * 以前は `@kintone/rest-api-client` に委譲していて、この検査が無かった。
+ * kintone に種別が増えても、あちらが追随していなければ気づけない状態だった。
+ * 自前で持つようにしたので、`Saved` / `Editing` と同じ規律に揃える。
+ *
+ * あちらとの等価性は `src/types/rest.test-d.ts` が別に見る。
+ * こちらは「kintone が返す種別を漏れなく持っているか」で、守るものが違う。
+ */
+test("Rest.OneOf は観測された全種別を覆う", () => {
+	expectTypeOf<Rest.OneOf["type"]>().toEqualTypeOf<ObservedFieldType>();
 });

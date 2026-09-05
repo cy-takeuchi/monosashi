@@ -263,3 +263,129 @@ export namespace Editing {
 		| InSubtable
 		| Subtable;
 }
+
+// ---------------------------------------------------------------------------
+// Rest — REST API の getRecord / getRecords
+// ---------------------------------------------------------------------------
+
+/**
+ * REST API のフィールド。
+ *
+ * ## なぜ自前で持つか
+ *
+ * 以前は `@kintone/rest-api-client` の `KintoneRecordField` をそのまま
+ * Canonical として使い、名前だけ揃えていた。新しい正規形を作らなければ
+ * 型の同一性が壊れない、という判断だった。
+ *
+ * **その代償が、検出できない `any` だった**（実測 2026-09-05）。
+ * 利用者がそのパッケージを入れていないと、`skipLibCheck: true`
+ * （TypeScript の既定）では型がエラーにならず `any` に落ちる。
+ * `strict` も `noImplicitAny` も効かない。緩和策も全て効かなかった。
+ *
+ *   - optional な peerDependency  ... 何の信号も出ない
+ *   - 必須の peerDependency       ... pnpm は自動インストールも警告もしない
+ *   - 型側での `any` 検出          ... モジュール未解決だと型エイリアス全体が
+ *                                     `any` になり、条件型に到達しない
+ *
+ * 自前で持てば、解決すべき外部モジュールが無くなるので**構造的に消える**。
+ * 利用者は何も入れなくてよい。
+ *
+ * ## 乖離しないことをどう保証するか
+ *
+ * 型の同一性は `src/types/rest.test-d.ts` が
+ * `KintoneRecordField.OneOf` との等価性で縛る。
+ * そのパッケージは devDependency として**このリポジトリには常に在る**ので、
+ * 委譲をやめても突き合わせは続けられる。
+ *
+ * 加えて `Saved` / `Editing` と同じく、実測した全種別を覆うことも縛る
+ * （`test/coverage.test-d.ts`）。前者は「利用者が REST クライアントに
+ * 渡せるか」を、後者は「kintone が返す種別を漏れなく持っているか」を守る。
+ * 守るものが違うので両方要る。
+ */
+export namespace Rest {
+	export type RecordNumber = FieldOf<"RECORD_NUMBER", string>;
+	export type Id = FieldOf<"__ID__", string>;
+	export type Revision = FieldOf<"__REVISION__", string>;
+	export type Creator = FieldOf<"CREATOR", Entity>;
+	export type Modifier = FieldOf<"MODIFIER", Entity>;
+	export type CreatedTime = FieldOf<"CREATED_TIME", string>;
+	export type UpdatedTime = FieldOf<"UPDATED_TIME", string>;
+	export type Status = FieldOf<"STATUS", string>;
+	export type StatusAssignee = FieldOf<"STATUS_ASSIGNEE", Entity[]>;
+	export type Category = FieldOf<"CATEGORY", string[]>;
+
+	export type SingleLineText = FieldOf<"SINGLE_LINE_TEXT", string>;
+	export type MultiLineText = FieldOf<"MULTI_LINE_TEXT", string>;
+	export type RichText = FieldOf<"RICH_TEXT", string>;
+	export type Number = FieldOf<"NUMBER", string>;
+	export type Calc = FieldOf<"CALC", string>;
+	export type Link = FieldOf<"LINK", string>;
+	export type CheckBox = FieldOf<"CHECK_BOX", string[]>;
+	export type RadioButton = FieldOf<"RADIO_BUTTON", string>;
+	export type MultiSelect = FieldOf<"MULTI_SELECT", string[]>;
+	/** **REST だけ null になりうる**（実測）。Saved.Dropdown は string */
+	export type Dropdown = FieldOf<"DROP_DOWN", string | null>;
+	export type Date = FieldOf<"DATE", string | null>;
+	export type Time = FieldOf<"TIME", string | null>;
+	export type DateTime = FieldOf<"DATETIME", string>;
+	export type File = FieldOf<"FILE", FileInformation[]>;
+	export type UserSelect = FieldOf<"USER_SELECT", Entity[]>;
+	export type OrganizationSelect = FieldOf<"ORGANIZATION_SELECT", Entity[]>;
+	export type GroupSelect = FieldOf<"GROUP_SELECT", Entity[]>;
+
+	/**
+	 * ルックアップは無い。
+	 *
+	 * REST では `confirmed` も `recordId` も持たず、
+	 * コピー元のフィールド（SINGLE_LINE_TEXT など）としてそのまま返る（実測）。
+	 */
+
+	/** サブテーブルに入れられるフィールド */
+	export type InSubtable =
+		| SingleLineText
+		| MultiLineText
+		| RichText
+		| Number
+		| Calc
+		| Link
+		| CheckBox
+		| RadioButton
+		| MultiSelect
+		| Dropdown
+		| Date
+		| Time
+		| DateTime
+		| File
+		| UserSelect
+		| OrganizationSelect
+		| GroupSelect;
+
+	export type SubtableRow<
+		T extends { [fieldCode: string]: InSubtable } = {
+			[fieldCode: string]: InSubtable;
+		},
+	> = {
+		id: string;
+		value: T;
+	};
+
+	export type Subtable<
+		T extends { [fieldCode: string]: InSubtable } = {
+			[fieldCode: string]: InSubtable;
+		},
+	> = FieldOf<"SUBTABLE", SubtableRow<T>[]>;
+
+	export type OneOf =
+		| RecordNumber
+		| Id
+		| Revision
+		| Creator
+		| Modifier
+		| CreatedTime
+		| UpdatedTime
+		| Status
+		| StatusAssignee
+		| Category
+		| InSubtable
+		| Subtable;
+}

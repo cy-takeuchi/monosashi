@@ -108,40 +108,32 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 | `setValue` / `canSetValue` | 型安全な代入 |
 | `guard.*` | 型ガード |
 
-### REST の型は別経路にある
-
-```sh
-pnpm add @kintone/rest-api-client   # この経路を使うときだけ必要
-```
+### REST の型も本体から出る
 
 ```ts
-import type { Rest, RestRecord } from "kintone-record/rest";
+import type { Rest, RestRecord } from "kintone-record";
 ```
 
-`Rest` / `RestRecord` / `RestRecordWithMeta` だけは
-`@kintone/rest-api-client` を必要とする（その型を Canonical として使うため）。
-本体に置くと、**型しか使わない利用者にも実行時依存が付いてくる**
-（7MB / axios ほか 5 個）。kintone カスタマイズはブラウザ側だけのことが多く、
-その大半は REST クライアントを必要としない。
+**このパッケージは実行時の依存を持たない。** `pnpm add kintone-record` で入るのは
+これだけで、他には何も付いてこない（`pack:check` が毎回確かめている）。
 
-そのため
+以前は `Rest` を `@kintone/rest-api-client` の型に委ねていた。
+新しい正規形を作らなければ型の同一性が壊れない、という判断だった。
+**その代償が、検出できない `any` だった。**
+利用者がそのパッケージを入れていないと、`skipLibCheck: true`
+（TypeScript の既定）では型がエラーにならず `any` に落ちる。
+`strict` も `noImplicitAny` も効かず、警告も出ない。
 
-- `@kintone/rest-api-client` は **optional な peerDependency**
-- 本体（`kintone-record`）は一切依存しない
-- REST の型を使うときだけ `kintone-record/rest` から読み、
-  `@kintone/rest-api-client` を自分で入れる
+そこで自前で持つことにした。乖離しないことは、こちらのテストで縛る。
 
-> [!WARNING]
-> **あなたのプロジェクトに `@kintone/rest-api-client` を入れずに
-> `kintone-record/rest` を読むと、型が `any` に落ちる。**
-> `skipLibCheck: true`（TypeScript の既定）ではエラーにならないので、
-> 型が効いていないことに気づけない（実測）。この経路を使うなら必ず入れること。
->
-> 本体（`kintone-record`）だけを使う分にはこの話は関係ない。
+| テスト | 守るもの |
+| --- | --- |
+| `src/types/rest.test-d.ts` | `@kintone/rest-api-client` との等価性。利用者が `client.record.addRecord()` に渡せること |
+| `test/coverage.test-d.ts` | 実測した全種別を覆っていること（`Saved` / `Editing` と同じ軸） |
 
-本体の `.d.ts` から参照が消えたので、`skipLibCheck: false` の利用者が
-`@types/node` を要求されることも無くなった
-（rest-api-client の `.d.ts` が `https` / `Buffer` / `stream` を使うため）。
+`@kintone/rest-api-client` は devDependency としてこのリポジトリには常に在るので、
+委譲をやめても突き合わせは続けられる。
+その更新は Dependabot が拾い、上の等価性テストが可否を判定する。
 
 ## セットアップ
 

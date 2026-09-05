@@ -19,13 +19,14 @@ import {
 	field,
 	guard,
 	type LooseRecord,
+	type Rest,
+	type RestRecord,
 	type SavedRecord,
 	setValue,
 	toAddParams,
 	toRestWrite,
 	toUpdateParams,
 } from "../../dist/index";
-import type { Rest, RestRecord } from "../../dist/rest";
 
 // --- 構築 ---
 const num: { type: "NUMBER"; value: string } = field.number(12.5);
@@ -72,8 +73,7 @@ if (guard.isSingleLineText(loose) && guard.hasValue(loose)) {
 }
 
 // --- 3 文脈の名前空間が揃っていること ---
-// Rest は本体ではなく kintone-record/rest にある。
-// 型しか使わない利用者に @kintone/rest-api-client を背負わせないため
+// Rest も本体から出る。自前で持っているので外部依存は要らない
 declare const restNumber: Rest.Number;
 declare const restDropdown: Rest.SingleLineText;
 console.log(restNumber.value, restDropdown.value);

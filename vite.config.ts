@@ -6,9 +6,9 @@ import { defineConfig } from "vite";
  * 型宣言は tsc が出す（tsconfig.build.json）。
  * vite はランタイムのコードだけを担当する。
  *
- * @kintone/rest-api-client は外部依存として残す。
- * バンドルに含めると、利用者側の rest-api-client と二重になり、
- * instanceof や型の同一性が壊れる。
+ * @kintone/rest-api-client は external にしてある。
+ * 今は型を自前で持っているので実行時には現れないが、
+ * tools/ が REST クライアントを使うため、設定は残す。
  */
 export default defineConfig({
 	build: {
@@ -22,9 +22,6 @@ export default defineConfig({
 			entry: {
 				index: "src/index.ts",
 				kintone: "src/kintone.ts",
-				// REST の型だけを置く経路。型しか無いが、
-				// kintone.ts と同じ理由で JS も出す必要がある
-				rest: "src/rest.ts",
 			},
 			formats: ["es"],
 			fileName: (_format, name) => `${name}.js`,

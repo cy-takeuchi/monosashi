@@ -1,0 +1,31 @@
+# 依存の自動更新。
+#
+# **@kintone/rest-api-client だけを対象にする。**
+#
+# 目的は「型の主張が他人の変更で壊れたことに気づく」こと。
+# `Rest` の型はこのリポジトリが自前で持っているが、利用者はそれを
+# REST クライアントに渡すので、あちらと乖離すると利用者の手元で壊れる。
+# その等価性は `src/types/rest.test-d.ts` が縛っている。
+#
+# ただしその型テストは**誰かが依存を上げたときにしか走らない**。
+# 引き金がここ。PR が立つと check.yml（pull_request で tsc / test / build）が
+# 判定する。
+#
+# vite や biome の更新はこの目的と関係がない。対象を広げると PR の数で
+# 埋もれて、やがて見られなくなる。「PR ごとにライブ実行しない」と同じ判断
+# （playwright.config.ts のコメントを参照）。困ったら足せる。
+#
+# 落ちたときは逃げ道を作らずに止める。失敗はこの PR の中だけで起き、
+# main は緑のままなので急がない。どちらが正しいかは実測で決める。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    allow:
+      - dependency-name: "@kintone/rest-api-client"
+    commit-message:
+      prefix: chore
+    labels:
+      - dependencies
