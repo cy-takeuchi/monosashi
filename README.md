@@ -110,6 +110,10 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 
 ### REST の型は別経路にある
 
+```sh
+pnpm add @kintone/rest-api-client   # この経路を使うときだけ必要
+```
+
 ```ts
 import type { Rest, RestRecord } from "kintone-record/rest";
 ```
@@ -128,35 +132,16 @@ import type { Rest, RestRecord } from "kintone-record/rest";
   `@kintone/rest-api-client` を自分で入れる
 
 > [!WARNING]
-> **入れずに `kintone-record/rest` を読むと、型が `any` に落ちる。**
-> `skipLibCheck: true`（TypeScript の既定）だとエラーにならない（実測）。
-> この経路を使うなら必ず入れること。
-> `pack:check` がこの挙動を毎回確かめている。
+> **あなたのプロジェクトに `@kintone/rest-api-client` を入れずに
+> `kintone-record/rest` を読むと、型が `any` に落ちる。**
+> `skipLibCheck: true`（TypeScript の既定）ではエラーにならないので、
+> 型が効いていないことに気づけない（実測）。この経路を使うなら必ず入れること。
+>
+> 本体（`kintone-record`）だけを使う分にはこの話は関係ない。
 
 本体の `.d.ts` から参照が消えたので、`skipLibCheck: false` の利用者が
 `@types/node` を要求されることも無くなった
 （rest-api-client の `.d.ts` が `https` / `Buffer` / `stream` を使うため）。
-
-### 公開前に、利用者の立場で確かめる
-
-```sh
-pnpm run pack:check
-```
-
-`pnpm pack` した tarball を空のプロジェクトに入れ、
-**`kintone-record` という名前で**読めるかを確かめる。kintone には接続しない。
-
-`build:check`（`test/dist/consumer.ts`）は `.d.ts` の劣化を捕まえるが、
-`../../dist/index` と**相対パスで**読んでいるので
-
-- `exports` マップ
-- `files` に入れ忘れたファイル
-- `moduleResolution` の違い（`bundler` / `nodenext`）
-- 実行時に読み込めるか
-- `@kintone/rest-api-client` が**入らない**こと（optional な peer なので）
-
-を通らない。実際、`exports` から `./kintone` を消しても `build:check` は緑のまま、
-`pack:check` は落ちることを確認してある。
 
 ## セットアップ
 
@@ -326,6 +311,27 @@ INSPECT=1 pnpm run e2e --grep "ラベル起点"
 ```
 
 答えの出た調査は消してよい。判明したことは `docs/DECISIONS.md` に残す。
+
+## 公開する前に確かめる
+
+```sh
+pnpm run pack:check
+```
+
+`pnpm pack` した tarball を空のプロジェクトに入れ、
+**`kintone-record` という名前で**読めるかを確かめる。kintone には接続しない。
+
+`build:check`（`test/dist/consumer.ts`）は `.d.ts` の劣化を捕まえるが、
+`../../dist/index` と**相対パスで**読んでいるので
+
+- `exports` マップ
+- `files` に入れ忘れたファイル
+- `moduleResolution` の違い（`bundler` / `nodenext`）
+- 実行時に読み込めるか
+- `@kintone/rest-api-client` が**入らない**こと（optional な peer なので）
+
+を通らない。実際、`exports` から `./kintone` を消しても `build:check` は緑のまま、
+`pack:check` は落ちることを確認してある。
 
 ## ドキュメント
 
