@@ -223,13 +223,18 @@ pnpm run pack:check
 
 ### `pnpm publish` は手元で実行しない
 
-**`--dry-run` を付けても実行しない。** この環境では出力ゼロのまま固まったうえ、
-`package.json` の `packageManager` と依存を書き換えていく。書き換わった
-`packageManager` を pnpm が自分で取りに行き、`ignore-scripts=true` のせいで
-中身のない pnpm が入って**リポジトリの外まで pnpm が動かなくなる**。
-経緯と復旧手順は [`docs/DECISIONS.md`](docs/DECISIONS.md) に書いてある。
+**`--dry-run` を付けても実行しない。** 既定レジストリが社内プロキシに向いているため、
+出力ゼロのまま固まる。公開物の検証は `pack:check`、publish 自体の検証は CI 側で行う。
 
-公開物の検証は `pack:check`、publish 自体の検証は CI 側で行う。
+### 依存を上げるとき
+
+`ncu -u` は `packageManager` も更新対象にする。pnpm はそのフィールドを見て
+自分を差し替えるので、**依存更新のついでに pnpm 本体が入れ替わる**。
+一度これで pnpm が壊れて動かなくなった（経緯と復旧手順は
+[`docs/DECISIONS.md`](docs/DECISIONS.md)）。
+
+`.ncurc.json` で `pnpm` を除外してあるので、そのまま `ncu -u` を使ってよい。
+pnpm を上げるときは `packageManager` を手で書き換える。
 
 ## 設計上の要点
 

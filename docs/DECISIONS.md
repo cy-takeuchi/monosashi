@@ -1191,57 +1191,62 @@ change イベントは行数の反映より遅れて飛ぶため、
 
 どちらも待ち時間に依存しない。
 
-## この環境で `pnpm publish` を実行しない
+## `ncu -u` に `packageManager` を触らせない
 
-**`--dry-run` を付けても実行してはいけない。** 2026-09-05 に踏んで、
-手元の pnpm を丸ごと壊した。
+`npm-check-updates` は `packageManager` フィールドも**更新対象として扱う**。
+`ncu -u` を打つと依存と一緒に pnpm 自身のバージョンが書き換わる。
 
-### 何が起きたか
+```
+ pnpm                11.6.0  →    12.3.4
+```
 
-`pnpm publish --dry-run` が**出力ゼロのまま固まった**。`~/.npmrc` の既定レジストリが
-社内のプロキシに向いていて、その認証待ちだったと見ている。止めるしかなかった。
+pnpm 11 以降はこのフィールドを見て、一致しないバージョンを自分で取りに行く
+（manage-package-manager-versions）。つまり **`ncu -u` はその場では何も壊さず、
+次に `pnpm` を打った瞬間に pnpm 本体を差し替える。**
 
-問題はその副作用で、**`--dry-run` でも `package.json` が書き換わっていた**。
-
-| キー | 前 | 後 |
-| --- | --- | --- |
-| `packageManager` | `pnpm@11.6.0` | `pnpm@11.25.0` |
-| `@biomejs/biome` | `2.5.11` | `2.5.12` |
-| `@playwright/test` | `^1.62.1` | `^1.63.0` |
-| `@types/node` | `^26.4.0` | `^26.4.1` |
-| `tsx` | `^4.23.12` | `^4.23.13` |
-| `vitest` | `^4.1.11` | **`^5.0.0`**（メジャー） |
-
-### なぜそれが pnpm を壊すか
-
-pnpm 11 は `packageManager` を見て、一致しないバージョンを自分で取りに行く
-（manage-package-manager-versions）。ところが `~/.npmrc` に `ignore-scripts=true` があるため、
-本体バイナリを取り込む postinstall が走らない。結果、
-`~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0/` には**殻だけ**が残る。
-
-以降このリポジトリで `pnpm` を打つと必ずそれに委譲され、こうなる。
+2026-09-05 にこれで手元の pnpm が壊れた。書き込まれた `pnpm@11.25.0` を pnpm が
+取りに行き、`~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0/` に**中身のない**
+ものが入った。以降このリポジトリで `pnpm` を打つと必ずそこへ委譲され、こうなる。
 
 ```
 node_modules/@pnpm/exe/pnpm: line 1: This: command not found
 ```
 
-**リポジトリの外の pnpm まで道連れになる**のが厄介なところ。`pnpm` 自体が動かないので
-`pnpm install` で戻すこともできない。
-
-### 戻し方
+`pnpm` 自体が動かないので `pnpm install` では戻せない。手で消すしかない。
 
 ```sh
-git checkout package.json                                    # packageManager を戻す
-rm -rf ~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0      # 殻を消す
-pnpm --version                                               # 11.6.0 に戻ることを確認
+git checkout package.json                                # packageManager を戻す
+rm -rf ~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0  # 壊れたものを消す
+pnpm --version                                           # 戻ることを確認
 ```
 
-### 代わりに何で確かめるか
+**取り込みが壊れた原因は特定できていない。** `~/.npmrc` の `ignore-scripts=true` を
+疑ったが、後から入った `12.3.4` は同じ設定のまま正常な実行ファイルとして入った。
+確実に言えるのは、この経路で壊れることが一度起きた、ということだけ。
 
-公開物が利用者から読めるかは **`pnpm run pack:check`** で見る。
-`pnpm pack` した tarball を空のプロジェクトに入れて、`exports` / `files` /
+### 対処
+
+`.ncurc.json` で `pnpm` を除外する。設定ファイルが効くことは確認済み。
+
+```json
+{ "reject": ["pnpm"] }
+```
+
+pnpm を上げたいときは意図して上げる。`packageManager` は
+**動かす pnpm を決める設定**であって、依存ではない。
+依存の一括更新のついでに動くと、更新した本人にも何が変わったのか見えない。
+
+## この環境で `pnpm publish` を手元から実行しない
+
+`pnpm publish --dry-run` が**出力ゼロのまま固まった**。`~/.npmrc` の既定レジストリが
+社内のプロキシに向いているためで、認証の入力待ちと見ている。
+`package.json` の `publishConfig.registry` は npmjs を指しているので公開先自体は正しいが、
+`--dry-run` の経路はそこを見に行かない。
+
+公開物が利用者から読めるかは **`pnpm run pack:check`** で確かめる。
+`pnpm pack` した tarball を空のプロジェクトに入れ、`exports` / `files` /
 `moduleResolution` / 実行時 import / 依存が入らないことまで通す。
-レジストリに触らないので、この事故は起きない。
+レジストリに触らないので固まらない。
 
 publish 自体の検証は手元でやらず、**CI 上のリリースワークフローで
 `workflow_dispatch` の入力を使って publish 手前まで通す**。
