@@ -22,6 +22,9 @@ export default defineConfig({
 			entry: {
 				index: "src/index.ts",
 				kintone: "src/kintone.ts",
+				// REST の型だけを置く経路。型しか無いが、
+				// kintone.ts と同じ理由で JS も出す必要がある
+				rest: "src/rest.ts",
 			},
 			formats: ["es"],
 			fileName: (_format, name) => `${name}.js`,

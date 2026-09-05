@@ -19,13 +19,13 @@ import {
 	field,
 	guard,
 	type LooseRecord,
-	type Rest,
 	type SavedRecord,
 	setValue,
 	toAddParams,
 	toRestWrite,
 	toUpdateParams,
 } from "../../dist/index";
+import type { Rest, RestRecord } from "../../dist/rest";
 
 // --- 構築 ---
 const num: { type: "NUMBER"; value: string } = field.number(12.5);
@@ -40,6 +40,9 @@ const rowId: string | undefined = newRow.id;
 const table = field.subtable([newRow, existingRow]);
 
 // --- 変換 ---
+// REST のレコード型もサブパスから読める
+declare const restRecord: RestRecord;
+
 const record: LooseRecord = {
 	$id: { type: "__ID__", value: "1" },
 	text,
@@ -69,7 +72,8 @@ if (guard.isSingleLineText(loose) && guard.hasValue(loose)) {
 }
 
 // --- 3 文脈の名前空間が揃っていること ---
-// Rest は README が 3 本柱として挙げているので、実在することを確かめる
+// Rest は本体ではなく kintone-record/rest にある。
+// 型しか使わない利用者に @kintone/rest-api-client を背負わせないため
 declare const restNumber: Rest.Number;
 declare const restDropdown: Rest.SingleLineText;
 console.log(restNumber.value, restDropdown.value);
@@ -84,4 +88,4 @@ kintone.events.on("app.record.detail.show", (event) => {
 	return event;
 });
 
-console.log(rowId, converted, id, revision, update, add);
+console.log(rowId, converted, id, revision, update, add, restRecord);

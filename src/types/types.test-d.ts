@@ -1,11 +1,7 @@
 import { describe, expectTypeOf, test } from "vitest";
 import type { Editing, Saved } from "./field";
-import type {
-	CreateRecord,
-	EditingRecord,
-	RestRecord,
-	SavedRecord,
-} from "./record";
+import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
+import type { RestRecord } from "./rest";
 
 /**
  * コンパイル時の型テスト。

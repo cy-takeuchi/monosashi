@@ -41,7 +41,12 @@ const MODES = [
 	{ name: "nodenext", module: "nodenext", resolution: "nodenext" },
 ] as const;
 
-/** 利用者が実際に書くであろう形。名前で読む */
+/**
+ * `@kintone/rest-api-client` を入れていない利用者。
+ *
+ * 本体は REST に依存しないので、**これが通らなければ切り出しが失敗している**。
+ * 逆にここが通ることが、ブラウザ側だけの利用者に 7MB を背負わせていない証拠になる。
+ */
 const CONSUMER = `
 // グローバル拡張はこの副作用 import でのみ有効になる
 import "kintone-record/kintone";
@@ -51,7 +56,6 @@ import {
 	guard,
 	type LooseField,
 	type LooseRecord,
-	type Rest,
 	setValue,
 	toUpdateParams,
 } from "kintone-record";
@@ -64,9 +68,6 @@ const params: { app: string; id: string } = toUpdateParams("1", record);
 declare const cell: LooseField;
 if (guard.isSingleLineText(cell)) console.log(cell.type);
 
-// 3 文脈の名前空間が揃っていること
-declare const restNumber: Rest.Number;
-
 // イベント名から event の形が引けること
 type Detail = EventOf<"app.record.detail.show">;
 declare const detail: Detail;
@@ -75,7 +76,25 @@ const recordId: number = detail.recordId;
 // グローバルが生えていること
 kintone.events.on("app.record.detail.show", (event) => event);
 
-console.log(params, restNumber, recordId);
+console.log(params, recordId);
+`;
+
+/**
+ * REST の型を使う利用者。
+ *
+ * `@kintone/rest-api-client` を**入れていない**状態で読むと、
+ * `skipLibCheck: true`（TS の既定）では型がエラーにならず `any` に落ちる
+ * （実測 2026-09-05）。切り出しはこの危険を消すのではなく、
+ * 「REST の型を明示的に読んだ人」だけに限定するもの。
+ * その事実自体をここで固定しておく。変わったら気づけるように。
+ */
+const REST_CONSUMER = `
+import type { Rest, RestRecord } from "kintone-record/rest";
+
+declare const record: RestRecord;
+// rest-api-client を入れていなければ any に落ちるので、これが通ってしまう
+const loose: Rest.Number = { type: "SINGLE_LINE_TEXT", value: 123 };
+console.log(record, loose);
 `;
 
 const run = (command: string, args: string[], cwd: string): string =>
@@ -114,9 +133,24 @@ const main = (): void => {
 		)}\n`,
 	);
 	writeFileSync(join(work, "consumer.ts"), CONSUMER);
+	writeFileSync(join(work, "rest.ts"), REST_CONSUMER);
 
 	console.log("\n利用者のプロジェクトに入れています…");
 	run("pnpm", ["install", "--ignore-workspace"], work);
+
+	// 本体が REST に依存していないことを、依存の実体で確かめる。
+	// peerDependenciesMeta.optional なので入らないはず
+	const installed = readdirSync(join(work, "node_modules"));
+	const hasRest = installed.includes("@kintone");
+	console.log(
+		`\n@kintone/rest-api-client が入ったか: ${hasRest ? "★ 入っている" : "入っていない（想定どおり）"}`,
+	);
+	if (hasRest) {
+		throw new Error(
+			"本体だけを入れたのに @kintone/rest-api-client が入っている。" +
+				"peerDependenciesMeta.optional が効いていない",
+		);
+	}
 
 	const failures: string[] = [];
 	for (const mode of MODES) {
@@ -152,6 +186,34 @@ const main = (): void => {
 			}
 			failures.push(mode.name);
 		}
+	}
+
+	// 「入れていないと any に落ちる」ことを固定する。
+	// 消せない危険なので、せめて変わったら気づけるようにする
+	console.log("\n@kintone/rest-api-client 未インストールで REST の型を読むと:");
+	writeFileSync(
+		join(work, "tsconfig.rest.json"),
+		`${JSON.stringify(
+			{
+				compilerOptions: {
+					strict: true,
+					noEmit: true,
+					target: "ES2022",
+					module: "ESNext",
+					moduleResolution: "bundler",
+					skipLibCheck: true,
+				},
+				files: ["rest.ts"],
+			},
+			null,
+			"\t",
+		)}\n`,
+	);
+	try {
+		run("pnpm", ["exec", "tsc", "-p", "tsconfig.rest.json"], work);
+		console.log("  any に落ちる（既知。README と src/rest.ts に明記してある）");
+	} catch {
+		console.log("  ✅ 型が効いている。README の注意書きを見直すこと");
 	}
 
 	// 型が通っても読み込めなければ意味がない

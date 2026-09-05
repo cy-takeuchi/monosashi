@@ -651,6 +651,8 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **`getClientRects()` は `visibility: hidden` を見抜けない** | 閉じたメニューの中の項目を「押せる」と誤判断して空振りした。`offsetParent` は逆に `position: fixed` を隠れていると誤判断する | 押せるかどうかは Playwright の判定に任せる。DOM の走査は候補を見つけるまでにとどめる |
 | **`<button>` の `value` は `""` を返す** | 調査コードで `aria-label ?? title ?? value ?? textContent` と繋いだら、`value` が `""` で止まって**すべてのボタンの文字が消えた**。採取パネルのボタン 10 個を「無い」と読み違えた | 空でない最初の候補を選ぶ。`??` は空文字を通す |
 | **印刷画面は `window.print()` を呼ぶ** | Playwright ではブラウザの印刷ダイアログを閉じられず、開くと以降の操作が全て止まる（実測: テストが 30 秒でタイムアウト） | 遷移前に `addInitScript` で `window.print` を空関数に差し替える。kintone の DOM には触らない |
+| **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `kintone-record/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
+| **peerDependency が無いと型は黙って `any` になる** | 入れずに読み、`Rest.Number` に `{ type: "SINGLE_LINE_TEXT", value: 123 }` を代入しても `skipLibCheck: true`（TS の既定）ではエラーにならない。`skipLibCheck: false` なら `TS2307` で落ちる | **消せない**ので、被る範囲を「REST の型を明示的に読んだ人」に限定する。挙動自体は `pack:check` で固定し、変わったら気づけるようにする |
 | **既定の registry が npmjs とは限らない** | この環境では `https://npm.flatt.tech/`（社内プロキシ）を向いていた。明示しないと `pnpm publish` がそちらへ行く | `publishConfig.registry` で公開先を固定する |
 | **相対パスで dist を読む検査は `exports` を通らない** | `test/dist/consumer.ts` は `../../dist/index` を読むので、`exports` マップが壊れていても緑のまま。`exports` から `./kintone` を消して確認した | `pnpm pack` した tarball を空のプロジェクトに入れ、パッケージ名で読む検査を別に持つ（`pack:check`） |
 | `moduleResolution: node10` は TypeScript 7 で削除された | `Option 'moduleResolution=node10' has been removed` | 検査対象は `bundler` と `nodenext` の 2 つ |

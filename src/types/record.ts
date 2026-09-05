@@ -1,4 +1,3 @@
-import type { KintoneRecordField } from "@kintone/rest-api-client";
 import type { Editing, Saved } from "./field";
 
 /**
@@ -53,15 +52,4 @@ export type CreateRecord = {
 		| Editing.Status
 		| Editing.StatusAssignee
 	>;
-};
-
-/** REST API のレコード。Canonical */
-export type RestRecord = {
-	[fieldCode: string]: KintoneRecordField.OneOf;
-};
-
-/** $id と $revision を必ず持つレコード。getRecord / getRecords の戻り */
-export type RestRecordWithMeta = RestRecord & {
-	$id: KintoneRecordField.ID;
-	$revision: KintoneRecordField.Revision;
 };

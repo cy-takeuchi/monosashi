@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, test } from "vitest";
 import type { Editing, Saved } from "../types/field";
-import type { EditingRecord, RestRecord, SavedRecord } from "../types/record";
+import type { EditingRecord, SavedRecord } from "../types/record";
+import type { RestRecord } from "../types/rest";
 import {
 	hasValue,
 	isCheckBox,

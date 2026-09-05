@@ -6,20 +6,17 @@
  * 型は `fixtures/measured.json` の実測に基づく。
  * これは e2e（`e2e/collect.spec.ts`）が実 kintone から採り、
  * `pnpm run fixture:build` が正規化したもので、**毎回採り直せる**。
+ * REST API の型は `kintone-record/rest` から読む（本体には含まれない）。
  * 変換の挙動は REST への書き込み 20 ケースの実測に基づく
  * （`fixtures/write-behavior.md`）。
  * 実測の裏づけが無いものは JSDoc に明記してある。
  */
 
 // --- 型 ---
-/**
- * REST API のフィールド型。`Saved` / `Editing` と並ぶ 3 つ目の文脈。
- *
- * 新しい正規形は作らず、`@kintone/rest-api-client` の型をそのまま Canonical として
- * 名前だけ揃える。中身は rest-api-client のものと同一なので、
- * このライブラリを経由しても型の同一性は壊れない。
- */
-export type { KintoneRecordField as Rest } from "@kintone/rest-api-client";
+// REST API の型（`Rest` / `RestRecord` / `RestRecordWithMeta`）は
+// `kintone-record/rest` にある。**本体からは出さない。**
+// あそこだけが @kintone/rest-api-client を必要とするので、
+// 型しか使わない利用者に実行時依存を背負わせないため（理由は src/rest.ts）。
 // --- 構築・代入 ---
 export { field } from "./build/field";
 export {
@@ -87,7 +84,5 @@ export type {
 export type {
 	CreateRecord,
 	EditingRecord,
-	RestRecord,
-	RestRecordWithMeta,
 	SavedRecord,
 } from "./types/record";

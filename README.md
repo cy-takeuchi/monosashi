@@ -98,14 +98,44 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 
 | | 用途 |
 |---|---|
-| `SavedRecord` / `EditingRecord` / `RestRecord` | レコード型。取得元で `value` の型が違う |
-| `Saved` / `Editing` / `Rest` | フィールド型の名前空間（`Rest` は `@kintone/rest-api-client` の型そのもの） |
+| `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
+| `Saved` / `Editing` | フィールド型の名前空間 |
+| `kintone-record/rest` の `RestRecord` / `Rest` | REST API の型。**本体には含まれない**（下記） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
 | `toUpdateParams` / `toAddParams` | REST に渡すパラメータを作る |
 | `toRestWrite` / `toRest` | 変換の下位 API |
 | `field.*` | フィールドの構築 |
 | `setValue` / `canSetValue` | 型安全な代入 |
 | `guard.*` | 型ガード |
+
+### REST の型は別経路にある
+
+```ts
+import type { Rest, RestRecord } from "kintone-record/rest";
+```
+
+`Rest` / `RestRecord` / `RestRecordWithMeta` だけは
+`@kintone/rest-api-client` を必要とする（その型を Canonical として使うため）。
+本体に置くと、**型しか使わない利用者にも実行時依存が付いてくる**
+（7MB / axios ほか 5 個）。kintone カスタマイズはブラウザ側だけのことが多く、
+その大半は REST クライアントを必要としない。
+
+そのため
+
+- `@kintone/rest-api-client` は **optional な peerDependency**
+- 本体（`kintone-record`）は一切依存しない
+- REST の型を使うときだけ `kintone-record/rest` から読み、
+  `@kintone/rest-api-client` を自分で入れる
+
+> [!WARNING]
+> **入れずに `kintone-record/rest` を読むと、型が `any` に落ちる。**
+> `skipLibCheck: true`（TypeScript の既定）だとエラーにならない（実測）。
+> この経路を使うなら必ず入れること。
+> `pack:check` がこの挙動を毎回確かめている。
+
+本体の `.d.ts` から参照が消えたので、`skipLibCheck: false` の利用者が
+`@types/node` を要求されることも無くなった
+（rest-api-client の `.d.ts` が `https` / `Buffer` / `stream` を使うため）。
 
 ### 公開前に、利用者の立場で確かめる
 
@@ -123,6 +153,7 @@ pnpm run pack:check
 - `files` に入れ忘れたファイル
 - `moduleResolution` の違い（`bundler` / `nodenext`）
 - 実行時に読み込めるか
+- `@kintone/rest-api-client` が**入らない**こと（optional な peer なので）
 
 を通らない。実際、`exports` から `./kintone` を消しても `build:check` は緑のまま、
 `pack:check` は落ちることを確認してある。
