@@ -55,8 +55,15 @@ export const EVENTS_AFTER_SUBMIT: KintoneEventName[] = [
 	pc("app.record.index.edit.submit.success"),
 ];
 
-/** 削除イベント。record を持たない想定だが、それ自体を確かめる */
-export const EVENTS_WITHOUT_RECORD: KintoneEventName[] = [
+/**
+ * 削除イベント。
+ *
+ * 当初は「record を持たない」と想定して `undefined` を記録していたが、
+ * **実測では完全な Saved レコードを持っていた**（2026-09-05。
+ * 37 フィールド、空のフィールドは `""` / `null`、システムフィールドもある）。
+ * 想定のほうが誤りだったので、record を採る側に直した。
+ */
+export const EVENTS_DELETE_SUBMIT: KintoneEventName[] = [
 	...both("app.record.detail.delete.submit"),
 	pc("app.record.index.delete.submit"),
 ];

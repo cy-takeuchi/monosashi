@@ -15,9 +15,9 @@
 import {
 	buildChangeEvents,
 	EVENTS_AFTER_SUBMIT,
+	EVENTS_DELETE_SUBMIT,
 	EVENTS_WITH_RECORD,
 	EVENTS_WITH_RECORDS,
-	EVENTS_WITHOUT_RECORD,
 } from "./events";
 import {
 	getAppId,
@@ -108,9 +108,13 @@ on(EVENTS_AFTER_SUBMIT, (event) => {
 	return event;
 });
 
-on(EVENTS_WITHOUT_RECORD, (event) => {
-	// record を「持たない」ことの確認が目的なので envelope だけ採る
-	record(event.type, "event.record", undefined, { envelope: probe(event) });
+on(EVENTS_DELETE_SUBMIT, (event) => {
+	// **record を持たないという想定が外れた。**
+	// 実測では完全な Saved レコードを持っていたので、中身まで採る
+	record(event.type, "event.record", event.record, {
+		envelope: probe(event),
+		structure: inspectStructure(event.record),
+	});
 	return event;
 });
 

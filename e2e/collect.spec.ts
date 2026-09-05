@@ -3,10 +3,19 @@ import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
-import { ADD_ROW, DELETE_ROW, SAVE_BUTTON } from "./labels";
+import {
+	ADD_ROW,
+	DELETE_CONFIRM,
+	DELETE_RECORD,
+	DELETE_ROW,
+	MOBILE_RECORD_MENU,
+	OPTIONS_MENU,
+	SAVE_BUTTON,
+} from "./labels";
 import {
 	clearSamples,
 	click,
+	deleteRecord,
 	exportSamples,
 	measureBlockedSubmit,
 	measureInlineEdit,
@@ -26,7 +35,7 @@ import {
  *
  * PC: レコード追加 → 詳細 → プロセス管理 → 印刷 → 編集 → 一覧（インライン編集）。
  * モバイル: 一覧 → 作成 → 保存 → 詳細 → プロセス管理 → 編集 → 保存。
- * 最後に作ったレコードをすべて消す。
+ * 最後に UI から削除する（REST で消すと削除イベントが飛ばないため）。
  *
  * 既存レコードを触らないので、実行を重ねても状態が累積的に汚れない。
  * リセット処理も要らない。毎回まっさらなレコードから始まるので
@@ -348,6 +357,66 @@ test("実 kintone から採取する", async ({ page }) => {
 		"mobile.app.record.edit.submit.success",
 		"event.record",
 	);
+
+	// --- 削除 -----------------------------------------------------------------
+	// **REST で消しても JS のイベントは飛ばない。** UI から消すしかないので、
+	// 後始末をそのまま採取に使う。
+	//
+	// 3 経路（PC 詳細 / モバイル詳細 / PC 一覧）でイベント名が違う。
+	// **他の採取が全部済んでから**やる。先に消すと一覧の採取結果が変わる。
+	//
+	// 一覧からの削除にはもう 1 件要るので、ここで REST で作る。
+	// 一覧の採取はもう済んでいるので、増えても影響しない
+	const forget = (id: string): void => {
+		const at = createdRecordIds.indexOf(id);
+		if (at >= 0) createdRecordIds.splice(at, 1);
+	};
+
+	// モバイル詳細から削除。**操作メニューを開かないと押せない。**
+	// DOM には描画されているので「押せる」と誤判断しやすい（実測で空振りした）
+	await page.goto(`/k/m/${app}/show?record=${mobileRecordId}`);
+	await waitForPanel(page, "screen.detail");
+	await page.getByRole("button", { name: MOBILE_RECORD_MENU }).click();
+	await deleteRecord(page, page.getByRole("menuitem", { name: DELETE_RECORD }));
+	await waitForSample(
+		page,
+		"mobile.app.record.detail.delete.submit",
+		"event.record",
+	);
+	forget(mobileRecordId);
+	// **削除すると kintone が一覧へ遷移する。**
+	// その最中に次の goto を始めると net::ERR_ABORTED で落ちる（実測）。
+	// 着地を待ってから次へ進む
+	await waitForPanel(page, "screen.index");
+
+	// PC 詳細から削除。Options を開かないと出てこない（実測）
+	await page.goto(`/k/${app}/show#record=${recordId}`);
+	await waitForPanel(page, "screen.detail");
+	await page.getByRole("button", { name: OPTIONS_MENU }).click();
+	await deleteRecord(page, page.getByRole("menuitem", { name: DELETE_RECORD }));
+	await waitForSample(page, "app.record.detail.delete.submit", "event.record");
+	forget(recordId);
+	// 詳細画面から削除しても一覧へ遷移する。同じく着地を待つ
+	await waitForPanel(page, "screen.index");
+
+	// PC 一覧から削除。行ごとのボタンで、ホバーは要らなかった（実測）
+	const extra = await createClient().record.addRecord({
+		app,
+		record: { singleLineTextRequired: { value: "一覧からの削除用" } },
+	});
+	createdRecordIds.push(extra.id);
+
+	await page.goto(`/k/${app}/?view=${listView.id}`);
+	await waitForPanel(page, "screen.index");
+	const extraRow = page
+		.getByRole("row")
+		.filter({ has: page.locator(`a[href*="record=${extra.id}&"]`) });
+	await deleteRecord(
+		page,
+		extraRow.getByRole("button", { name: DELETE_CONFIRM }),
+	);
+	await waitForSample(page, "app.record.index.delete.submit", "event.record");
+	forget(extra.id);
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

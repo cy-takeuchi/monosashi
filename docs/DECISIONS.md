@@ -644,6 +644,11 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **モバイルの show イベントは `load` より後に飛ぶ** | `load` 直後に見ると 1 画面前までの採取しか見えない | 採取そのものを待つ |
 | **`submit.success` は画面遷移の前に飛ぶ** | 保存直後の URL はまだ作成画面のまま（`/k/m/2/edit#command=save`）。ここでレコード id を読もうとして失敗した | 遷移を待ってから URL を読む |
 | **採取が途中で落ちるとレコードが残る** | id を控える前に落ちると後始末できず、次の実行で一覧の採取結果が変わる | 採取の最初に、`app:build` が入れる 2 件（`$id` が小さい 2 件）以外を消す |
+| **削除は UI からしか JS のイベントが飛ばない** | REST で消しても飛ばない。後始末を UI に置き換えると、そのまま採取になる | PC 詳細は `Options` → `menuitem`、モバイル詳細は操作メニューを開いてから `menuitem`、PC 一覧は行の `button` |
+| **削除の確認は画面で出し方が違う** | PC は DOM のダイアログ、モバイルは `window.confirm`。Playwright は `window.confirm` を**既定でキャンセル**するので、構えないと削除されない | 押す前に `page.once("dialog")` で承認側に倒し、DOM のダイアログは上限付きで待つ |
+| **`href` の無い `<a>` は link ロールを持たない** | 削除の確認が `<a>` で、`getByRole("link")` では見つからなかった | タグと文字で掴む。**`<button>` を候補に混ぜない**。一覧では行ごとに `button "Delete"` があり、ページ全体から探すと確認ではなく 1 行目の削除ボタンを掴む（詳細画面には行のボタンが無いので、そちらだけ見ていると気づけない） |
+| **削除すると kintone が一覧へ遷移する** | その最中に次の `goto` を始めると `net::ERR_ABORTED` で落ちる | 着地（一覧のパネル）を待ってから次へ進む |
+| **`getClientRects()` は `visibility: hidden` を見抜けない** | 閉じたメニューの中の項目を「押せる」と誤判断して空振りした。`offsetParent` は逆に `position: fixed` を隠れていると誤判断する | 押せるかどうかは Playwright の判定に任せる。DOM の走査は候補を見つけるまでにとどめる |
 | **`<button>` の `value` は `""` を返す** | 調査コードで `aria-label ?? title ?? value ?? textContent` と繋いだら、`value` が `""` で止まって**すべてのボタンの文字が消えた**。採取パネルのボタン 10 個を「無い」と読み違えた | 空でない最初の候補を選ぶ。`??` は空文字を通す |
 | **印刷画面は `window.print()` を呼ぶ** | Playwright ではブラウザの印刷ダイアログを閉じられず、開くと以降の操作が全て止まる（実測: テストが 30 秒でタイムアウト） | 遷移前に `addInitScript` で `window.print` を空関数に差し替える。kintone の DOM には触らない |
 | `op run` は秘密値と一致する文字列を出力から全てマスクする | スペース ID のような短い数値を 1Password に入れると、出力中の同じ数字が全部 `<concealed>` になる | 秘密でない値は `.env` に直値で書く |
@@ -672,6 +677,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | 一覧のインライン編集は編集画面と同形か | **違う**。`app.record.index.edit.*` は `recordId` が文字列。`submit` と `change` は `appId` まで文字列（他のイベントは number） | 2026-09-05 |
 | `change` イベントは画面によらず同形か | **違う**。`create.change.*` は `recordId` を持たず、`edit.change.*` は number、`index.edit.change.*` は string | 2026-09-05 |
 | モバイルの submit / change / process は PC と同形か | **`submit.success` だけ違う。`appId` が文字列**（PC は number）。`submit` / `change` / `process.proceed` は同形で、`create.change` が `recordId` を持たないところまで一致した。`kintone.app.record.get()` の戻りも PC と同じ | 2026-09-05 |
+| `DeleteSubmitEvent` は record を持たないか | **持つ。** 完全な Saved レコード（37 フィールド、空は `""` / `null`、システムフィールドあり）。PC 詳細 / モバイル詳細 / PC 一覧の 3 経路とも同形で、`appId` も `recordId` も number。**一覧からの削除も number** で、一覧のインライン編集（文字列）とは違う。「一覧のイベントは文字列」という括り方はできない | 2026-09-05 |
 | モバイルのプロセス管理は PC と同じか | イベントの形は同じ。**掴み方だけ違う**。PC は role を持たない `<span title="処理開始">`、モバイルは本物の button で名前が「処理開始 (Proceed status)」。確認ダイアログで確定してから飛ぶのは共通 | 2026-09-05 |
 | `ProcessProceedEvent` の形 | `appId` も `recordId` も**持たない**。`action` / `status` / `nextStatus` は文字列ではなく `{ value: string }`。`status` は遷移**前**、`nextStatus` が遷移**後** | 2026-09-05 |
 

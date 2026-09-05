@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
 import {
 	CUSTOMIZE_ERROR,
+	DELETE_CONFIRM,
 	EDIT_RECORD,
 	PROCESS_CONFIRM,
 	SAVE_BUTTON,
@@ -531,6 +532,52 @@ export const proceedProcess = async (
 ): Promise<void> => {
 	await action.click();
 	await page.getByRole("button", { name: PROCESS_CONFIRM }).click();
+};
+
+/**
+ * レコードを削除して、削除イベントを採る。
+ *
+ * **REST で消しても JS のイベントは飛ばない。** UI から消すしかないので、
+ * 後始末をそのまま採取に使う。
+ *
+ * 削除を起こす要素は経路ごとに違うので、呼ぶ側から渡してもらう。
+ * 確認の押し方は共通で、`<a>` か `<button>` かは画面で違いうるため
+ * どちらでも掴めるようにしてある。
+ */
+export const deleteRecord = async (
+	page: Page,
+	trigger: Locator,
+): Promise<void> => {
+	// **確認の出し方が画面で違う**（実測 2026-09-05）。
+	// PC 詳細は DOM のダイアログ、モバイルは `window.confirm`。
+	// Playwright は既定で `window.confirm` を**キャンセルで閉じる**ので、
+	// 構えずに押すと削除されず、メニューが開いたまま止まる。
+	// 押す前に承認する側に倒しておく
+	page.once("dialog", (dialog) => {
+		void dialog.accept();
+	});
+	await trigger.click();
+
+	// DOM のダイアログが出る画面ではこちらを押す。
+	// `window.confirm` で済んだ画面には出てこないので、上限付きで待って進む。
+	// 本当に消えたかは呼び出し側が採取で確かめるので、ここで見逃しても嘘にはならない。
+	//
+	// **役割で掴めない。** PC 詳細の確認は `href` を持たない `<a>` で、
+	// ARIA 上は `generic` になる（実測 2026-09-05）。
+	// `getByRole("link")` では見つからないので、タグと文字で掴む。
+	//
+	// **`<button>` を候補に入れてはいけない。** 一覧では行ごとに
+	// `button "Delete"` があり、ページ全体から探すと確認ではなく
+	// 1 行目の削除ボタンを掴んでしまう（実測でそうなった。詳細画面には
+	// 行のボタンが無いので、そちらだけ見ていると気づけない）。
+	// 確認は `<a>`、削除の起点は `<button>` で、タグが分かれている
+	try {
+		await page
+			.locator("a", { hasText: DELETE_CONFIRM })
+			.click({ timeout: UI_EVENT_TIMEOUT_MS });
+	} catch {
+		// window.confirm で確定済み
+	}
 };
 
 /**

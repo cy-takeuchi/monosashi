@@ -27,6 +27,8 @@ export const isSavedContext = (sample: Sample): boolean => {
 	if (source.startsWith("rest.")) return false;
 	if (event.endsWith(".detail.show")) return true;
 	if (event.endsWith(".index.show")) return true;
+	// 削除イベントの record はサーバ由来（実測 2026-09-05）
+	if (event.endsWith(".delete.submit")) return true;
 	// **モバイルの編集画面だけ例外。** PC の編集画面はサーバ由来だが、
 	// モバイルは値の無いフィールドが undefined になる（2026-09-05 実測）。
 	// 同じ待ち方で採ったモバイルの詳細画面は PC と同形だったので、

@@ -16,7 +16,7 @@ import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
  * `fixtures/measured.json` の実測に基づく（e2e で毎回採り直す）。
  *
  * モバイルの submit / change / process も実測済み。
- * ポータル、スペース、グラフ、削除イベントは**実測していない**。
+ * ポータル、スペース、グラフは**実測していない**。
  * 公式ドキュメント準拠で、各型の JSDoc に明記する。
  *
  * ## 「PC と同形」は当てにならない
@@ -28,6 +28,7 @@ import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
  * - `app.record.index.edit.*` は `appId` / `recordId` が文字列で来る
  * - `app.record.detail.process.proceed` は `appId` も `recordId` も持たない
  * - `mobile.*.submit.success` は `appId` が文字列
+ * - `DeleteSubmitEvent` は `record` を持つ
  *
  * 同形だと**思える**ことは根拠にならない。採ってから書く。
  * 一方で `mobile` の submit / change / process は実際に PC と同形だった。
@@ -271,16 +272,22 @@ export type IndexEditSubmitEvent<Type extends string> = {
 };
 
 /**
- * 削除の直前。record を持たない。
+ * 削除の直前。
  *
- * **未実測。** probe はハンドラを登録しているが、採取の流れでは
- * レコードを REST で消していて、JS のイベントが飛ばない。
- * `appId` / `recordId` の型は他のイベントから類推したもので、
- * 実測では画面ごとに違っていた例が複数ある（一覧のインライン編集、
- * モバイルの submit.success）。ここも違う可能性がある。
+ * 2026-09-05 実測。**`record` を持つ。** 当初は「持たない」と書いていたが、
+ * 実測では完全な Saved レコードだった（37 フィールド、空のフィールドは
+ * `""` / `null`、システムフィールドもある）。
+ *
+ * PC 詳細 / モバイル詳細 / PC 一覧の 3 経路とも同形で、
+ * `appId` も `recordId` も number。
+ * **一覧からの削除も number**（一覧のインライン編集は文字列だったので、
+ * 「一覧のイベントは文字列」ではない）。
+ *
+ * REST で消しても飛ばない。UI から消したときだけ飛ぶ。
  */
 export type DeleteSubmitEvent<Type extends string> = Base<Type> & {
 	recordId: number;
+	record: SavedRecord;
 };
 
 /**

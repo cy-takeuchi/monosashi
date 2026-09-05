@@ -251,6 +251,27 @@ export const REQUIRED_CONTEXTS: readonly ContextRequirement[] = [
 		why: "モバイルの編集画面の get()。event.record が Editing だったので get() も確かめる",
 	},
 
+	// --- 削除 ---
+	// REST で消しても JS のイベントは飛ばない。UI から消したときだけ採れる
+	{
+		match: "exact",
+		event: "app.record.detail.delete.submit",
+		source: "event.record",
+		why: "DeleteSubmitEvent が record を持たないこと。appId / recordId の型",
+	},
+	{
+		match: "exact",
+		event: "mobile.app.record.detail.delete.submit",
+		source: "event.record",
+		why: "モバイルの削除が PC と同形かどうか",
+	},
+	{
+		match: "exact",
+		event: "app.record.index.delete.submit",
+		source: "event.record",
+		why: "一覧からの削除。インライン編集は recordId が文字列だったので、削除も確かめる",
+	},
+
 	// --- 値の変更 ---
 	{
 		match: "prefix",

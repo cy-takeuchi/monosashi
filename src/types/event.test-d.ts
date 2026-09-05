@@ -162,6 +162,27 @@ describe("モバイル（2026-09-05 実測）", () => {
 	});
 });
 
+describe("削除（2026-09-05 実測）", () => {
+	test("record を持つ。当初は持たないと書いていた", () => {
+		expectTypeOf<
+			EventOf<"app.record.detail.delete.submit">["record"]
+		>().toEqualTypeOf<SavedRecord>();
+	});
+
+	test("3 経路とも同形。一覧からの削除も recordId は number", () => {
+		expectTypeOf<
+			EventOf<"app.record.index.delete.submit">["recordId"]
+		>().toEqualTypeOf<number>();
+		expectTypeOf<
+			EventOf<"mobile.app.record.detail.delete.submit">["recordId"]
+		>().toEqualTypeOf<number>();
+		// 一覧のインライン編集は文字列だった。一覧だから文字列、ではない
+		expectTypeOf<
+			EventOf<"app.record.index.edit.show">["recordId"]
+		>().toEqualTypeOf<string>();
+	});
+});
+
 describe("change 系", () => {
 	test("フィールドコードが埋まったイベント名を引ける", () => {
 		type E = EventOf<"app.record.edit.change.singleLineText">;

@@ -313,3 +313,99 @@ test("モバイルの操作要素を調べる", async ({ page }) => {
 		await client.record.deleteRecords({ app, ids: [created.id] });
 	}
 });
+
+test("削除の操作要素を探す", async ({ page }) => {
+	const app = env.fixtureAppId();
+
+	// 削除は UI からしか JS のイベントが飛ばない（REST では飛ばない）。
+	// PC 詳細 / モバイル詳細 / PC 一覧の 3 経路があり、どれも
+	// **そのままでは押せない**（メニューの中か、ホバーで現れる）。
+	// 開くところまで実際にやって、確認ダイアログの文言も採る
+	const client = createClient();
+	const created = await client.record.addRecord({
+		app,
+		record: { singleLineTextRequired: { value: "削除の調査用" } },
+	});
+
+	try {
+		const scan = async (label: string) => {
+			const found = await page.evaluate(() => {
+				const nameOf = (el: Element): string => {
+					const candidates = [
+						el.getAttribute("aria-label"),
+						el.getAttribute("title"),
+						el instanceof HTMLInputElement ? el.value : null,
+						el.textContent,
+					];
+					return (
+						candidates.find((text) => (text ?? "").trim() !== "") ?? ""
+					).trim();
+				};
+				// **`offsetParent` で見えているかを判定しない。**
+				// `position: fixed` の要素でも null になり、出ているメニューを
+				// 「隠れている」と誤判定する（実測でそうなった）
+				return [...document.querySelectorAll("a, button, [role], input")]
+					.map((el) => ({
+						tag: el.tagName.toLowerCase(),
+						role: el.getAttribute("role"),
+						name: nameOf(el).slice(0, 30),
+						visible: el.getClientRects().length > 0,
+					}))
+					.filter(
+						(el) =>
+							el.visible &&
+							/削除|Delete|Options|OK|Cancel|キャンセル/.test(el.name),
+					);
+			});
+			console.log(`\n=== ${label} ===`);
+			for (const el of found) console.log(`  ${JSON.stringify(el)}`);
+			if (found.length === 0) console.log("  該当なし");
+		};
+
+		// --- PC 詳細 ---
+		// **パネルが出るまで待つ。** ヘッダのボタンはレコード画面より先に出るので、
+		// そこで見ると描画途中を拾う（モバイルで実際に取り違えた）
+		await page.goto(`/k/${app}/show#record=${created.id}`);
+		await page
+			.locator('[data-testid="krp-panel"]')
+			.waitFor({ state: "visible" });
+		await scan("PC 詳細（そのまま）");
+
+		await page.getByRole("button", { name: /^Options$/ }).click();
+		await scan("PC 詳細（Options を開いた）");
+
+		// メニュー項目の名前は「Delete record」であって「Delete」ではない。
+		// 完全一致で `Delete` と書いて空振りした（実測 2026-09-05）
+		await page
+			.getByRole("menuitem", { name: /^(レコードを削除|Delete record)$/ })
+			.click();
+		await scan("PC 詳細（削除を押した＝確認が出るはず）");
+
+		// --- モバイル 詳細 ---
+		await page.goto(`/k/m/${app}/show?record=${created.id}`);
+		await page
+			.locator('[data-testid="krp-panel"]')
+			.waitFor({ state: "visible" });
+		await scan("モバイル 詳細（そのまま）");
+
+		// --- PC 一覧 ---
+		const { views } = await client.app.getViews({ app });
+		const view = Object.values(views).find((v) => v.name === "すべて");
+		await page.goto(`/k/${app}/?view=${view?.id ?? ""}`);
+		await page
+			.locator('[data-testid="krp-panel"]')
+			.waitFor({ state: "visible" });
+
+		// 行が出るまで待つ。ヘッダのボタンでは早すぎる
+		const row = page
+			.getByRole("row")
+			.filter({ has: page.locator(`a[href*="record=${created.id}&"]`) });
+		await row.waitFor({ state: "visible" });
+		await scan("PC 一覧（そのまま）");
+
+		await row.hover();
+		await scan("PC 一覧（行にホバー）");
+	} finally {
+		await client.record.deleteRecords({ app, ids: [created.id] });
+	}
+});

@@ -63,3 +63,38 @@ export const EDIT_RECORD = /^(編集|Edit)$/;
  * 他の項目と同じく kintone の UI からの想定。
  */
 export const PROCESS_CONFIRM = /^(確認|Confirm)$/;
+
+/**
+ * レコードの削除。
+ *
+ * **REST で消しても JS のイベントは飛ばない。** UI から消すしかない。
+ * 3 経路とも、そのままでは押せない（実測 2026-09-05）。
+ *
+ *  - PC 詳細: `Options` を開くと `menuitem` として現れる
+ *  - モバイル詳細: `menuitem`。開く操作は要らなかった
+ *  - PC 一覧: 行ごとの `button`。ホバーは要らなかった
+ *
+ * メニュー項目の名前は「Delete record」であって「Delete」ではない。
+ * 完全一致で `Delete` と書いて空振りした。
+ */
+export const OPTIONS_MENU = /^(オプション|Options)$/;
+export const DELETE_RECORD = /^(レコードを削除|Delete record)$/;
+
+/**
+ * モバイル詳細の操作メニューを開くボタン。削除はこの中にある。
+ *
+ * 名前は中の `<img>` の alt から来る。
+ * DOM に描画されていても**開くまでは押せない**（実測 2026-09-05）。
+ * `getClientRects()` は `visibility: hidden` を見抜けないので、
+ * 「描画されている＝押せる」と判断すると空振りする。
+ */
+export const MOBILE_RECORD_MENU = /(操作メニュー|Open the action menu)/;
+
+/**
+ * 削除の確認。
+ *
+ * PC 詳細は `href` を持たない `<a>`（`Are you sure you want to delete?` の
+ * ダイアログの中）。href が無いので **link ロールを持たない**。
+ * モバイルは `window.confirm` で、DOM には出てこない。
+ */
+export const DELETE_CONFIRM = /^(削除|Delete)$/;
