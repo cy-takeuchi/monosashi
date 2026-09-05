@@ -3,9 +3,11 @@
  *
  * 実測に基づく kintone レコードの型・変換関数・構築 API。
  *
- * 型は 84 サンプルの実測に基づく（fixtures/report.md）。
+ * 型は `fixtures/measured.json` の実測に基づく。
+ * これは e2e（`e2e/collect.spec.ts`）が実 kintone から採り、
+ * `pnpm run fixture:build` が正規化したもので、**毎回採り直せる**。
  * 変換の挙動は REST への書き込み 20 ケースの実測に基づく
- * （fixtures/write-behavior.md）。
+ * （`fixtures/write-behavior.md`）。
  * 実測の裏づけが無いものは JSDoc に明記してある。
  */
 
@@ -53,12 +55,16 @@ export type {
 	CreateSubmitEvent,
 	DeleteSubmitEvent,
 	DetailShowEvent,
+	EditChangeEvent,
 	EditShowEvent,
 	EditSubmitEvent,
 	EventOf,
+	IndexEditChangeEvent,
+	IndexEditSubmitEvent,
 	IndexShowEvent,
 	KintoneEventMap,
 	KintoneEventName,
+	PlainEvent,
 	ProcessProceedEvent,
 	SubmitSuccessEvent,
 	UnknownKintoneEvent,
