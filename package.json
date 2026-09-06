@@ -2,7 +2,7 @@
 	"name": "monosashi",
 	"version": "0.1.0",
 	"type": "module",
-	"packageManager": "pnpm@11.6.0",
+	"packageManager": "pnpm@12.3.4",
 	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
 	"license": "MIT",
 	"author": "Yoshihiko Takeuchi",
