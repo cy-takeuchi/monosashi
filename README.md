@@ -1,6 +1,10 @@
-# kintone-record
+# monosashi
 
 実測に基づく kintone レコードの型・変換関数・型ガード。
+
+> **物差し**。自分のコードを当てて確かめるための基準、という意味で名付けた。
+> このパッケージはサイボウズ株式会社の公式なものではない。
+> kintone はサイボウズ株式会社の登録商標。
 
 `@kintone/dts-gen` の `kintone.d.ts` は `kintone.app.record.get()` も
 `kintone.events.on()` のハンドラ引数も `any` で、レコード周りの型を提供していない。
@@ -48,14 +52,14 @@ e2e が実 kintone を操作して採り直せる。
 > 今は `pnpm pack` した tarball を参照するか、リポジトリを直接指定して使う。
 
 ```sh
-pnpm add kintone-record
+pnpm add monosashi
 ```
 
 ```ts
 // kintone グローバルの型はこの副作用 import で有効になる。プロジェクトに 1 回だけ書く
-import "kintone-record/kintone";
+import "monosashi/kintone";
 
-import { field, guard, setValue, toUpdateParams } from "kintone-record";
+import { field, guard, setValue, toUpdateParams } from "monosashi";
 
 kintone.events.on("app.record.detail.show", (event) => {
   event.recordId;  // number
@@ -73,8 +77,8 @@ if (got !== null) {
 
 ### グローバル型を明示的に取り込む理由
 
-`kintone-record` を import しても `kintone` グローバルは型付けされない。
-有効にするには `kintone-record/kintone` を明示的に import する。
+`monosashi` を import しても `kintone` グローバルは型付けされない。
+有効にするには `monosashi/kintone` を明示的に import する。
 
 ライブラリが利用者のグローバルスコープを勝手に書き換えないため。
 `toRestWrite` や `field.*` は `@kintone/rest-api-client` と組み合わせて
@@ -97,7 +101,7 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 |---|---|
 | `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
 | `Saved` / `Editing` | フィールド型の名前空間 |
-| `kintone-record/rest` の `RestRecord` / `Rest` | REST API の型。**本体には含まれない**（下記） |
+| `monosashi/rest` の `RestRecord` / `Rest` | REST API の型。**本体には含まれない**（下記） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
 | `toUpdateParams` / `toAddParams` | REST に渡すパラメータを作る |
 | `toRestWrite` / `toRest` | 変換の下位 API |
@@ -108,10 +112,10 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 ### REST の型も本体から出る
 
 ```ts
-import type { Rest, RestRecord } from "kintone-record";
+import type { Rest, RestRecord } from "monosashi";
 ```
 
-**このパッケージは実行時の依存を持たない。** `pnpm add kintone-record` で入るのは
+**このパッケージは実行時の依存を持たない。** `pnpm add monosashi` で入るのは
 これだけで、他には何も付いてこない（`pack:check` が毎回確かめている）。
 
 以前は `Rest` を `@kintone/rest-api-client` の型に委ねていた。

@@ -140,7 +140,7 @@ declare global {
 // index.ts からは import しない。ライブラリが利用者のグローバルスコープを
 // 勝手に書き換えないため。使う側が明示的に取り込む。
 //
-//   import "kintone-record/kintone";
+//   import "monosashi/kintone";
 //
 // サーバサイドで toRestWrite などだけを使う利用者に kintone グローバルを
 // 生やすと、実行時に存在しないものをコンパイルが通してしまう。

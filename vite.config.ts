@@ -16,7 +16,7 @@ export default defineConfig({
 		emptyOutDir: false,
 		lib: {
 			// kintone.ts はグローバル宣言だけを持ち、実行時のコードは何も無い。
-			// それでも JS を出力する必要がある。`import "kintone-record/kintone"` は
+			// それでも JS を出力する必要がある。`import "monosashi/kintone"` は
 			// 副作用 import なので、型だけのエントリだと実行時に
 			// ERR_PACKAGE_PATH_NOT_EXPORTED になる（検証済み）。
 			entry: {

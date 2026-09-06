@@ -1,5 +1,5 @@
 /**
- * kintone-record
+ * monosashi
  *
  * 実測に基づく kintone レコードの型・変換関数・構築 API。
  *

@@ -1,6 +1,6 @@
 # 設計判断の記録
 
-`kintone-record` の設計を決めるにあたって検討した内容と、その根拠。
+`monosashi` の設計を決めるにあたって検討した内容と、その根拠。
 
 このドキュメントの目的は「何を決めたか」より **「何を捨てたか、なぜ捨てたか」** を残すこと。
 決定だけならコードを読めば分かるが、却下した選択肢は消えてしまうため、同じ検討を繰り返すことになる。
@@ -64,7 +64,7 @@ kintone のレコードには3つの取得・更新経路があり、それぞ�
 
 - **型定義のみ**（変換関数を持たない） — 上記の理由で `FILE` / `SUBTABLE` の `as` が原理的に消えない
 - **ラッパー API**（`kintone` グローバルを直接触らせない） — kintone の API 面積（`getFieldElement`、`setFieldShown`、mobile 系、一覧画面…）まで抱えることになり維持コストが見合わない。レコードだけラップして他は生 kintone、という混在も学習コストが高い
-- **typeguard を別パッケージに残す** — 「型は kintone-record、絞り込みは kintone-typeguard」だと依存が循環的になり、`FFF<A,B,C,D>` のような無理な型合成が再発する。型と絞り込みは同じ場所で定義すべき
+- **typeguard を別パッケージに残す** — 「型は monosashi、絞り込みは kintone-typeguard」だと依存が循環的になり、`FFF<A,B,C,D>` のような無理な型合成が再発する。型と絞り込みは同じ場所で定義すべき
 
 **kintone-pretty-fields は統合対象外**。フィールド**定義**（`getFormFields`）を扱うもので、
 レコード**値**を扱う本パッケージとは責務が分かれている。
@@ -652,7 +652,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **`<button>` の `value` は `""` を返す** | 調査コードで `aria-label ?? title ?? value ?? textContent` と繋いだら、`value` が `""` で止まって**すべてのボタンの文字が消えた**。採取パネルのボタン 10 個を「無い」と読み違えた | 空でない最初の候補を選ぶ。`??` は空文字を通す |
 | **印刷画面は `window.print()` を呼ぶ** | Playwright ではブラウザの印刷ダイアログを閉じられず、開くと以降の操作が全て止まる（実測: テストが 30 秒でタイムアウト） | 遷移前に `addInitScript` で `window.print` を空関数に差し替える。kintone の DOM には触らない |
 | **委譲は「検出できない `any`」と引き換えだった** | `Rest` を `@kintone/rest-api-client` に委ねていたが、利用者がそれを入れていないと `skipLibCheck: true`（TS の既定）で型が `any` に落ち、`strict` も `noImplicitAny` も警告も効かない。緩和策も全て効かなかった（optional peer は無信号、必須 peer も pnpm は自動インストールも警告もしない、型側の `any` 検出はモジュール未解決時に型エイリアス全体が `any` になり条件型に到達しない） | **自前で持つ。** 解決すべき外部モジュールが無くなり構造的に消える。定義は 55 行で、`Entity` / `FileInformation` は既存のものを使える。乖離は `rest.test-d.ts` の等価性テストで縛る（devDependency はこのリポジトリに常に在る） |
-| **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `kintone-record/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
+| **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `monosashi/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
 | **peerDependency が無いと型は黙って `any` になる** | 入れずに読み、`Rest.Number` に `{ type: "SINGLE_LINE_TEXT", value: 123 }` を代入しても `skipLibCheck: true`（TS の既定）ではエラーにならない。`skipLibCheck: false` なら `TS2307` で落ちる | **消せない**ので、被る範囲を「REST の型を明示的に読んだ人」に限定する。挙動自体は `pack:check` で固定し、変わったら気づけるようにする |
 | **既定の registry が npmjs とは限らない** | この環境では `https://npm.flatt.tech/`（社内プロキシ）を向いていた。明示しないと `pnpm publish` がそちらへ行く | `publishConfig.registry` で公開先を固定する |
 | **CI がステップを並べると、手元と CI がずれる** | 手元で「CI と同じもの」を回すのに YAML を読む必要があり、片方だけ更新されても気づかない。実際、CI に `pack:check` が入っておらず `exports` が壊れても緑のままだった | 検査の定義は `package.json` の `check` 1 箇所に置き、CI はそれを呼ぶだけにする |
@@ -762,8 +762,8 @@ kintone に種別が増えたときは、フィクスチャを採り直す → �
 
 ## グローバル型の拡張を import の副作用にしない
 
-`kintone-record` を import してもグローバルは変わらない。
-有効にするには `kintone-record/kintone` を明示的に import する。
+`monosashi` を import してもグローバルは変わらない。
+有効にするには `monosashi/kintone` を明示的に import する。
 
 **理由**: `toRestWrite` / `field.*` は rest-api-client と組み合わせて
 サーバサイドでも使える。そこで `kintone` グローバルが生えていると
@@ -781,7 +781,7 @@ kintone に種別が増えたときは、フィクスチャを採り直す → �
 `dist/kintone.js` は空だが出力する。
 
 **dts-gen との共存**: `tsconfig` の `include` の順に関わらず
-`kintone-record` の型が優先されることを `events.on` と `record.get` の両方で確認済み。
+`monosashi` の型が優先されることを `events.on` と `record.get` の両方で確認済み。
 
 ## 採取文脈の下限を固定する
 

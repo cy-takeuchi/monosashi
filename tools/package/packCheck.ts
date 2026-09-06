@@ -21,7 +21,7 @@ import { join } from "node:path";
  * `exports` が壊れていても build:check は緑のままになる。
  *
  * ここでは `pnpm pack` した tarball を空のプロジェクトに入れ、
- * `kintone-record` という名前で読む。利用者と同じ経路になる。
+ * `monosashi` という名前で読む。利用者と同じ経路になる。
  *
  * kintone に接続しないので、認証情報なしでいつでも回せる。
  */
@@ -49,7 +49,7 @@ const MODES = [
  */
 const CONSUMER = `
 // グローバル拡張はこの副作用 import でのみ有効になる
-import "kintone-record/kintone";
+import "monosashi/kintone";
 import {
 	type EventOf,
 	field,
@@ -60,7 +60,7 @@ import {
 	type RestRecord,
 	setValue,
 	toUpdateParams,
-} from "kintone-record";
+} from "monosashi";
 
 const text = field.singleLineText("a");
 const record: LooseRecord = { text };
@@ -90,7 +90,7 @@ const run = (command: string, args: string[], cwd: string): string =>
 
 const main = (): void => {
 	const root = process.cwd();
-	const work = mkdtempSync(join(tmpdir(), "kintone-record-pack-"));
+	const work = mkdtempSync(join(tmpdir(), "monosashi-pack-"));
 	console.log(`作業場所: ${work}`);
 
 	// pack は prepublishOnly を走らせない。dist が最新である前提
@@ -111,10 +111,10 @@ const main = (): void => {
 		join(work, "package.json"),
 		`${JSON.stringify(
 			{
-				name: "kintone-record-consumer",
+				name: "monosashi-consumer",
 				private: true,
 				type: "module",
-				dependencies: { "kintone-record": `file:./${tarball}` },
+				dependencies: { monosashi: `file:./${tarball}` },
 			},
 			null,
 			"\t",
@@ -133,10 +133,10 @@ const main = (): void => {
 		(name) => !name.startsWith("."),
 	);
 	console.log(`\n入った依存: ${installed.join(", ")}`);
-	const unexpected = installed.filter((name) => name !== "kintone-record");
+	const unexpected = installed.filter((name) => name !== "monosashi");
 	if (unexpected.length > 0) {
 		throw new Error(
-			`kintone-record だけを入れたのに他のものが入った: ${unexpected.join(", ")}。` +
+			`monosashi だけを入れたのに他のものが入った: ${unexpected.join(", ")}。` +
 				"REST の型を自前で持つことにした目的が崩れている",
 		);
 	}
@@ -185,7 +185,7 @@ const main = (): void => {
 			[
 				"--input-type=module",
 				"-e",
-				"const m = await import('kintone-record'); console.log(Object.keys(m).sort().join(', '));",
+				"const m = await import('monosashi'); console.log(Object.keys(m).sort().join(', '));",
 			],
 			work,
 		);

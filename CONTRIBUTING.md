@@ -207,7 +207,7 @@ pnpm run pack:check
 ```
 
 `pnpm pack` した tarball を空のプロジェクトに入れ、
-**`kintone-record` という名前で**読めるかを確かめる。kintone には接続しない。
+**`monosashi` という名前で**読めるかを確かめる。kintone には接続しない。
 
 `build:check`（`test/dist/consumer.ts`）は `.d.ts` の劣化を捕まえるが、
 `../../dist/index` と**相対パスで**読んでいるので
