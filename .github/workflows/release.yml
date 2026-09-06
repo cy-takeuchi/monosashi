@@ -29,9 +29,12 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          # ここを書くと ~/.npmrc に npmjs 向けの認証行が入る。
-          # publishConfig.registry と二重だが、認証はこちらでしか効かない
-          registry-url: https://registry.npmjs.org
+          # **registry-url は書かない。** 書くと setup-node が .npmrc に
+          # `_authToken=${NODE_AUTH_TOKEN}` を仕込む。Secret を消した今、
+          # その中身は setup-node のプレースホルダ（XXXXX-XXXXX-...）のままで、
+          # OIDC が失敗したときにそれで publish しようとして 401 になる。
+          # 本当の失敗理由が 401 に隠れるので置かない。
+          # 公開先は package.json の publishConfig.registry が決める
       - run: pnpm install --frozen-lockfile
 
       # タグだけ進めて version を上げ忘れる事故を止める。
