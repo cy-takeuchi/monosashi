@@ -101,7 +101,7 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 |---|---|
 | `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
 | `Saved` / `Editing` | フィールド型の名前空間 |
-| `monosashi/rest` の `RestRecord` / `Rest` | REST API の型。**本体には含まれない**（下記） |
+| `Rest` / `RestRecord` | REST API の型。本体から出る（下記） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
 | `toUpdateParams` / `toAddParams` | REST に渡すパラメータを作る |
 | `toRestWrite` / `toRest` | 変換の下位 API |
