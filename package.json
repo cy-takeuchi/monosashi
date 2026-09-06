@@ -1,6 +1,6 @@
 {
 	"name": "monosashi",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"packageManager": "pnpm@12.3.4",
 	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
@@ -16,13 +16,7 @@
 	},
 	"keywords": [
 		"kintone",
-		"cybozu",
-		"typescript",
-		"types",
-		"typeguard",
-		"record",
-		"field",
-		"rest-api"
+		"cybozu"
 	],
 	"publishConfig": {
 		"registry": "https://registry.npmjs.org/",
