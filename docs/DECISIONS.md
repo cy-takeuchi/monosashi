@@ -1267,13 +1267,60 @@ pnpm 11.6.0 の `pnpm publish` には **`--provenance` が無い**（`--help` �
 
 **pnpm 12 を選んだ。** ツールを 1 つに保つことを優先している。
 
-代償は明確で、npm のドキュメントは「npm CLI は OIDC 環境を自動検出して
-トークンより優先する」と明言しているが、pnpm 側は 12.0.0 のリリースノートにも
-settings のドキュメントにも `pnpm publish --help` にも OIDC / trusted publishing の
-記載が無い。**初回公開のあとトークンを捨てられるかは、実際に試すまで分からない。**
+選んだ時点では代償が確定していなかった。npm のドキュメントは「npm CLI は OIDC 環境を
+自動検出してトークンより優先する」と明言しているが、pnpm 側は 12.0.0 のリリースノートにも
+settings のドキュメントにも `pnpm publish --help` にも OIDC の記載が無く、
+**トークンを捨てられるかは実際に試すまで分からなかった。**
 
-捨てられなかった場合は `NPM_TOKEN` を持ち続けることになる。
-そのときは publish の一手だけ `npm publish` に替える（上の表の 1 行目に戻る）。
+### 2026-09-06: pnpm は OIDC を実装していた
+
+0.1.0 の公開ログで判明した。pnpm は自分から GitHub の ID トークンを取りに行っている。
+
+```
+GET .../idtoken/...?audience=npm%3Aregistry.npmjs.org 200 289ms
+[WARN] Skipped OIDC: ERR_PNPM_AUTH_TOKEN_EXCHANGE: Failed token exchange request
+       with body message: Unknown error (status code 404)
+```
+
+`audience=npm:registry.npmjs.org` の取得は 200 で成功し、npm への交換だけが 404 で落ちた。
+**この時点でパッケージが存在せず Trusted Publisher も未設定だったため**で、想定どおり
+トークンにフォールバックして公開された。ドキュメントに書かれていないだけで実装はある。
+
+つまり pnpm を選んだ代償は無かった。Trusted Publisher を設定したのでトークンは捨てた。
+次のリリースで `Skipped OIDC` の警告が消えれば確定する。
+
+### CI に公開させない（staged publish）
+
+npm の Trusted Publisher には Allowed actions がある。`npm stage publish`
+（pnpm では `pnpm stage publish`。**pnpm 12 にも実装がある**）は常に許可され、
+直接の `publish` を許すかは選択制。
+
+**直接 publish を許可しない。** npm の設定画面自身がこう書いている。
+
+> Not recommended. For stronger security, leave unchecked to allow staged publishing only.
+
+CI は `pnpm stage publish` で npm に置くだけで、その時点では誰からも見えない。
+人間が 2FA を通して承認して初めて公開される。
+
+一度「ワークフローが `release.yml` に固定されトークン経路も塞がっているのだから
+直接 publish でよい」と判断したが、**撤回した。** 残るリスクとして挙げた
+「ワークフロー自体の乗っ取り」を「そこまで想定するならリポジトリの書き込み権限が
+すでに破られている」と切り捨てたのが誤り。近年の npm のサプライチェーン攻撃は
+まさにその経路であり、npm が staged publish を作ったのもそのため。
+**リポジトリが破られた「あと」に人間の 2FA がもう一段あることに意味がある。**
+
+代償はリリースごとに手作業が 1 つ増えること。`release.yml` は stage したあと
+`::notice::` で承認を促す。
+
+| サブコマンド | 用途 |
+| --- | --- |
+| `pnpm stage publish` | CI が置く |
+| `pnpm stage list` / `view` | 置かれているものを見る |
+| `pnpm stage approve` / `reject` | 承認 / 却下 |
+
+**承認は npmjs.com のブラウザで行う。** `pnpm stage approve` も使えるが、
+手元は既定レジストリが社内プロキシを向いており、`--registry` の明示と
+npmjs への認証が別途要る（この環境で `pnpm publish` が固まったのと同じ理由）。
 
 ## pnpm 12 は lockfile に pnpm 自身を書く
 

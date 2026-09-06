@@ -33,7 +33,7 @@ CI のワークフローにステップを並べない。定義は `package.json
 
 | | 理由 |
 |---|---|
-| `pnpm publish`（`--dry-run` 込み） | 既定レジストリが社内プロキシに向いており、出力ゼロのまま固まる。公開は `v*` タグで `release.yml` が行う |
+| `pnpm publish`（`--dry-run` 込み） | 既定レジストリが社内プロキシに向いており、出力ゼロのまま固まる。npm に置くのは `v*` タグで `release.yml` だけ（`pnpm stage publish`）。公開は人間が 2FA で承認する |
 | `fixtures/measured.json` を手で編集 | 実測の根拠が実測でなくなる |
 | `pnpm run app:deploy-probe` を勝手に実行 | kintone のシステム管理権限が要り、組織全体に効く |
 | `ncu -u` 後に `packageManager` を確認せず放置 | pnpm 本体が入れ替わる。`.ncurc.json` で除外済みだが確認はする |

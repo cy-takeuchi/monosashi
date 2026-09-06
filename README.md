@@ -47,13 +47,17 @@ e2e が実 kintone を操作して採り直せる。
 
 ## 使う
 
-> [!NOTE]
-> **まだ npm に公開していない**（[#3](../../issues/3)）。
-> 今は `pnpm pack` した tarball を参照するか、リポジトリを直接指定して使う。
-
 ```sh
 pnpm add monosashi
 ```
+
+> [!NOTE]
+> **0.x のあいだは破壊的変更があり得る。** API を実プロジェクトで検証している最中で
+> （[#5](../../issues/5)）、そこで判明したことは 0.2.0 以降に反映する。
+
+公開物には [provenance](https://docs.npmjs.com/generating-provenance-statements)
+が付いている。どのリポジトリのどのワークフローがこの tarball を作ったかを
+npm のページから辿れる。
 
 ```ts
 // kintone グローバルの型はこの副作用 import で有効になる。プロジェクトに 1 回だけ書く

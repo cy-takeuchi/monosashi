@@ -255,24 +255,42 @@ git push origin main --tags
 ```
 
 タグを押すと CI が `pnpm run check` を通してから
-`pnpm publish --provenance` する。provenance は「どのリポジトリの
+`pnpm stage publish --provenance` する。provenance は「どのリポジトリの
 どのワークフローがこの tarball を作ったか」の署名で、`id-token: write` と対で効く。
 
-### 初回公開まわりの残作業
+**この時点ではまだ公開されていない。**
 
-npmjs.com 側の設定が済むまでは `NPM_TOKEN` を Secret に置いている。
-公開後に **Trusted Publisher**（GitHub Actions / `cy-takeuchi` / `monosashi` /
-`release.yml`）を設定したら、次を行う。
+```sh
+# 3. npmjs.com で 2FA を通して承認する
+#    https://www.npmjs.com/package/monosashi
+#    承認して初めて公開される
+```
 
-- [ ] `release.yml` から `NODE_AUTH_TOKEN` の env を消す
-- [ ] GitHub の Secret `NPM_TOKEN` を消す
-- [ ] npm の発行済みトークンを revoke する
-- [ ] npmjs.com の Publishing access を
-      "Require two-factor authentication and disallow tokens" にする
+`pnpm stage list` / `view` / `approve` / `reject` でも扱えるが、手元は
+既定レジストリが社内プロキシを向いているので `--registry` の明示と
+npmjs への認証が要る。ブラウザで承認するほうが速い。
 
-**pnpm が OIDC Trusted Publishing に対応しているかは未確認。**
-対応していなければトークンを消せないので、そのときは publish の一手だけ
-`npm publish` に替える（`docs/DECISIONS.md`「publish に npm CLI を使わない」）。
+### 認証にトークンを使っていない
+
+publish の認証は **OIDC Trusted Publishing**。`release.yml` に
+`NODE_AUTH_TOKEN` は無く、GitHub Secrets にも npm のトークンは置いていない。
+pnpm が GitHub の id-token から npm 向けのトークンを自分で交換する
+（`permissions: id-token: write` がそのために要る）。
+
+npmjs.com 側は次の状態にしてある。**この 3 つが揃って初めて publish が通る。**
+
+| 設定 | 値 |
+| --- | --- |
+| Trusted Publisher | GitHub Actions / `cy-takeuchi` / `monosashi` / `release.yml` |
+| Allowed actions | **未チェック**（staged publish のみ。直接公開は禁止） |
+| Publishing access | Require two-factor authentication and disallow bypass 2fa tokens |
+
+つまり **`release.yml` 以外から npm に何かを置く経路は無く、置かれたものも
+人間が 2FA を通すまで公開されない。** リポジトリが破られても、そこで一段止まる。
+
+ワークフローのファイル名を変えると stage が落ちるので、
+改名するときは npmjs.com 側の Trusted Publisher も直すこと。
+`release.yml` を `pnpm publish` に戻した場合も、Allowed actions が禁じているので落ちる。
 
 ## 設計上の要点
 
