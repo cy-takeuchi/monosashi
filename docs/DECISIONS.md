@@ -1287,7 +1287,26 @@ GET .../idtoken/...?audience=npm%3Aregistry.npmjs.org 200 289ms
 トークンにフォールバックして公開された。ドキュメントに書かれていないだけで実装はある。
 
 つまり pnpm を選んだ代償は無かった。Trusted Publisher を設定したのでトークンは捨てた。
-次のリリースで `Skipped OIDC` の警告が消えれば確定する。
+
+**0.1.1 で確定した。** `Skipped OIDC` の警告が消え、トークンを一切持たない状態で
+stage できた。`ERR_PNPM_AUTH_TOKEN_EXCHANGE` の 404 は
+**Trusted Publisher が npm 側に登録されていなかった**ことが原因だった。
+
+### 失敗の理由を 401 に隠さない
+
+0.1.1 の最初の試行は `401 Unauthorized` で落ちた。これは症状であって原因ではない。
+
+`actions/setup-node` に `registry-url` を書くと、`.npmrc` に
+`_authToken=${NODE_AUTH_TOKEN}` が仕込まれる。`NPM_TOKEN` の Secret を消した後は
+その中身が setup-node のプレースホルダ `XXXXX-XXXXX-XXXXX-XXXXX` のままになる。
+OIDC が 404 で失敗したあと pnpm がそれで publish を試み、401 になった。
+
+**本当の失敗理由（404）が 401 に置き換わって見えなくなる。**
+認証を OIDC だけに任せるなら `.npmrc` に authToken を置く理由がないので、
+`registry-url` は書かない。公開先は `publishConfig.registry` が決める。
+
+なお pnpm は静的な `_authToken` より OIDC を優先する（PR #11495、2026-05）ので、
+これが OIDC を潰していたわけではない。潰していたのは診断のしやすさだけ。
 
 ### CI に公開させない（staged publish）
 

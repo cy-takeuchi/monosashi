@@ -275,7 +275,12 @@ npmjs への認証が要る。ブラウザで承認するほうが速い。
 publish の認証は **OIDC Trusted Publishing**。`release.yml` に
 `NODE_AUTH_TOKEN` は無く、GitHub Secrets にも npm のトークンは置いていない。
 pnpm が GitHub の id-token から npm 向けのトークンを自分で交換する
-（`permissions: id-token: write` がそのために要る）。
+（`permissions: id-token: write` がそのために要る）。0.1.1 で動作を確認済み。
+
+`setup-node` に **`registry-url` を書いてはいけない**。`.npmrc` に
+`_authToken` のプレースホルダが仕込まれ、OIDC が失敗したときに
+それで publish を試みて `401 Unauthorized` になる。本当の失敗理由が隠れる
+（`docs/DECISIONS.md`「失敗の理由を 401 に隠さない」）。
 
 npmjs.com 側は次の状態にしてある。**この 3 つが揃って初めて publish が通る。**
 
