@@ -1368,6 +1368,20 @@ lockfileVersion: '9.0'                    # ここから下が従来の依存グ
 pnpm を上げるときは `packageManager` を手で書き換えたあと
 **`pnpm install` を回して lockfile も更新する**必要がある。
 
+### この節は環境で内容が変わる
+
+`packageManagerDependencies` に `@pnpm/exe` が入るかどうかは、
+**pnpm がどう入っているかで変わる**。mise が入れた pnpm を経由すると
+`@pnpm/exe` とその全プラットフォーム分（19 行）が書かれ、
+`pnpm/action-setup` が入れた pnpm では書かれない。
+
+しかも **`--frozen-lockfile` でも書き換わる。** frozen が守るのは依存グラフで、
+この節は対象外らしい。同じ環境で 2 回続ければ安定するが、
+環境をまたぐと 19 行が出たり消えたりする。どちらの形でも CI は通る。
+
+実害は差分のノイズだけだが、`git add -A` で無自覚に混ぜ込みやすい
+（2026-09-06 に実際に混ぜた）。**コミット前に `git diff --stat` を見る。**
+
 ## 参照
 
 - 実測の手順: [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
