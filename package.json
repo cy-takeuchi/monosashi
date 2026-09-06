@@ -8,11 +8,11 @@
 	"author": "Yoshihiko Takeuchi",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/cy-takeuchi/kintone-record.git"
+		"url": "git+https://github.com/cy-takeuchi/monosashi.git"
 	},
-	"homepage": "https://github.com/cy-takeuchi/kintone-record#readme",
+	"homepage": "https://github.com/cy-takeuchi/monosashi#readme",
 	"bugs": {
-		"url": "https://github.com/cy-takeuchi/kintone-record/issues"
+		"url": "https://github.com/cy-takeuchi/monosashi/issues"
 	},
 	"keywords": [
 		"kintone",
