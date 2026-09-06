@@ -1,0 +1,69 @@
+name: Release
+
+# タグを打つと npm に公開する。
+#
+# **手元から publish しない。** この環境の `~/.npmrc` は既定レジストリが
+# 社内プロキシを向いており、`pnpm publish` は `--dry-run` を付けても
+# 出力ゼロのまま固まる（docs/DECISIONS.md「この環境で pnpm publish を
+# 手元から実行しない」）。CI から公開すれば、その事故が構造的に起きない。
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # provenance の署名に要る
+
+# 同じタグを押し直したときに publish が二重に走らないようにする
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          # ここを書くと ~/.npmrc に npmjs 向けの認証行が入る。
+          # publishConfig.registry と二重だが、認証はこちらでしか効かない
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+
+      # タグだけ進めて version を上げ忘れる事故を止める。
+      # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い
+      - name: タグと package.json の version が一致するか
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::タグ v$TAG と package.json の version $PKG が食い違っている"
+            exit 1
+          fi
+          echo "version $PKG を公開する"
+
+      # **ここでステップを並べない。** 理由は check.yml と同じで、
+      # 定義は package.json の check ひとつに置く。
+      # pack:check が「利用者の立場で読めるか」まで確かめるので、
+      # 公開前の検査としてこれ以上足すものがない
+      - name: すべての検査
+        run: pnpm run check
+
+      # prepublishOnly が build を走らせる（check の pack:check でも走っているが、
+      # publish が使う dist はこちらが作ったものになる）
+      #
+      # --no-git-checks: タグの checkout は detached HEAD なので、
+      #   pnpm の「publish ブランチにいるか」の確認が必ず落ちる
+      # --provenance: pnpm 12 以降のフラグ。id-token: write と対で効く
+      #
+      # NODE_AUTH_TOKEN は **初回公開のときだけ** 要る。
+      # 公開後に npmjs.com で Trusted Publisher（GitHub Actions / このリポジトリ /
+      # release.yml）を設定したら、この env と Secret を消すこと
+      - name: 公開する
+        run: pnpm publish --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

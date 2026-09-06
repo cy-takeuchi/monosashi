@@ -1248,8 +1248,59 @@ pnpm を上げたいときは意図して上げる。`packageManager` は
 `moduleResolution` / 実行時 import / 依存が入らないことまで通す。
 レジストリに触らないので固まらない。
 
-publish 自体の検証は手元でやらず、**CI 上のリリースワークフローで
-`workflow_dispatch` の入力を使って publish 手前まで通す**。
+publish 自体は **`.github/workflows/release.yml`** が行う。
+`v*` のタグを押したときだけ走り、`pnpm run check` を通してから publish する。
+
+## publish に npm CLI を使わない
+
+pnpm 11.6.0 の `pnpm publish` には **`--provenance` が無い**（`--help` にも
+バイナリ内の文字列にも存在しない）。provenance は「どのリポジトリのどの
+ワークフローがこの tarball を作ったか」を sigstore で署名するもので、
+**実測を売りにするパッケージが出所を証明できないのは筋が通らない**。
+
+選択肢は 2 つあった。
+
+| | 得るもの | 代償 |
+| --- | --- | --- |
+| CI の publish だけ `npm publish` にする | provenance と **OIDC Trusted Publishing の両方が確実** | ツールが 2 つ混ざる。`pack:check` が検証する tarball の生成元と実際の出荷物がずれる |
+| pnpm 12 に上げる | pnpm 一本のまま `--provenance` が使える | **OIDC Trusted Publishing に対応しているか確認できていない** |
+
+**pnpm 12 を選んだ。** ツールを 1 つに保つことを優先している。
+
+代償は明確で、npm のドキュメントは「npm CLI は OIDC 環境を自動検出して
+トークンより優先する」と明言しているが、pnpm 側は 12.0.0 のリリースノートにも
+settings のドキュメントにも `pnpm publish --help` にも OIDC / trusted publishing の
+記載が無い。**初回公開のあとトークンを捨てられるかは、実際に試すまで分からない。**
+
+捨てられなかった場合は `NPM_TOKEN` を持ち続けることになる。
+そのときは publish の一手だけ `npm publish` に替える（上の表の 1 行目に戻る）。
+
+## pnpm 12 は lockfile に pnpm 自身を書く
+
+pnpm 12.3.4 に上げると `pnpm-lock.yaml` の**先頭に YAML ドキュメントがもう 1 つ**増える。
+
+```yaml
+---
+lockfileVersion: '9.0'
+importers:
+  .:
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.3.4
+        version: 12.3.4
+packages:
+  '@pnpm/exe.darwin-arm64@12.3.4': ...   # 全プラットフォーム分
+---
+lockfileVersion: '9.0'                    # ここから下が従来の依存グラフ（無変更）
+```
+
+既存の依存グラフは 1 行も変わらず、純粋な追加だった（101 行）。
+`pnpm install --frozen-lockfile` を 2 回続けても md5 が変わらないことを確認している。
+
+これは `packageManager` フィールドと**二重に** pnpm のバージョンを固定する。
+`packageManager` は「どの pnpm を動かすか」、lockfile は「その pnpm の実体は何か」。
+pnpm を上げるときは `packageManager` を手で書き換えたあと
+**`pnpm install` を回して lockfile も更新する**必要がある。
 
 ## 参照
 

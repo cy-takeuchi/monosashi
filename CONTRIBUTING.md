@@ -10,6 +10,7 @@
 - [セットアップ](#セットアップ)
 - [実測の手順](#実測の手順)
 - [検査する](#検査する)
+- [公開する](#公開する)
 - [設計上の要点](#設計上の要点)
 
 判断の記録は [`docs/DECISIONS.md`](docs/DECISIONS.md)。
@@ -234,7 +235,44 @@ pnpm run pack:check
 [`docs/DECISIONS.md`](docs/DECISIONS.md)）。
 
 `.ncurc.json` で `pnpm` を除外してあるので、そのまま `ncu -u` を使ってよい。
-pnpm を上げるときは `packageManager` を手で書き換える。
+pnpm を上げるときは `packageManager` を手で書き換え、**そのあと `pnpm install` を回す**。
+pnpm 12 から lockfile にも pnpm 自身が入るようになったので、両方を揃える必要がある。
+
+## 公開する
+
+publish は **`.github/workflows/release.yml`** だけが行う。手元からは実行しない
+（理由は「[`pnpm publish` は手元で実行しない](#pnpm-publish-は手元で実行しない)」）。
+
+```sh
+# 1. version を上げる
+#    タグと package.json の version が食い違うとワークフローが止まる
+vim package.json
+
+# 2. コミットしてタグを打つ
+git commit -am "chore: version を 0.2.0 にする"
+git tag v0.2.0
+git push origin main --tags
+```
+
+タグを押すと CI が `pnpm run check` を通してから
+`pnpm publish --provenance` する。provenance は「どのリポジトリの
+どのワークフローがこの tarball を作ったか」の署名で、`id-token: write` と対で効く。
+
+### 初回公開まわりの残作業
+
+npmjs.com 側の設定が済むまでは `NPM_TOKEN` を Secret に置いている。
+公開後に **Trusted Publisher**（GitHub Actions / `cy-takeuchi` / `monosashi` /
+`release.yml`）を設定したら、次を行う。
+
+- [ ] `release.yml` から `NODE_AUTH_TOKEN` の env を消す
+- [ ] GitHub の Secret `NPM_TOKEN` を消す
+- [ ] npm の発行済みトークンを revoke する
+- [ ] npmjs.com の Publishing access を
+      "Require two-factor authentication and disallow tokens" にする
+
+**pnpm が OIDC Trusted Publishing に対応しているかは未確認。**
+対応していなければトークンを消せないので、そのときは publish の一手だけ
+`npm publish` に替える（`docs/DECISIONS.md`「publish に npm CLI を使わない」）。
 
 ## 設計上の要点
 
