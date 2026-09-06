@@ -22,3 +22,6 @@ fixtures/live/raw.json
 # Playwright の実行結果
 playwright-report
 test-results
+
+# pnpm pack の成果物。pack:check は一時ディレクトリに作るので、ここに残るのは手で叩いた残骸
+*.tgz
