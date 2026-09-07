@@ -61,7 +61,6 @@ export type {
 	SubmitSuccessEvent,
 	UnknownKintoneEvent,
 } from "./types/event.js";
-// 型のみの名前空間なので type 付きで再エクスポートする
 export type {
 	Editing,
 	Entity,
@@ -70,6 +69,9 @@ export type {
 	Rest,
 	Saved,
 } from "./types/field.js";
+// 型のみの名前空間なので type 付きで再エクスポートする
+// JS API が受け渡す値の型。**根拠は公式ドキュメントで、実測ではない**
+export type { Api } from "./types/jsApi.js";
 // 変換・代入・ガードの入力型。3 文脈のどのレコードも受け取れる緩い型で、
 // 自前のヘルパを書くときに同じ骨格を再定義しなくて済むよう公開する
 export type {

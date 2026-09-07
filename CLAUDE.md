@@ -41,6 +41,22 @@ CI のワークフローにステップを並べない。定義は `package.json
 実 kintone に接続するコマンド（`e2e` / `app:*` / `probe:write` / `probe:converter`）は
 認証情報が要り、実際のアプリを操作する。**依頼されていなければ実行しない。**
 
+## 実測とドキュメントを混ぜない
+
+`kintone` グローバルの宣言（`src/kintone.ts`）は公式ドキュメントの
+**166 API すべて**を持つが、**実測が根拠なのは 4 個だけ**
+（`events.on` の event と `app.record.get` / `set` のレコード）。
+
+残りは公式ドキュメントを読んで書いたもので、**返る値の形は確かめていない**。
+ドキュメント由来の型は `src/types/jsApi.ts` の `Api` 名前空間に分けてある。
+
+**測っていないものを、測ったふりで書かない。**
+JS API を足すときは、どちらの根拠かを JSDoc に書く。
+実測なら採り直す、ドキュメントなら読み直す、と直し方が変わるため。
+
+一覧は `test/jsApi.ts` の `OFFICIAL_JS_APIS` が持ち、
+`test/jsApi.test.ts` が宣言と突き合わせる（足りない・余っているの両方で落ちる）。
+
 ## 直してはいけない「重複」
 
 `src/types/field.ts` の型、`VALUE_SHAPE`、`src/guard/record.ts` のガード、
@@ -95,6 +111,8 @@ CI のワークフローにステップを並べない。定義は `package.json
 | `src/build/` | `field.*` の構築子と `setValue` |
 | `src/convert/` | JS API → REST の変換 |
 | `src/probe/` | 実測の採取カスタマイズ（ブラウザで動く） |
+| `src/kintone.ts` | `kintone` グローバルの宣言。公式 166 API |
+| `src/types/jsApi.ts` | JS API の値の型。**根拠はドキュメント** |
 | `test/` | 種別の網羅とフィクスチャ突き合わせ |
 | `tools/fixture/` | 採取結果の正規化 |
 | `tools/fixture-app/` | 検証アプリの構築・検証・probe の配備 |
