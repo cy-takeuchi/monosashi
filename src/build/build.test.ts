@@ -1,16 +1,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { toRestWrite } from "../convert/toRestWrite";
-import type { Probed } from "../probe/serialize";
-import type { ProbeStore } from "../probe/store";
-import { field } from "./field";
+import { toRestWrite } from "../convert/toRestWrite.js";
+import type { Probed } from "../probe/serialize.js";
+import type { ProbeStore } from "../probe/store.js";
+import { field } from "./field.js";
 import {
 	canSetValue,
 	FieldValueError,
 	setRowValue,
 	setValue,
-} from "./setValue";
+} from "./setValue.js";
 
 /**
  * 構築 API と代入 API のテスト。

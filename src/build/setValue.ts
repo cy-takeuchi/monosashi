@@ -27,7 +27,7 @@
  * これが常態なので、実行時の照合が要る。
  */
 
-import type { LooseRecord } from "../types/loose";
+import type { LooseRecord } from "../types/loose.js";
 
 /** フィールド種別ごとに許される値の形 */
 const VALUE_SHAPE: {

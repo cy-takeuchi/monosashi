@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, test } from "vitest";
-import type { Editing, Saved } from "../types/field";
-import type { EditingRecord, SavedRecord } from "../types/record";
-import type { RestRecord } from "../types/rest";
+import type { Editing, Saved } from "../types/field.js";
+import type { EditingRecord, SavedRecord } from "../types/record.js";
+import type { RestRecord } from "../types/rest.js";
 import {
 	hasValue,
 	isCheckBox,
@@ -9,7 +9,7 @@ import {
 	isLookup,
 	isSingleLineText,
 	isSubtable,
-} from "./record";
+} from "./record.js";
 
 /**
  * 型ガードが 3 文脈それぞれで正しく絞り込むことを確かめる。

@@ -85,6 +85,172 @@ kintone.events.on("app.record.detail.show", (event) => event);
 console.log(params, recordId, restRecord, restNumber);
 `;
 
+/**
+ * 自前の `kintone.d.ts` を持つプロジェクトが、
+ * **JS API の宣言はそのまま使い、レコードの値の型だけ monosashi から取る**形。
+ *
+ * `monosashi/kintone` は import しない。代わりに自分の `declare global` の中で
+ * `EditingRecord` / `SetRecord` / `EventOf` を参照する。
+ * 名前空間のマージが起きないので、順序に依存しない。
+ *
+ * `getFormFields` は monosashi 側に無い宣言で、
+ * **併用しても自前の宣言を失わない**ことの証拠として置いている。
+ */
+const OWN_AMBIENT = `
+import type {
+	EditingRecord,
+	EventOf,
+	KintoneEventName,
+	SetRecord,
+} from "monosashi";
+
+declare global {
+	namespace kintone {
+		namespace app {
+			namespace record {
+				function get(): { record: EditingRecord } | null;
+				function set(record: { record: SetRecord }): void;
+			}
+			function getFormFields(): Promise<{ [code: string]: { type: string } }>;
+		}
+		namespace events {
+			function on<Name extends KintoneEventName>(
+				event: Name | Name[],
+				handler: (event: EventOf<Name>) => unknown,
+			): void;
+		}
+	}
+}
+`;
+
+/** 併用したときにぶつかる相手。`get()` が any のまま残っている自前宣言 */
+const OWN_ANY_AMBIENT = `
+export {};
+declare global {
+	namespace kintone {
+		namespace app {
+			namespace record {
+				function get(): any;
+			}
+		}
+	}
+}
+`;
+
+/** 自前 ambient に monosashi の型を差し込んだプロジェクトの利用コード */
+const OWN_AMBIENT_CONSUMER = `
+import { guard } from "monosashi";
+
+// 自前にしか無い宣言が生きている
+const fields = kintone.app.getFormFields();
+
+// get() の値の型は monosashi から来ている
+const got = kintone.app.record.get();
+if (got !== null) {
+	const cell = got.record.text;
+	if (guard.isSingleLineText(cell) && guard.hasValue(cell)) {
+		const value: string = cell.value;
+		console.log(value);
+	}
+}
+
+// set() は type 必須（実測 2026-08-30）
+kintone.app.record.set({
+	record: { text: { type: "SINGLE_LINE_TEXT", value: "x" } },
+});
+
+// イベントも自前の宣言経由で引ける
+kintone.events.on("app.record.detail.show", (event) => {
+	const recordId: number = event.recordId;
+	console.log(recordId);
+});
+
+console.log(fields);
+`;
+
+/**
+ * 名前空間がマージされたときに、monosashi 側が採用されたかを見る踏み台。
+ *
+ * monosashi が勝てば「そんなプロパティは無い」で落ちる。
+ * 自前の any が勝てば **1 つも落ちない**。
+ * `any` は TS2339 を出しようがないので、この 1 つで勝敗が決まる。
+ */
+const MERGE_PROBE = `
+import "monosashi/kintone";
+
+const got = kintone.app.record.get();
+if (got === null) throw new Error("一覧画面では null");
+const value: string = got.record.text.存在しないプロパティ;
+export { value };
+`;
+
+type Scenario = {
+	readonly name: string;
+	readonly files: { readonly [fileName: string]: string };
+	/** tsconfig の files。**並び順に意味がある**（下の「順序で勝敗が変わる」を参照） */
+	readonly entries: readonly string[];
+	/**
+	 * 出てほしい診断コード。
+	 *
+	 * 空配列は「1 つも出ないこと」を意味する。
+	 * ぶつかる組み合わせでは**出ないことこそが問題**なので、
+	 * その旨を note に書く。
+	 */
+	readonly expected: readonly string[];
+	/**
+	 * 既定は true（TypeScript の既定に合わせる）。
+	 * false にすると `dist/*.d.ts` そのものが検査対象になる。
+	 */
+	readonly skipLibCheck?: boolean;
+	readonly note?: string;
+};
+
+const SCENARIOS: readonly Scenario[] = [
+	{
+		name: "monosashi/kintone をそのまま使う",
+		files: { "consumer.ts": CONSUMER },
+		entries: ["consumer.ts"],
+		expected: [],
+	},
+	{
+		name: "自前 ambient に monosashi の型を差し込む（推奨）",
+		files: { "own.d.ts": OWN_AMBIENT, "own-consumer.ts": OWN_AMBIENT_CONSUMER },
+		entries: ["own.d.ts", "own-consumer.ts"],
+		expected: [],
+	},
+	{
+		name: "併用: 自前 ambient が先。monosashi が勝つ",
+		files: { "own-any.d.ts": OWN_ANY_AMBIENT, "probe.ts": MERGE_PROBE },
+		entries: ["own-any.d.ts", "probe.ts"],
+		expected: ["TS2339"],
+	},
+	{
+		name: "併用: monosashi が先。自前の any が黙って勝つ",
+		files: { "own-any.d.ts": OWN_ANY_AMBIENT, "probe.ts": MERGE_PROBE },
+		entries: ["probe.ts", "own-any.d.ts"],
+		expected: [],
+		note:
+			"**これは望ましい結果ではない。** 同じ名前空間をマージすると、" +
+			"同名の関数はオーバーロードとして併存し、先に宣言された側が採用される。" +
+			"TypeScript は Duplicate identifier を出さないので、" +
+			"型が any に落ちたことに誰も気づけない。" +
+			"1 つ上との違いは files の並びだけで、どちらも診断はゼロ。" +
+			"この挙動が変わったら README を直す",
+	},
+	{
+		name: "dist/*.d.ts 自体を検査する（skipLibCheck: false）",
+		files: { "consumer.ts": CONSUMER },
+		entries: ["consumer.ts"],
+		expected: [],
+		skipLibCheck: false,
+		note:
+			"利用者は既定の skipLibCheck: true で使うので、" +
+			"**こちらの .d.ts が壊れていてもエラーにならず、型が黙って any に落ちる**。" +
+			"上のシナリオはどれも「通ること」しか見ていないので、any でも緑になる。" +
+			"ここだけは .d.ts を直接検査して、その穴を塞ぐ",
+	},
+];
+
 const run = (command: string, args: string[], cwd: string): string =>
 	execFileSync(command, args, { cwd, encoding: "utf8", stdio: "pipe" });
 
@@ -120,8 +286,6 @@ const main = (): void => {
 			"\t",
 		)}\n`,
 	);
-	writeFileSync(join(work, "consumer.ts"), CONSUMER);
-
 	console.log("\n利用者のプロジェクトに入れています…");
 	run("pnpm", ["install", "--ignore-workspace"], work);
 
@@ -142,38 +306,61 @@ const main = (): void => {
 	}
 
 	const failures: string[] = [];
-	for (const mode of MODES) {
-		writeFileSync(
-			join(work, `tsconfig.${mode.name}.json`),
-			`${JSON.stringify(
-				{
-					compilerOptions: {
-						strict: true,
-						noEmit: true,
-						target: "ES2022",
-						module: mode.module,
-						moduleResolution: mode.resolution,
-						skipLibCheck: true,
-					},
-					files: ["consumer.ts"],
-				},
-				null,
-				"\t",
-			)}\n`,
-		);
+	for (const scenario of SCENARIOS) {
+		console.log(`\n${scenario.name}`);
+		if (scenario.note !== undefined) console.log(`  ${scenario.note}`);
+		for (const [fileName, content] of Object.entries(scenario.files)) {
+			writeFileSync(join(work, fileName), content);
+		}
 
-		try {
-			run("pnpm", ["exec", "tsc", "-p", `tsconfig.${mode.name}.json`], work);
-			console.log(`  ✅ ${mode.name}`);
-		} catch (error) {
-			const output = String(
-				(error as { stdout?: string }).stdout ?? String(error),
+		for (const mode of MODES) {
+			const configName = `tsconfig.${mode.name}.json`;
+			writeFileSync(
+				join(work, configName),
+				`${JSON.stringify(
+					{
+						compilerOptions: {
+							strict: true,
+							noEmit: true,
+							target: "ES2022",
+							module: mode.module,
+							moduleResolution: mode.resolution,
+							skipLibCheck: scenario.skipLibCheck ?? true,
+							// 導入先（kintone-plugins）に合わせる。
+							// TypeScript 7 は @types を暗黙に取り込まないので、
+							// 5 系でも同じ条件になるよう明示的に空にする
+							types: [],
+						},
+						files: scenario.entries,
+					},
+					null,
+					"\t",
+				)}\n`,
 			);
+
+			let output = "";
+			try {
+				run("pnpm", ["exec", "tsc", "-p", configName], work);
+			} catch (error) {
+				output = String((error as { stdout?: string }).stdout ?? String(error));
+			}
+			const missing = scenario.expected.filter(
+				(code) => !output.includes(code),
+			);
+			const unexpected = scenario.expected.length === 0 && output.trim() !== "";
+
+			if (missing.length === 0 && !unexpected) {
+				console.log(`  ✅ ${mode.name}`);
+				continue;
+			}
 			console.log(`  ❌ ${mode.name}`);
+			if (missing.length > 0) {
+				console.log(`      出るはずの診断が出ていない: ${missing.join(", ")}`);
+			}
 			for (const line of output.split("\n").slice(0, 8)) {
 				if (line.trim() !== "") console.log(`      ${line}`);
 			}
-			failures.push(mode.name);
+			failures.push(`${scenario.name} / ${mode.name}`);
 		}
 	}
 

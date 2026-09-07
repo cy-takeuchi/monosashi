@@ -1,4 +1,4 @@
-import type { Editing, Saved } from "./field";
+import type { Editing, Saved } from "./field.js";
 
 /**
  * レコード型。
@@ -52,4 +52,38 @@ export type CreateRecord = {
 		| Editing.Status
 		| Editing.StatusAssignee
 	>;
+};
+
+/**
+ * `kintone.app.record.set()` に渡せるレコード。
+ *
+ * 読み取り型と違い `disabled` と `error` を持てる。
+ * 実測では set() で設定しても get() では返らないため、
+ * これらは書き込み専用のプロパティとして扱う。
+ *
+ * 部分更新ができるので、変更したいフィールドだけを含めればよい。
+ *
+ * `monosashi/kintone` を使わず、自前の `kintone.d.ts` を持つプロジェクトが
+ * `set()` の引数だけを差し替えられるように、ルートから出している
+ * （README の「自前の `kintone.d.ts` と併用する」）。
+ */
+export type SetRecord = {
+	[fieldCode: string]: {
+		/**
+		 * **必須**。省略すると実行時に落ちる（実測 2026-08-30）。
+		 *
+		 * ```
+		 * kintone.app.record.set({ record: { singleLineText: { value: "x" } } });
+		 * → カスタマイズ用の JavaScript の実行時にエラーが発生しました。
+		 *   event.record['singleLineText'].type が不正です。
+		 * ```
+		 *
+		 * 当初は optional として宣言していたが、根拠が無かった。
+		 * 実測で否定されたので必須にする。
+		 */
+		type: string;
+		value?: unknown;
+		disabled?: boolean;
+		error?: string | null;
+	};
 };

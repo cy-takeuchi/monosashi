@@ -6,9 +6,9 @@ import {
 	isRestContext,
 	isSavedContext,
 	loadSamples,
-} from "../../test/fixtures";
-import type { Probed } from "../probe/serialize";
-import type { Sample } from "../probe/store";
+} from "../../test/fixtures.js";
+import type { Probed } from "../probe/serialize.js";
+import type { Sample } from "../probe/store.js";
 
 /**
  * 宣言した型が実測と一致していることを確かめる。

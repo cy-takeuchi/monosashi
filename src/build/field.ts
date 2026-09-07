@@ -1,4 +1,4 @@
-import type { Entity, FileInformation } from "../types/field";
+import type { Entity, FileInformation } from "../types/field.js";
 
 /**
  * フィールドを組み立てる。

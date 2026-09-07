@@ -1,5 +1,9 @@
-import type { LooseField, LooseRecord, LooseSubtableRow } from "../types/loose";
-import { isDroppedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes";
+import type {
+	LooseField,
+	LooseRecord,
+	LooseSubtableRow,
+} from "../types/loose.js";
+import { isDroppedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes.js";
 
 /**
  * JS API / event.record / REST のレコードを、

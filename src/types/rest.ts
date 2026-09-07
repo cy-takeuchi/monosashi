@@ -1,4 +1,4 @@
-import type { Rest } from "./field";
+import type { Rest } from "./field.js";
 
 /**
  * REST API のレコード型。

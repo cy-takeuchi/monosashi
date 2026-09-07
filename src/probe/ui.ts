@@ -1,6 +1,6 @@
-import { getAppId, getRecordId, headerElement } from "./kintoneApi";
-import * as store from "./store";
-import { type ActionId, LABEL, PANEL, STATUS, testId } from "./testIds";
+import { getAppId, getRecordId, headerElement } from "./kintoneApi.js";
+import * as store from "./store.js";
+import { type ActionId, LABEL, PANEL, STATUS, testId } from "./testIds.js";
 
 const LABEL_KEY = "kintone-record-probe/label";
 

@@ -780,8 +780,102 @@ kintone に種別が増えたときは、フィクスチャを採り直す → �
 `ERR_PACKAGE_PATH_NOT_EXPORTED` になる（検証済み）。
 `dist/kintone.js` は空だが出力する。
 
-**dts-gen との共存**: `tsconfig` の `include` の順に関わらず
-`monosashi` の型が優先されることを `events.on` と `record.get` の両方で確認済み。
+**dts-gen との共存**: `events.on` と `record.get` の両方で確認済み。
+ただし **`include` の順に関わらない、というのは間違いだった**（次節）。
+
+## 名前空間のマージは順序で勝敗が変わり、診断が出ない
+
+**2026-09-08。** README にこう書いていた。
+
+> `tsconfig` の `include` の順に関わらず、こちらの型が優先されることを確認済み
+
+**成り立たない。** `dist/kintone.d.ts` を、`get(): any` を持つ自前 ambient と
+突き合わせると、`tsconfig` の `files` の並びだけで勝敗が入れ替わる。
+
+```
+files: ["own-any.d.ts", "probe.ts"]   → monosashi が勝つ（TS2339 が出る）
+files: ["probe.ts", "own-any.d.ts"]   → 自前の any が勝つ（診断ゼロ）
+```
+
+同じ名前空間はマージされ、同名の関数は**オーバーロードとして併存**する。
+呼び出しは先に宣言された側から解決されるので、先勝ちになる。
+`Duplicate identifier` は出ない。**どちらが勝ったかを教える診断が一つも無い。**
+
+元の確認が間違っていたのではなく、**条件を落として一般化していた**。
+確かめた相手は `@kintone/dts-gen` で、あれは `types` 経由のルート `.d.ts` として
+先に読まれるので順序が固定される。その特殊な条件での結果を、
+「順に関わらず」と書いていた。**一度の確認を、確かめていない範囲まで広げていた。**
+
+**決定**: 自前の `kintone.d.ts` を持つプロジェクトには
+`monosashi/kintone` を使わせない。向きを逆にして、
+利用者の `declare global` の中で `EditingRecord` / `SetRecord` / `EventOf` を参照させる。
+マージが起きないので順序に依存しない。
+
+そのために `SetRecord` をルートから export する。
+`kintone.app.record.set()` の引数の型は
+`monosashi/kintone` の中のグローバル型としてしか存在せず、
+**ルートからは取れなかった**。導入先で最多の語彙が `Set` 系
+（`kintoneRecordFieldSet` 92 箇所）なので、ここが塞がっていると併用できない。
+
+**エントリを分ける案は採らない。** ぶつかるのは
+`kintone.app.record.get` という宣言箇所そのものなので、
+`monosashi/kintone-record` を作っても同じことが起きる。
+
+順序を入れ替えた 2 通りを `pack:check` のシナリオとして固定した。
+**「自前の any が黙って勝つ」ほうも、その結果を期待値として書いている。**
+望ましくない挙動だが、いま実際にそうなっている以上、
+変わったときに気づけるようにしておく。
+
+## 「通ること」しか見ない検査は any を捕まえられない
+
+**2026-09-08。** 上のシナリオを書いていて見つけた。
+
+`pack:check` は前から `bundler` と `nodenext` の両方を検査していたが、
+**`nodenext` の検査は最初から素通りだった。**
+
+`dist/*.d.ts` の相対 import に拡張子が無かった（14 種類）。
+
+```
+dist/kintone.d.ts(1,48): error TS2834: Relative import paths need explicit
+file extensions in ECMAScript imports when '--moduleResolution' is 'nodenext'.
+```
+
+このエラーは **`skipLibCheck: true` では出ない**。TypeScript の既定なので、
+利用者はまず出さない。解決に失敗した型は `any` になり、
+`kintone.app.record.get().record.存在しないプロパティ` が通る。
+
+README がまさにこれを警告していた。
+
+> **その代償が、検出できない `any` だった。**
+
+`@kintone/rest-api-client` への委譲をやめた理由がこれで、**同じ穴を自分で踏んでいた。**
+
+**なぜ気づけなかったか。** `pack:check` の利用者コードは
+「コンパイルが通るか」だけを見ていた。`any` は何を書いても通る。
+**全部が `any` に落ちた状態と、全部が正しく付いている状態が、同じ緑になる。**
+
+**決定**: 3 つ入れる。
+
+| | |
+|---|---|
+| `src` の相対 import に `.js` を付ける（61 箇所） | `bundler` でも `nodenext` でも解決できる書き方 |
+| `tsconfig.build.json` を `nodenext` で出す | 拡張子が無ければ**書いた時点で落ちる**。`tsc --noEmit`（`bundler`）は捕まえられない |
+| `pack:check` に `skipLibCheck: false` のシナリオを足す | `dist/*.d.ts` そのものを検査対象にする |
+
+**「エラーが出ること」を期待するシナリオが 1 つも無かった**のが根本で、
+今回の「併用: 自前 ambient が先」（TS2339 を期待）がその役も兼ねる。
+`dist` の解決が壊れれば、期待した診断が出なくなって落ちる。
+
+## dist を掃除せずにビルドしていた
+
+**2026-09-08。** 同じ流れで見つけた。`build` が `dist` を消していなかったので、
+消したソースの成果物が残っていた（`dist/rest.d.ts` / `dist/__broken.d.ts`）。
+
+CI は clean checkout なので**公開物には入っていない**。
+問題は逆で、**手元の `pack:check` が CI と違うものを検査していた**こと。
+`files: ["dist"]` なのでローカルで `pnpm pack` すれば残骸ごと入る。
+
+`build:clean` を足して `build` の先頭に置いた。
 
 ## 採取文脈の下限を固定する
 

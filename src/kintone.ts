@@ -1,5 +1,5 @@
-import type { EventOf, KintoneEventName } from "./types/event";
-import type { EditingRecord } from "./types/record";
+import type { EventOf, KintoneEventName } from "./types/event.js";
+import type { EditingRecord, SetRecord } from "./types/record.js";
 
 /**
  * kintone のグローバルオブジェクトの型宣言。
@@ -106,32 +106,12 @@ declare global {
 	/**
 	 * `kintone.app.record.set()` に渡せるレコード。
 	 *
-	 * 読み取り型と違い `disabled` と `error` を持てる。
-	 * 実測では set() で設定しても get() では返らないため、
-	 * これらは書き込み専用のプロパティとして扱う。
-	 *
-	 * 部分更新ができるので、変更したいフィールドだけを含めればよい。
+	 * 実体は `monosashi` のルートから出ている {@link SetRecord}。
+	 * ここではグローバルな別名として置くだけで、定義を二重に持たない
+	 * （自前の `kintone.d.ts` を持つプロジェクトは、
+	 * ルートから `SetRecord` を import して同じ型を使える）。
 	 */
-	type KintoneSetRecord = {
-		[fieldCode: string]: {
-			/**
-			 * **必須**。省略すると実行時に落ちる（実測 2026-08-30）。
-			 *
-			 * ```
-			 * kintone.app.record.set({ record: { singleLineText: { value: "x" } } });
-			 * → カスタマイズ用の JavaScript の実行時にエラーが発生しました。
-			 *   event.record['singleLineText'].type が不正です。
-			 * ```
-			 *
-			 * 当初は optional として宣言していたが、根拠が無かった。
-			 * 実測で否定されたので必須にする。
-			 */
-			type: string;
-			value?: unknown;
-			disabled?: boolean;
-			error?: string | null;
-		};
-	};
+	type KintoneSetRecord = SetRecord;
 }
 
 // このファイルはグローバル宣言のみを持つ。
