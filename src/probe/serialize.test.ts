@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { shapeOf } from "../../test/shape";
-import { inspectStructure, probe } from "./serialize";
+import { shapeOf } from "../../test/shape.js";
+import { inspectStructure, probe } from "./serialize.js";
 
 /**
  * このライブラリの実測が成立するための最低条件を守るテスト。

@@ -1,5 +1,5 @@
-import type { Editing, Saved } from "../types/field";
-import type { LooseField } from "../types/loose";
+import type { Editing, Saved } from "../types/field.js";
+import type { LooseField } from "../types/loose.js";
 
 /**
  * レコードのフィールドを絞り込む型ガード。

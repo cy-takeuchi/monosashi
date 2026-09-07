@@ -1,14 +1,14 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import type { Probed } from "../probe/serialize";
-import type { ProbeStore, Sample } from "../probe/store";
+import type { Probed } from "../probe/serialize.js";
+import type { ProbeStore, Sample } from "../probe/store.js";
 import {
 	IGNORED_ON_WRITE,
 	REJECTED_ON_WRITE,
 	UI_ONLY_PROPERTIES,
-} from "./fieldTypes";
-import { convertField, toRest, toRestWrite } from "./toRestWrite";
+} from "./fieldTypes.js";
+import { convertField, toRest, toRestWrite } from "./toRestWrite.js";
 
 /**
  * 変換関数を実測データに対して検証する。

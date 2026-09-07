@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import type { Probed } from "../probe/serialize";
-import type { ProbeStore, Sample } from "../probe/store";
-import { hasValue, isLookup, isSubtable } from "./record";
+import type { Probed } from "../probe/serialize.js";
+import type { ProbeStore, Sample } from "../probe/store.js";
+import { hasValue, isLookup, isSubtable } from "./record.js";
 
 /** Probed を元の値に戻す */
 const revive = (probed: Probed): unknown => {

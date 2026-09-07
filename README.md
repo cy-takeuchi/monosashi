@@ -95,15 +95,72 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 が**コンパイルを通ってしまう**。存在しないものを型が保証する状態になり、
 このライブラリの目的と正反対になる。
 
-`@kintone/dts-gen` の `kintone.d.ts` と併用しても壊れない。
-`tsconfig` の `include` の順に関わらず、こちらの型が優先されることを確認済み
-（`kintone.events.on` と `kintone.app.record.get` の両方）。
+### 自前の `kintone.d.ts` を持っているなら、`monosashi/kintone` は使わない
+
+`monosashi/kintone` は `declare global { namespace kintone { ... } }` を出す。
+**同じ名前空間を宣言しているものが他にあると、マージされる。**
+同名の関数はオーバーロードとして併存し、**先に宣言された側が採用される**。
+
+TypeScript は `Duplicate identifier` を出さない。
+どちらが勝ったかを教える診断は**一つも出ない**。
+自前の `get(): any` が勝てば、型が付いていないことに誰も気づけない。
+
+どちらが先になるかは、プログラムにファイルが入る順で決まる
+（`tsconfig` の `files` / `include` の並び、import の並び）。
+**これは安定した条件ではない。** 順序を入れ替えただけで勝敗が入れ替わることを
+`pack:check` の「併用」シナリオ 2 つで固定してある。
+
+そこで、自前の宣言を持っているなら**向きを逆にする**。
+`monosashi/kintone` を import せず、自分の `declare global` の中で monosashi の型を使う。
+
+```ts
+import type {
+  EditingRecord,
+  EventOf,
+  KintoneEventName,
+  SetRecord,
+} from "monosashi";
+
+declare global {
+  namespace kintone {
+    namespace app {
+      namespace record {
+        function get(): { record: EditingRecord } | null;   // any を置き換える
+        function set(record: { record: SetRecord }): void;
+      }
+      // 自前の宣言はそのまま残る
+      function getFormFields(): Promise<{ [code: string]: { type: string } }>;
+    }
+    namespace events {
+      function on<Name extends KintoneEventName>(
+        event: Name | Name[],
+        handler: (event: EventOf<Name>) => unknown,
+      ): void;
+    }
+  }
+}
+```
+
+マージが起きないので順序に依存しない。
+`@kintone/dts-gen` に無い宣言（`getFormFields` / `getView` / ダイアログ系）を
+自前で持っているプロジェクトは、**それを捨てずにレコードの値の型だけ差し替えられる**。
+この形も `pack:check` で検査している。
+
+**エントリを分けても解決しない。** ぶつかるのは
+`kintone.app.record.get` という宣言箇所そのものなので、
+`monosashi/kintone-record` のようなものを作っても同じことが起きる。
+
+`@kintone/dts-gen` の `kintone.d.ts` との併用は、
+`kintone.events.on` と `kintone.app.record.get` の両方で確認済み。
+ただし上のとおり**順序に依存する**ので、
+`get()` が `any` のままの宣言と混ぜるなら、この節の形にするほうが安全。
 
 ### API
 
 | | 用途 |
 |---|---|
 | `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
+| `SetRecord` | `kintone.app.record.set()` に渡す型。`disabled` / `error` を持てる |
 | `Saved` / `Editing` | フィールド型の名前空間 |
 | `Rest` / `RestRecord` | REST API の型。本体から出る（下記） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |

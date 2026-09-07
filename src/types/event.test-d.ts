@@ -1,6 +1,10 @@
 import { describe, expectTypeOf, test } from "vitest";
-import type { EventOf, KintoneEventName, UnknownKintoneEvent } from "./event";
-import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
+import type {
+	EventOf,
+	KintoneEventName,
+	UnknownKintoneEvent,
+} from "./event.js";
+import type { CreateRecord, EditingRecord, SavedRecord } from "./record.js";
 
 /**
  * イベント名から event の形が引けることを確かめる。

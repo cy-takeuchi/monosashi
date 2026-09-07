@@ -1,4 +1,4 @@
-import type { Probed, StructureReport } from "./serialize";
+import type { Probed, StructureReport } from "./serialize.js";
 
 /**
  * 採取結果の蓄積。

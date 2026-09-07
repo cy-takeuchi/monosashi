@@ -1,4 +1,4 @@
-import type { KintoneEventName } from "../types/event";
+import type { KintoneEventName } from "../types/event.js";
 
 /**
  * 採取対象のイベント一覧。

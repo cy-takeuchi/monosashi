@@ -1,5 +1,5 @@
-import type { Editing } from "./field";
-import type { CreateRecord, EditingRecord, SavedRecord } from "./record";
+import type { Editing } from "./field.js";
+import type { CreateRecord, EditingRecord, SavedRecord } from "./record.js";
 
 /**
  * kintone のイベント型。

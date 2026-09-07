@@ -1,6 +1,6 @@
 import type { KintoneRecordField } from "@kintone/rest-api-client";
 import { describe, expectTypeOf, test } from "vitest";
-import type { Rest } from "./field";
+import type { Rest } from "./field.js";
 
 /**
  * 自前の `Rest` が `@kintone/rest-api-client` と等価であることを縛る。

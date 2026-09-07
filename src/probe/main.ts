@@ -18,7 +18,7 @@ import {
 	EVENTS_DELETE_SUBMIT,
 	EVENTS_WITH_RECORD,
 	EVENTS_WITH_RECORDS,
-} from "./events";
+} from "./events.js";
 import {
 	getAppId,
 	getFieldCodes,
@@ -31,11 +31,16 @@ import {
 	isMobile,
 	on,
 	setRecordViaJsApi,
-} from "./kintoneApi";
-import { inspectStructure, probe } from "./serialize";
-import * as store from "./store";
-import { ACTION } from "./testIds";
-import { currentLabel, getLastError, renderCoverage, renderPanel } from "./ui";
+} from "./kintoneApi.js";
+import { inspectStructure, probe } from "./serialize.js";
+import * as store from "./store.js";
+import { ACTION } from "./testIds.js";
+import {
+	currentLabel,
+	getLastError,
+	renderCoverage,
+	renderPanel,
+} from "./ui.js";
 
 const record = (
 	event: string,

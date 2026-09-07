@@ -13,13 +13,13 @@
 
 // --- 型 ---
 // --- 構築・代入 ---
-export { field } from "./build/field";
+export { field } from "./build/field.js";
 export {
 	canSetValue,
 	FieldValueError,
 	setRowValue,
 	setValue,
-} from "./build/setValue";
+} from "./build/setValue.js";
 // --- 変換 ---
 export {
 	IGNORED_ON_WRITE,
@@ -27,20 +27,20 @@ export {
 	isRejectedOnWrite,
 	REJECTED_ON_WRITE,
 	UI_ONLY_PROPERTIES,
-} from "./convert/fieldTypes";
+} from "./convert/fieldTypes.js";
 export type {
 	RestWriteParams,
 	RestWriteRecord,
-} from "./convert/toRestWrite";
+} from "./convert/toRestWrite.js";
 export {
 	convertField,
 	toAddParams,
 	toRest,
 	toRestWrite,
 	toUpdateParams,
-} from "./convert/toRestWrite";
+} from "./convert/toRestWrite.js";
 // --- 型ガード ---
-export * as guard from "./guard/record";
+export * as guard from "./guard/record.js";
 export type {
 	ChangeEvent,
 	CreateShowEvent,
@@ -60,7 +60,7 @@ export type {
 	ProcessProceedEvent,
 	SubmitSuccessEvent,
 	UnknownKintoneEvent,
-} from "./types/event";
+} from "./types/event.js";
 // 型のみの名前空間なので type 付きで再エクスポートする
 export type {
 	Editing,
@@ -69,17 +69,18 @@ export type {
 	FileInformation,
 	Rest,
 	Saved,
-} from "./types/field";
+} from "./types/field.js";
 // 変換・代入・ガードの入力型。3 文脈のどのレコードも受け取れる緩い型で、
 // 自前のヘルパを書くときに同じ骨格を再定義しなくて済むよう公開する
 export type {
 	LooseField,
 	LooseRecord,
 	LooseSubtableRow,
-} from "./types/loose";
+} from "./types/loose.js";
 export type {
 	CreateRecord,
 	EditingRecord,
 	SavedRecord,
-} from "./types/record";
-export type { RestRecord, RestRecordWithMeta } from "./types/rest";
+	SetRecord,
+} from "./types/record.js";
+export type { RestRecord, RestRecordWithMeta } from "./types/rest.js";
