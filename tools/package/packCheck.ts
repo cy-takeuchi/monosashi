@@ -51,6 +51,7 @@ const CONSUMER = `
 // グローバル拡張はこの副作用 import でのみ有効になる
 import "monosashi/kintone";
 import {
+	type Api,
 	type EventOf,
 	field,
 	guard,
@@ -81,6 +82,28 @@ const recordId: number = detail.recordId;
 
 // グローバルが生えていること
 kintone.events.on("app.record.detail.show", (event) => event);
+
+// **dts-gen にしか無かったもの**が生えていること
+const appId: number | null = kintone.app.getId();
+const user: string = kintone.getLoginUser().name;
+const pluginConfig = kintone.plugin.app.getConfig("id");
+
+// **dts-gen に無い、公式ドキュメントの API** が生えていること
+declare const fields: Promise<Record<string, { type: string }>>;
+const form: typeof fields = kintone.app.getFormFields();
+const answer: Promise<"OK" | "CANCEL" | "CLOSE"> = kintone.showConfirmDialog({
+	title: "確認",
+});
+const shown: Promise<void> = kintone.app.record.setFieldStyle("code", {
+	content: { color: "red" },
+});
+const state: Promise<"VISIBLE" | "HIDDEN"> =
+	kintone.app.record.getPagerDisplayState();
+
+// JS API の値の型はルートから引ける
+declare const loginUser: Api.LoginUser;
+
+console.log(appId, user, pluginConfig, form, answer, shown, state, loginUser);
 
 console.log(params, recordId, restRecord, restNumber);
 `;

@@ -95,26 +95,65 @@ kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
 が**コンパイルを通ってしまう**。存在しないものを型が保証する状態になり、
 このライブラリの目的と正反対になる。
 
-### 自前の `kintone.d.ts` を持っているなら、`monosashi/kintone` は使わない
+### `kintone` グローバルは 166 API すべてを宣言している
+
+`monosashi/kintone` は
+[公式ドキュメントの JS API 一覧](https://cybozu.dev/ja/kintone/docs/js-api/)
+に載っている **166 個すべて**を宣言する。
+
+| | 宣言している数 |
+|---|--:|
+| 公式ドキュメント | **166** |
+| `monosashi/kintone` | **166** |
+| `@kintone/dts-gen` 9.0.8 | 51（31%） |
+
+dts-gen の 51 個は公式一覧の**真部分集合**なので、
+`monosashi/kintone` を入れれば **dts-gen は要らない**。
+一致していることは `test/jsApi.test.ts` が毎回確かめている
+（足りない・余っているの両方で落ちる）。
+
+dts-gen に無かったもの、たとえば `getFormFields` / `getView` /
+`showConfirmDialog` / `createDialog` / `setFieldStyle` / `getStatusHistory` /
+`buildPageUrl` / `getPageType` / プロセス管理まわりが、そのまま使える。
+
+#### 根拠は 2 種類ある。混ぜていない
+
+| 根拠 | 対象 |
+|---|---|
+| **実測**（`fixtures/measured.json`） | `events.on` の event、`record.get()` / `set()` のレコード |
+| **公式ドキュメント** | それ以外すべて。返る値の形は確かめていない |
+
+ドキュメント由来の型は `Api` 名前空間に分けてある。
+
+```ts
+import type { Api } from "monosashi";
+
+const user: Api.LoginUser = kintone.getLoginUser();
+```
+
+`kintone.app.get()` がドキュメントどおりの形を返すかは**測っていない**。
+レコードの値と違って、そこは主張していない。
+
+#### 自前の `kintone.d.ts` を残したい場合
 
 `monosashi/kintone` は `declare global { namespace kintone { ... } }` を出す。
 **同じ名前空間を宣言しているものが他にあると、マージされる。**
 同名の関数はオーバーロードとして併存し、**先に宣言された側が採用される**。
-
-TypeScript は `Duplicate identifier` を出さない。
+TypeScript は `Duplicate identifier` を出さず、
 どちらが勝ったかを教える診断は**一つも出ない**。
-自前の `get(): any` が勝てば、型が付いていないことに誰も気づけない。
 
-どちらが先になるかは、プログラムにファイルが入る順で決まる
-（`tsconfig` の `files` / `include` の並び、import の並び）。
-**これは安定した条件ではない。** 順序を入れ替えただけで勝敗が入れ替わることを
+どちらが先になるかはプログラムにファイルが入る順で決まり
+（`tsconfig` の `files` / `include` の並び、import の並び）、
+**安定した条件ではない**。順序を入れ替えただけで勝敗が入れ替わることを
 `pack:check` の「併用」シナリオ 2 つで固定してある。
 
-そこで、自前の宣言を持っているなら**向きを逆にする**。
-`monosashi/kintone` を import せず、自分の `declare global` の中で monosashi の型を使う。
+166 個すべてを宣言しているので、**普通は自前の宣言を捨てて置き換えればよい**。
+それでも残したいなら、`monosashi/kintone` を import せず、
+自分の `declare global` の中で monosashi の型を使う。
 
 ```ts
 import type {
+  Api,
   EditingRecord,
   EventOf,
   KintoneEventName,
@@ -128,8 +167,6 @@ declare global {
         function get(): { record: EditingRecord } | null;   // any を置き換える
         function set(record: { record: SetRecord }): void;
       }
-      // 自前の宣言はそのまま残る
-      function getFormFields(): Promise<{ [code: string]: { type: string } }>;
     }
     namespace events {
       function on<Name extends KintoneEventName>(
@@ -141,19 +178,24 @@ declare global {
 }
 ```
 
-マージが起きないので順序に依存しない。
-`@kintone/dts-gen` に無い宣言（`getFormFields` / `getView` / ダイアログ系）を
-自前で持っているプロジェクトは、**それを捨てずにレコードの値の型だけ差し替えられる**。
-この形も `pack:check` で検査している。
+マージが起きないので順序に依存しない。この形も `pack:check` で検査している。
 
-**エントリを分けても解決しない。** ぶつかるのは
-`kintone.app.record.get` という宣言箇所そのものなので、
-`monosashi/kintone-record` のようなものを作っても同じことが起きる。
+#### `@kintone/dts-gen` を土台にしていない理由
 
-`@kintone/dts-gen` の `kintone.d.ts` との併用は、
-`kintone.events.on` と `kintone.app.record.get` の両方で確認済み。
-ただし上のとおり**順序に依存する**ので、
-`get()` が `any` のままの宣言と混ぜるなら、この節の形にするほうが安全。
+`/// <reference types="@kintone/dts-gen/kintone" />` で読み込んで
+レコード周りだけ上書きする案を試して、**捨てた**。
+
+参照が自分のファイルの中にあるので順序は自分で決められ、`get()` は勝つ。
+**ところが引数の位置で全部漏れる。**
+
+```ts
+kintone.app.record.set({ でたらめ: 1 });                   // 通る
+kintone.events.on("app.record.detial.show", (e) => e);    // タイポも通る
+```
+
+オーバーロードは「どれか 1 つが通れば通る」ので、
+`set(record: any)` が 1 つ混ざるだけで**書き込みが無検査になる**。
+「読みは厳しく、書きは無検査」という一番まずい状態になる。
 
 ### API
 
@@ -161,6 +203,7 @@ declare global {
 |---|---|
 | `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
 | `SetRecord` | `kintone.app.record.set()` に渡す型。`disabled` / `error` を持てる |
+| `Api.*` | JS API が受け渡す値の型。**根拠は公式ドキュメント** |
 | `Saved` / `Editing` | フィールド型の名前空間 |
 | `Rest` / `RestRecord` | REST API の型。本体から出る（下記） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
