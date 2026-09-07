@@ -119,65 +119,122 @@ describe("$id / $revision を分離する", () => {
 	});
 });
 
+/**
+ * 実測レコードのサブテーブルを **`type` で** 集める。
+ *
+ * 以前はここも `record.subtable` とフィールドコードを直接書いていた。
+ * `subtable` も `t_calc` も `tools/fixture-app/fields.ts` で**我々が決めた**もので、
+ * kintone の仕様ではない。実アプリがこの名前であることは、まず無い。
+ * 変換の主張はコードではなく `type` に対するものなので、`type` で引く
+ * （`src/guard/record.test.ts` と同じ方針）。
+ */
+const subtablesOf = (
+	record: AnyRecord,
+): { code: string; rows: { id?: unknown; value?: AnyRecord }[] }[] =>
+	Object.entries(record)
+		.filter(([, field]) => field.type === "SUBTABLE")
+		.map(([code, field]) => ({
+			code,
+			rows: (Array.isArray(field.value) ? field.value : []) as {
+				id?: unknown;
+				value?: AnyRecord;
+			}[],
+		}));
+
+/** サブテーブルを持つレコードのうち、行が条件を満たすものを探す */
+const findWithRow = (
+	matches: (row: { id?: unknown; value?: AnyRecord }) => boolean,
+): { record: AnyRecord; code: string } | undefined => {
+	for (const { record } of records) {
+		for (const { code, rows } of subtablesOf(record)) {
+			if (rows.some(matches)) return { record, code };
+		}
+	}
+	return undefined;
+};
+
+/** 変換後のレコードから、同じコードのサブテーブルの行を取り出す */
+const rowsAfter = (
+	record: AnyRecord,
+	code: string,
+): { id?: string; value?: Record<string, unknown> }[] => {
+	const converted = toRestWrite(record).record[code]?.value;
+	return (Array.isArray(converted) ? converted : []) as {
+		id?: string;
+		value?: Record<string, unknown>;
+	}[];
+};
+
 describe("サブテーブルの行 id を保持する", () => {
 	test("id を持つ行は id 付きのまま変換される", () => {
-		const target = records.find(({ record }) => {
-			const subtable = record.subtable;
-			return (
-				subtable !== undefined &&
-				Array.isArray(subtable.value) &&
-				subtable.value.some(
-					(row) => typeof (row as { id?: unknown }).id === "string",
-				)
-			);
-		});
+		const target = findWithRow((row) => typeof row.id === "string");
 		expect(target).toBeDefined();
 		if (target === undefined) return;
 
-		const before = (target.record.subtable?.value ?? []) as { id?: string }[];
-		const after = (toRestWrite(target.record).record.subtable?.value ?? []) as {
-			id?: string;
-		}[];
+		const before = (
+			subtablesOf(target.record).find(({ code }) => code === target.code)
+				?.rows ?? []
+		).map((row) => row.id);
+		const after = rowsAfter(target.record, target.code).map((row) => row.id);
 
-		expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+		expect(after).toEqual(before);
 	});
 
 	test("id が null の行（作成画面）では id を渡さない", () => {
-		const target = records.find(({ record }) => {
-			const subtable = record.subtable;
-			return (
-				subtable !== undefined &&
-				Array.isArray(subtable.value) &&
-				subtable.value.some((row) => (row as { id?: unknown }).id === null)
-			);
-		});
+		const target = findWithRow((row) => row.id === null);
 		expect(target).toBeDefined();
 		if (target === undefined) return;
 
-		const after = (toRestWrite(target.record).record.subtable?.value ?? []) as {
-			id?: string;
-		}[];
+		const after = rowsAfter(target.record, target.code);
 		expect(after.every((row) => !("id" in row))).toBe(true);
 	});
 
 	test("テーブル内の CALC は落とされる", () => {
-		const target = records.find(({ record }) => {
-			const subtable = record.subtable;
-			if (subtable === undefined || !Array.isArray(subtable.value))
-				return false;
-			return subtable.value.some((row) => {
-				const value = (row as { value?: Record<string, { type?: string }> })
-					.value;
-				return value !== undefined && value.t_calc?.type === "CALC";
-			});
-		});
+		// 行の中に CALC が在ることを type で確かめ、変換後にその**コードが**消えたかを見る。
+		// コードは実測データから取り出すので、こちらでは決め打たない
+		const target = (():
+			| { record: AnyRecord; code: string; calcCodes: string[] }
+			| undefined => {
+			for (const { record } of records) {
+				for (const { code, rows } of subtablesOf(record)) {
+					const calcCodes = [
+						...new Set(
+							rows.flatMap((row) =>
+								Object.entries(row.value ?? {})
+									.filter(([, cell]) => cell.type === "CALC")
+									.map(([cellCode]) => cellCode),
+							),
+						),
+					];
+					if (calcCodes.length > 0) return { record, code, calcCodes };
+				}
+			}
+			return undefined;
+		})();
+
 		expect(target).toBeDefined();
 		if (target === undefined) return;
 
-		const after = (toRestWrite(target.record).record.subtable?.value ?? []) as {
-			value: Record<string, unknown>;
-		}[];
-		expect(after.every((row) => !("t_calc" in row.value))).toBe(true);
+		const after = rowsAfter(target.record, target.code);
+		const remaining = after.flatMap((row) =>
+			target.calcCodes.filter((code) => code in (row.value ?? {})),
+		);
+		expect(remaining).toEqual([]);
+	});
+
+	test("行の中に CALC 以外の値は残る", () => {
+		// 上のテストが「全部消す」実装でも通ってしまわないように、
+		// 落とすべきでないものが残っていることを確かめる
+		const target = findWithRow((row) =>
+			Object.values(row.value ?? {}).some((cell) => cell.type !== "CALC"),
+		);
+		expect(target).toBeDefined();
+		if (target === undefined) return;
+
+		const after = rowsAfter(target.record, target.code);
+		expect(after.some((row) => Object.keys(row.value ?? {}).length > 0)).toBe(
+			true,
+		);
 	});
 });
 

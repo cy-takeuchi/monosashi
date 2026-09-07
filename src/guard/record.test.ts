@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { OBSERVED_FIELD_TYPES } from "../../test/fieldTypes";
 import type { Probed } from "../probe/serialize.js";
 import type { ProbeStore, Sample } from "../probe/store.js";
+import * as guards from "./record.js";
 import { hasValue, isFile, isLookup, isSubtable } from "./record.js";
 
 /** Probed を元の値に戻す */
@@ -31,7 +33,8 @@ const revive = (probed: Probed): unknown => {
 	}
 };
 
-type AnyRecord = { [code: string]: { type: string; value: unknown } };
+type Field = { type: string; value: unknown };
+type AnyRecord = { [code: string]: Field };
 
 const samples: Sample[] = readdirSync("fixtures")
 	.filter((name) => name.endsWith(".json"))
@@ -155,55 +158,145 @@ const fieldsOfType = (
 	return out;
 };
 
-describe("isSubtable", () => {
-	test("実測に現れる SUBTABLE をすべて絞り込める", () => {
-		const found = fieldsOfType("SUBTABLE");
-		expect(found.length).toBeGreaterThan(0);
+/**
+ * 実測レコードのフィールドを、`type` ごとにまとめて 1 回だけ集める。
+ *
+ * サブテーブルの中も歩く。`FILE` などは行の中にも入るため。
+ */
+const byType = ((): Map<
+	string,
+	{ label: string; code: string; field: Field }[]
+> => {
+	const out = new Map<
+		string,
+		{ label: string; code: string; field: Field }[]
+	>();
+	const walk = (label: string, node: unknown): void => {
+		if (Array.isArray(node)) {
+			for (const item of node) walk(label, item);
+			return;
+		}
+		if (typeof node !== "object" || node === null) return;
+		for (const [code, value] of Object.entries(node)) {
+			if (typeof value !== "object" || value === null) continue;
+			const field = value as { type?: unknown; value?: unknown };
+			if (typeof field.type !== "string") continue;
+
+			const bucket = out.get(field.type) ?? [];
+			bucket.push({ label, code, field: field as Field });
+			out.set(field.type, bucket);
+
+			if (field.type === "SUBTABLE") walk(label, field.value);
+		}
+	};
+	for (const { label, record } of records) walk(label, record);
+	return out;
+})();
+
+/** 実測に現れたすべてのフィールド。他種別の混入を見るときに使う */
+const allFields = [...byType.values()].flat();
+
+/**
+ * `type` から機械的に決まるガードの名前。
+ *
+ * 例外は 4 つだけ（`DROP_DOWN` → `isDropdown` など）。
+ * `test/coverage.test.ts` と同じ対応で、そちらは「関数が在ること」を、
+ * ここは「実測データを正しく絞り込むこと」を見る。
+ */
+const guardName: { [type: string]: string } = {
+	DROP_DOWN: "isDropdown",
+	DATETIME: "isDateTime",
+	__ID__: "isId",
+	__REVISION__: "isRevision",
+};
+
+const toGuardName = (type: string): string =>
+	guardName[type] ??
+	`is${type
+		.toLowerCase()
+		.replace(/_(.)/g, (_, c: string) => c.toUpperCase())
+		.replace(/^(.)/, (_, c: string) => c.toUpperCase())}`;
+
+const guardOf = (type: string): ((field: unknown) => boolean) => {
+	const name = toGuardName(type);
+	const fn = (guards as unknown as { [key: string]: unknown })[name];
+	if (typeof fn !== "function") throw new Error(`${name} が見つかりません`);
+	return fn as (field: unknown) => boolean;
+};
+
+/**
+ * **全 28 種別**を、実測データで両方向から縛る。
+ *
+ * ## なぜ「他種別を通さない」側が要るのか
+ *
+ * `test/coverage.test.ts` の「ガードが全種別にある」は
+ * `is({ type, value: undefined })` という**手で作ったオブジェクト**を通す。
+ * ガードを「常に true」や「常に false」にすれば落ちるので無駄ではないが、
+ * **実在する別の種別を 1 つだけ通してしまう**壊れ方は捕まえられない。
+ *
+ * ```ts
+ * // これが coverage.test.ts を通ってしまう
+ * export const isNumber = (f) => f.type === "NUMBER" || f.type === "CALC";
+ * ```
+ *
+ * `is({ type: "他の型" })` は `CALC` ではないので false のまま。
+ * 実測データを通していないと気づけない。
+ *
+ * この壊し方を 21 種別で試したところ、**19 が緑のまま通った**（2026-09-08）。
+ * ここで両方向を見ることで全部落ちるようにする。
+ *
+ * ## フィールドコードは書かない
+ *
+ * 以前は `record.subtable` とコードを直接書いていた。
+ * `subtable` は `tools/fixture-app/fields.ts` で**我々が決めた**もので、
+ * kintone の仕様ではない。実アプリのサブテーブルがこの名前であることは、まず無い。
+ * ガードの主張は「`type` が一致するものに絞り込める」で、コードは関係が無い。
+ */
+describe.each(OBSERVED_FIELD_TYPES)("%s のガード", (type) => {
+	const is = guardOf(type);
+
+	test("実測に現れるものをすべて絞り込める", () => {
+		const found = byType.get(type) ?? [];
+		expect(found.length, `${type} の実測が 1 件も無い`).toBeGreaterThan(0);
 
 		const missed = found
-			.filter(({ field }) => !isSubtable(field))
+			.filter(({ field }) => !is(field))
 			.map(({ label, code }) => `${label}:${code}`);
 		expect(missed).toEqual([]);
 	});
 
-	test("SUBTABLE 以外は 1 つも通さない", () => {
-		const offenders = records.flatMap(({ label, record }) =>
-			Object.entries(record)
-				.filter(([, field]) => field.type !== "SUBTABLE" && isSubtable(field))
-				.map(([code]) => `${label}:${code}`),
-		);
-		expect(offenders).toEqual([]);
+	test("他の種別は 1 つも通さない", () => {
+		const offenders = allFields
+			.filter(({ field }) => field.type !== type && is(field))
+			.map(({ label, code, field }) => `${label}:${code}(${field.type})`);
+		expect([...new Set(offenders)]).toEqual([]);
 	});
+});
 
-	test("絞り込んだ先の value は行の配列", () => {
-		const found = fieldsOfType("SUBTABLE");
+describe("絞り込んだ先の形", () => {
+	test("SUBTABLE の value は行の配列", () => {
+		const found = byType.get("SUBTABLE") ?? [];
 		expect(found.length).toBeGreaterThan(0);
 		for (const { label, code, field } of found) {
 			if (!isSubtable(field)) throw new Error(`${label}:${code} が通らない`);
 			expect(Array.isArray(field.value), `${label}:${code}`).toBe(true);
 		}
 	});
-});
 
-describe("isFile", () => {
-	// SUBTABLE と並んで、導入先で実際に使われているのはこの 2 つ（52 箇所のほぼ全部）
-	test("実測に現れる FILE をすべて絞り込める。サブテーブルの中も含めて", () => {
-		const found = fieldsOfType("FILE");
-		expect(found.length).toBeGreaterThan(0);
-
-		const missed = found
-			.filter(({ field }) => !isFile(field))
-			.map(({ label, code }) => `${label}:${code}`);
-		expect(missed).toEqual([]);
-	});
-
-	test("FILE 以外は 1 つも通さない", () => {
-		const offenders = records.flatMap(({ label, record }) =>
-			Object.entries(record)
-				.filter(([, field]) => field.type !== "FILE" && isFile(field))
-				.map(([code]) => `${label}:${code}`),
+	test("FILE はサブテーブルの中にも在り、そこでも絞り込める", () => {
+		const inSubtable = (byType.get("SUBTABLE") ?? []).flatMap(({ field }) =>
+			(Array.isArray(field.value) ? field.value : []).flatMap((row) => {
+				const inner = (row as { value?: Record<string, unknown> }).value ?? {};
+				return Object.values(inner).filter(
+					(cell): cell is Field =>
+						typeof cell === "object" &&
+						cell !== null &&
+						(cell as { type?: unknown }).type === "FILE",
+				);
+			}),
 		);
-		expect(offenders).toEqual([]);
+		expect(inSubtable.length).toBeGreaterThan(0);
+		expect(inSubtable.every((cell) => isFile(cell))).toBe(true);
 	});
 });
 
