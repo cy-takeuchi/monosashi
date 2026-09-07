@@ -170,6 +170,78 @@ declare global {
 | `setValue` / `canSetValue` | 型安全な代入 |
 | `guard.*` | 型ガード |
 
+### `guard.*` の一覧
+
+**28 種別すべてにある。** 判定は `field.type === "その種別"` の一点で、
+構造は見ない。例外は下の 2 つだけ。
+
+```ts
+import { guard } from "monosashi";
+
+// シグネチャは全部これ。入力の型を保ったまま絞り込む
+declare function isSubtable<T extends LooseField>(
+  field: T | undefined | null,
+): field is Narrow<T, "SUBTABLE">;
+```
+
+`undefined` と `null` を受ける。**前もって存在チェックを書かなくてよい。**
+
+```ts
+// これでよい
+if (!guard.isSubtable(record[code])) return;
+
+// kintone-typeguard で要っていた前置きは要らない
+if (record[code] === undefined || !guard.isSubtable(record[code])) return;
+```
+
+| ガード | 見る `type` |
+|---|---|
+| `isRecordNumber` | `RECORD_NUMBER` |
+| `isId` | `__ID__` |
+| `isRevision` | `__REVISION__` |
+| `isCreator` | `CREATOR` |
+| `isModifier` | `MODIFIER` |
+| `isCreatedTime` | `CREATED_TIME` |
+| `isUpdatedTime` | `UPDATED_TIME` |
+| `isStatus` | `STATUS` |
+| `isStatusAssignee` | `STATUS_ASSIGNEE` |
+| `isCategory` | `CATEGORY` |
+| `isSingleLineText` | `SINGLE_LINE_TEXT` |
+| `isMultiLineText` | `MULTI_LINE_TEXT` |
+| `isRichText` | `RICH_TEXT` |
+| `isNumber` | `NUMBER` |
+| `isCalc` | `CALC` |
+| `isLink` | `LINK` |
+| `isCheckBox` | `CHECK_BOX` |
+| `isRadioButton` | `RADIO_BUTTON` |
+| `isMultiSelect` | `MULTI_SELECT` |
+| `isDropdown` | `DROP_DOWN` |
+| `isDate` | `DATE` |
+| `isTime` | `TIME` |
+| `isDateTime` | `DATETIME` |
+| `isFile` | `FILE` |
+| `isUserSelect` | `USER_SELECT` |
+| `isOrganizationSelect` | `ORGANIZATION_SELECT` |
+| `isGroupSelect` | `GROUP_SELECT` |
+| `isSubtable` | `SUBTABLE` |
+
+#### `type` を見ない 2 つ
+
+| ガード | 判定の根拠 |
+|---|---|
+| `isLookup` | **`confirmed` と `recordId` のキーの有無。** ルックアップのキーフィールドの `type` は元フィールドの型そのもの（`SINGLE_LINE_TEXT` など）で、`type` では区別できない。REST から取ったレコードでは常に `false`（これらのキーが無いため） |
+| `hasValue` | **`value !== undefined`。** `Editing` では一度も値が設定されていないフィールドの `value` が `undefined` になる（実測）。`""` や `[]` や `null` は通す |
+
+`isLookup` はコピー先のフィールドを判別できない。
+キーフィールドだけが `confirmed` / `recordId` を持つため。
+
+#### 何を根拠に検査しているか
+
+一覧が実装とずれないことは、**実測フィクスチャに対して**縛っている。
+`type` で集めた実測フィールドを全部通し、
+**取りこぼしゼロ**と**他種別の混入ゼロ**の両方を見る。
+フィールドコードは書かない（`src/guard/record.test.ts`）。
+
 ### REST の型も本体から出る
 
 ```ts
