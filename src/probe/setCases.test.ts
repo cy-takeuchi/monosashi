@@ -282,28 +282,35 @@ describe("ケースごとに画面を作り直す", () => {
 	//
 	// ここが落ちたら goto に戻りかけている
 	test("2 件目以降は reload している", () => {
-		const source = readFileSync("e2e/panel.ts", "utf8");
-		const driver = source.slice(
-			source.indexOf("export const measureSetBehavior"),
-		);
+		const anchor = "export const measureSetBehavior";
+		const source = codeOf("e2e/panel.ts", anchor);
+		const driver = source.slice(source.indexOf(anchor));
 		expect(driver).toContain("page.reload()");
 	});
 
 	// 止めたままにすると、このあとの採取が全部消える
+	//
+	// **引数は正規表現で探す。** 以前は `suppressSamples(true)` を
+	// 文字列で探していたが、整形の都合で引数が折り返されると
+	// `suppressSamples(\n\ttrue,\n)` になって一致しなくなる。
+	// 実際に `window` のキャストを短くしたときに折り返しが変わり、
+	// **中身は正しいのにこのテストが落ちた**。縛る対象は整形ではなく呼び出し
 	test("自動採取の停止を必ず戻している", () => {
-		const source = readFileSync("e2e/panel.ts", "utf8");
-		const driver = source.slice(
-			source.indexOf("export const measureSetBehavior"),
-		);
-		expect(driver).toContain("suppressSamples(true)");
+		const anchor = "export const measureSetBehavior";
+		const source = codeOf("e2e/panel.ts", anchor);
+		const driver = source.slice(source.indexOf(anchor));
+		const stop = /suppressSamples\(\s*true\s*[,)]/;
+		const restore = /suppressSamples\(\s*false\s*[,)]/;
+		expect(driver, "採取を止めていない").toMatch(stop);
+		expect(driver, "採取を戻していない").toMatch(restore);
+
 		// **例外で抜けたときも戻す。** 止めたままにすると、このあとの採取が
 		// 全部消える。`.finally()` か `try`/`finally` のどちらかで囲うこと
-		const restore = driver.slice(driver.indexOf("suppressSamples(false)"));
-		expect(restore).not.toBe("");
-		const before = driver.slice(0, driver.indexOf("suppressSamples(false)"));
+		const at = driver.search(restore);
+		const before = driver.slice(0, at);
 		expect(
 			before.includes(".finally(") || before.includes("} finally {"),
-			"suppressSamples(false) が finally の外にある",
+			"採取の再開が finally の外にある",
 		).toBe(true);
 	});
 });
