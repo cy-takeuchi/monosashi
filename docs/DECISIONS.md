@@ -1990,3 +1990,54 @@ export type DomElement = typeof globalThis extends {
 `lib: ["ES2022"]`（DOM 無し）かつ `skipLibCheck: false` で、
 `monosashi/kintone` を import しない利用者を通す。
 `Element` を直接書く形に戻すと TS2304 で落ちることを確認した。
+
+## フォーム定義は守備範囲に入れない
+
+**2026-09-08。** `kintone-typeguard` を閉じるにあたって、
+その `guardFormField`（29 個）と `guardFormLayout`（29 個）を
+monosashi が引き取るべきかを検討した。**引き取らない。**
+
+**別の対象を判別している。** こちらは `getFormFields` / `getFormLayout` が返す
+**フォームの設定**で、レコードの値ではない。`value` が無いので、
+monosashi のガードは引数の時点で受け取れない（実際に試した）。
+
+```
+error TS2345: Argument of type 'OneOf' is not assignable to parameter of
+type 'LooseField | null | undefined'.
+  Property 'value' is missing in type 'Calc' but required in type 'LooseField'.
+```
+
+**種別の集合も違う。** monosashi は `GROUP` と `REFERENCE_TABLE` を
+「レコードには現れない」と**実測で確かめて除外**している。
+フォーム定義にはどちらも存在し、さらに `LABEL` / `SPACER` / `HR` という
+フィールドですらないレイアウト要素がある。
+28 種別という軸そのものが噛み合わない。
+
+**実測の価値が薄い。** レコードの値は JS API / event / REST の 3 経路で形が違い、
+それを測ることに意味があった。フォーム定義は設定 API が返すもの 1 経路しかない。
+測っても「ドキュメントどおりだった」以上のものが出にくい。
+
+引き取るなら型を 33 種別以上、採取をフォーム設定まで拡張、
+という作業が要るが、**それは別のパッケージの仕事**。
+`Api.FormField` はルートから出しているが、共通部分だけの緩い型に留める。
+
+## get() → set() の変換はまだ書けない
+
+**2026-09-08。** `kintone-typeguard` の `guardUtils.converterGetToSet` に
+相当するものが monosashi に無い。Q8 の計画には `forJsSet` として書かれていたが、
+実装されないまま残っていた。
+
+**書けない理由は、測っていないから。**
+`kintone.app.record.set()` が
+
+- どの種別を拒否するか
+- `FILE` の `value` を `{ fileKey }` だけに削る必要があるか
+
+を実測していない。REST については `fixtures/write-behavior.md` に 20 ケースあるが、
+**`set()` は別の API で、同じとは限らない**（`type` が必須である点だけは実測済み）。
+
+`kintone-typeguard` の実装は読み取り専用フィールドを落としているが、
+その根拠は書かれていない。**推測をそのまま引き写すことはしない。**
+
+測る手順は既にある（`tools/probe-write/` と同じやり方で、
+`set()` に対して 1 種別ずつ投げて結果を見る）。測ってから足す。
