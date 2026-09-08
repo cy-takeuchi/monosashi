@@ -296,10 +296,15 @@ describe("ケースごとに画面を作り直す", () => {
 			source.indexOf("export const measureSetBehavior"),
 		);
 		expect(driver).toContain("suppressSamples(true)");
-		expect(driver).toContain("suppressSamples(false)");
-		// finally に置いていないと、例外で抜けたときに戻らない
-		const finallyBlock = driver.slice(driver.lastIndexOf("} finally {"));
-		expect(finallyBlock).toContain("suppressSamples(false)");
+		// **例外で抜けたときも戻す。** 止めたままにすると、このあとの採取が
+		// 全部消える。`.finally()` か `try`/`finally` のどちらかで囲うこと
+		const restore = driver.slice(driver.indexOf("suppressSamples(false)"));
+		expect(restore).not.toBe("");
+		const before = driver.slice(0, driver.indexOf("suppressSamples(false)"));
+		expect(
+			before.includes(".finally(") || before.includes("} finally {"),
+			"suppressSamples(false) が finally の外にある",
+		).toBe(true);
 	});
 });
 
@@ -339,16 +344,36 @@ describe("dialog リスナーを漏らさない", () => {
 	// 横取りして `Cannot accept dialog which is already handled!` になる。
 	//
 	// 登録したら必ず外す。ソースを読んで、登録の数だけ解除があることを見る
-	test("dialog を登録した数だけ page.off がある", () => {
-		for (const file of ["e2e/panel.ts", "e2e/collect.spec.ts"]) {
-			const source = codeOf(file, "page.");
-			const registered = [...source.matchAll(/page\.(?:on|once)\("dialog"/g)]
-				.length;
-			const removed = [...source.matchAll(/page\.off\("dialog"/g)].length;
-			expect(removed, `${file}: 登録 ${registered} / 解除 ${removed}`).toBe(
-				registered,
-			);
-		}
+	// **`withDialogsAccepted` の外で登録させない。**
+	// ヘルパが寿命を持つので、生の `page.on` / `page.once` を書くと
+	// また外し忘れが起きる
+	test("dialog の登録はヘルパ 1 箇所だけ", () => {
+		// **レシーバ名で絞らない。** `page.on` だけを見ていたら、
+		// `p.on("dialog", …)` と書いた変異を見逃した（2026-09-08）。
+		// 引数が `"dialog"` であることだけを条件にする
+		const code = codeOf("e2e/panel.ts", "const withDialogsAccepted");
+		const registered = [...code.matchAll(/\.(?:on|once)\("dialog"/g)];
+		const removed = [...code.matchAll(/\.off\("dialog"/g)];
+		expect(
+			registered.map(({ index }) => index),
+			"dialog の登録が 1 箇所を超えている",
+		).toHaveLength(1);
+		expect(removed).toHaveLength(1);
+
+		// 登録がヘルパの中に在ること。外に書いたら意味が無い
+		const helperStart = code.indexOf("const withDialogsAccepted");
+		const helperEnd = code.indexOf("\n};", helperStart);
+		const at = registered[0]?.index ?? -1;
+		expect(
+			at,
+			"dialog の登録が withDialogsAccepted の外にある",
+		).toBeGreaterThan(helperStart);
+		expect(at).toBeLessThan(helperEnd);
+	});
+
+	test("collect.spec.ts では直に登録していない", () => {
+		const code = codeOf("e2e/collect.spec.ts", "measureSetBehavior");
+		expect(code).not.toMatch(/\.(?:on|once)\("dialog"/);
 	});
 });
 
