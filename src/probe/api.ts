@@ -27,6 +27,28 @@
  * `page.evaluate` の戻り値は JSON を通るので、関数やクラスは落ちて空になる。
  * 呼び出しはブラウザ側で完結させ、**値だけ**を受け取る。
  */
+/**
+ * probe を注入済みの `window`。**パネルが立った後**の `page.evaluate` で使う。
+ *
+ * `page.evaluate` のコールバックはブラウザで動くので、e2e 側の
+ * 変数やヘルパを閉じ込められない。`window` から取り出すしかなく、
+ * その取り出しが 21 箇所に同じ形で書かれていた。ここで名前を付ける。
+ */
+export type ProbeWindow = { __kintoneRecordProbe: ProbeApi };
+
+/**
+ * probe がまだ無いかもしれない `window`。
+ *
+ * `waitForPanel` のように**パネルが立つのを待つ側**はこちらを使う。
+ * カスタマイズの読み込み前は本当に `undefined` なので、
+ * 上の型で書くと待てているように見えて待てていない。
+ *
+ * **2 つある理由を型の名前で残す。** 以前は同じキャストが
+ * 非任意 18 箇所・任意 3 箇所という内訳で散っていて、
+ * どちらを使うかが偶然に見えた。
+ */
+export type MaybeProbeWindow = { __kintoneRecordProbe?: ProbeApi };
+
 export type ProbeApi = {
 	/** 採取済みデータを JSON 文字列で出す */
 	export: () => string;

@@ -1,7 +1,7 @@
 import { type Dialog, expect, type Locator, type Page } from "@playwright/test";
 // **API の形は probe 側が持つ。** ここで手で書くと、probe を直したときに
 // 黙ってずれる（`src/probe/api.ts`）。ACTION と同じ扱いにする
-import type { ProbeApi } from "../src/probe/api";
+import type { MaybeProbeWindow, ProbeWindow } from "../src/probe/api";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
 import {
 	CUSTOMIZE_ERROR,
@@ -92,9 +92,8 @@ export const waitForPanel = async (
 	// 固定時間の待機ではなく、状態が真になるまで待つ
 	await page.waitForFunction(
 		() =>
-			(
-				window as unknown as { __kintoneRecordProbe?: ProbeApi }
-			).__kintoneRecordProbe?.ready() === true,
+			(window as unknown as MaybeProbeWindow).__kintoneRecordProbe?.ready() ===
+			true,
 	);
 };
 
@@ -139,9 +138,7 @@ export const click = async (page: Page, action: ActionId): Promise<void> => {
 	// 逆にすると「ok を期待したが error だった」としか出ず、
 	// probe が投げた理由が失敗メッセージに載らない
 	const error = await page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.lastError(),
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.lastError(),
 	);
 	expect(error, `採取 ${action} が失敗した`).toBeNull();
 
@@ -150,9 +147,7 @@ export const click = async (page: Page, action: ActionId): Promise<void> => {
 
 export const clearSamples = async (page: Page): Promise<void> => {
 	await page.evaluate(() => {
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.clear();
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.clear();
 	});
 };
 
@@ -164,9 +159,7 @@ export const clearSamples = async (page: Page): Promise<void> => {
  */
 export const exportSamples = async (page: Page): Promise<string> =>
 	page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.export(),
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.export(),
 	);
 
 /**
@@ -192,9 +185,7 @@ export const waitForSample = (
 	const prefix = event.endsWith(".");
 	return page.waitForFunction(
 		({ key, byPrefix }) =>
-			(
-				window as unknown as { __kintoneRecordProbe?: ProbeApi }
-			).__kintoneRecordProbe
+			(window as unknown as MaybeProbeWindow).__kintoneRecordProbe
 				?.coverage()
 				.some((entry) =>
 					byPrefix ? entry.key.startsWith(key) : entry.key === key,
@@ -206,9 +197,7 @@ export const waitForSample = (
 
 export const sampleCount = (page: Page): Promise<number> =>
 	page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.count(),
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.count(),
 	);
 
 /**
@@ -219,9 +208,7 @@ export const sampleCount = (page: Page): Promise<number> =>
  */
 export const registeredChangeEvents = (page: Page): Promise<string[]> =>
 	page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.changeEvents(),
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.changeEvents(),
 	);
 
 /**
@@ -261,18 +248,16 @@ export const measureUiRowChange = async (
 	// タイムアウトで落として空振りを実測として残さない
 	await page.waitForFunction(
 		(expected) =>
-			(
-				window as unknown as { __kintoneRecordProbe: ProbeApi }
-			).__kintoneRecordProbe.rowCount() === expected,
+			(window as unknown as ProbeWindow).__kintoneRecordProbe.rowCount() ===
+			expected,
 		before + delta,
 	);
 
 	try {
 		await page.waitForFunction(
 			() =>
-				(
-					window as unknown as { __kintoneRecordProbe: ProbeApi }
-				).__kintoneRecordProbe.watched().length > 0,
+				(window as unknown as ProbeWindow).__kintoneRecordProbe.watched()
+					.length > 0,
 			undefined,
 			{ timeout: UI_EVENT_TIMEOUT_MS },
 		);
@@ -354,23 +339,17 @@ const waitForCalculations = async (page: Page): Promise<void> => {
 
 const beginWatch = (page: Page): Promise<void> =>
 	page.evaluate(() => {
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.beginWatch();
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.beginWatch();
 	});
 
 const endWatch = (page: Page, label: string): Promise<void> =>
 	page.evaluate((name) => {
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.endWatch(name);
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.endWatch(name);
 	}, label);
 
 export const rowCount = (page: Page): Promise<number> =>
 	page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.rowCount(),
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.rowCount(),
 	);
 
 /**
@@ -420,9 +399,8 @@ export const measureUiFieldChange = async (
 	try {
 		await page.waitForFunction(
 			() =>
-				(
-					window as unknown as { __kintoneRecordProbe: ProbeApi }
-				).__kintoneRecordProbe.watched().length > 0,
+				(window as unknown as ProbeWindow).__kintoneRecordProbe.watched()
+					.length > 0,
 			undefined,
 			{ timeout: UI_EVENT_TIMEOUT_MS },
 		);
@@ -488,9 +466,8 @@ export const measureUiCellChange = async (
 	try {
 		await page.waitForFunction(
 			() =>
-				(
-					window as unknown as { __kintoneRecordProbe: ProbeApi }
-				).__kintoneRecordProbe.watched().length > 0,
+				(window as unknown as ProbeWindow).__kintoneRecordProbe.watched()
+					.length > 0,
 			undefined,
 			{ timeout: UI_EVENT_TIMEOUT_MS },
 		);
@@ -525,9 +502,9 @@ export const measureBlockedSubmit = async (
 	expectedScreen: string,
 ): Promise<void> => {
 	await page.evaluate((text) => {
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.blockNextSubmit(text);
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.blockNextSubmit(
+			text,
+		);
 	}, message);
 
 	await page.getByRole("button", { name: SAVE_BUTTON }).click();
@@ -794,9 +771,9 @@ export const measureSetBehavior = async (
 	// 遷移後も効く。**開いてから立てると 1 件目の show が採られてしまう**
 	// （2026-09-08 に 1 件だけ増えたのがこれ）
 	await page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.suppressSamples(true),
+		(window as unknown as ProbeWindow).__kintoneRecordProbe.suppressSamples(
+			true,
+		),
 	);
 
 	// **21 回遷移するので、期間中ずっとダイアログを承認する。**
@@ -804,9 +781,7 @@ export const measureSetBehavior = async (
 	return withDialogsAccepted(page, async () => {
 		await open(true);
 		const ids = await page.evaluate(() =>
-			(
-				window as unknown as { __kintoneRecordProbe: ProbeApi }
-			).__kintoneRecordProbe.setCaseIds(),
+			(window as unknown as ProbeWindow).__kintoneRecordProbe.setCaseIds(),
 		);
 
 		let measured = 0;
@@ -826,9 +801,9 @@ export const measureSetBehavior = async (
 
 			const ran = await page.evaluate(
 				(caseId) =>
-					(
-						window as unknown as { __kintoneRecordProbe: ProbeApi }
-					).__kintoneRecordProbe.runSetCase(caseId),
+					(window as unknown as ProbeWindow).__kintoneRecordProbe.runSetCase(
+						caseId,
+					),
 				id,
 			);
 			if (!ran) continue; // この画面に対象が無い。skipped として記録済み
@@ -840,9 +815,10 @@ export const measureSetBehavior = async (
 
 			await page.evaluate(
 				({ caseId, errorShown }) =>
-					(
-						window as unknown as { __kintoneRecordProbe: ProbeApi }
-					).__kintoneRecordProbe.markSetCase(caseId, errorShown),
+					(window as unknown as ProbeWindow).__kintoneRecordProbe.markSetCase(
+						caseId,
+						errorShown,
+					),
 				{ caseId: id, errorShown: shown },
 			);
 			measured += 1;
@@ -861,9 +837,9 @@ export const measureSetBehavior = async (
 		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。
 		// 例外で抜けた場合も含めて戻すために finally に置く
 		await page.evaluate(() =>
-			(
-				window as unknown as { __kintoneRecordProbe: ProbeApi }
-			).__kintoneRecordProbe.suppressSamples(false),
+			(window as unknown as ProbeWindow).__kintoneRecordProbe.suppressSamples(
+				false,
+			),
 		);
 	});
 };
