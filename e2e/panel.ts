@@ -40,6 +40,38 @@ import {
  */
 const PANEL_TIMEOUT_MS = 30_000;
 
+/**
+ * ダイアログを承認する状態で処理を走らせる。
+ *
+ * ## `page.once` を直に書かない
+ *
+ * `page.once` は「1 回**発火したら**外れる」であって
+ * 「1 回でスコープが終わる」ではない。**発火しなければ武装したまま残り**、
+ * あとで別の目的で出したダイアログを横取りして
+ * `Cannot accept dialog which is already handled!` になる。
+ *
+ * `deleteRecord` がそれで壊れた（2026-09-08）。確認の出し方が画面で違い、
+ * DOM のダイアログで済んだ画面では `window.confirm` が出ないので発火しない。
+ * **登録から数十行離れた場所で初めて露出した。**
+ *
+ * Playwright は既定で `window.confirm` を**キャンセルで閉じる**ので、
+ * 承認したい場面では構える必要がある。構えたら必ず外す。
+ */
+const withDialogsAccepted = async <T>(
+	page: Page,
+	run: () => Promise<T>,
+): Promise<T> => {
+	const accept = (dialog: Dialog): void => {
+		void dialog.accept();
+	};
+	page.on("dialog", accept);
+	try {
+		return await run();
+	} finally {
+		page.off("dialog", accept);
+	}
+};
+
 /** パネルが描画され、change ハンドラの登録が終わるまで待つ */
 export const waitForPanel = async (
 	page: Page,
@@ -551,19 +583,8 @@ export const deleteRecord = async (
 	// PC 詳細は DOM のダイアログ、モバイルは `window.confirm`。
 	// Playwright は既定で `window.confirm` を**キャンセルで閉じる**ので、
 	// 構えずに押すと削除されず、メニューが開いたまま止まる。
-	// 押す前に承認する側に倒しておく。
-	//
-	// **終わったら必ず外す。** `page.once` は「1 回発火したら外れる」ので、
-	// **発火しなかった場合は武装したまま残る**。
-	// DOM のダイアログで済んだ画面（`window.confirm` が出ない）ではまさにそれが起き、
-	// あとで別の目的で出したダイアログを横取りして
-	// `Cannot accept dialog which is already handled!` になる
-	// （2026-09-08 に踏んだ。set() の測定で編集画面から離れるときの離脱確認）。
-	const acceptOnce = (dialog: Dialog): void => {
-		void dialog.accept();
-	};
-	page.once("dialog", acceptOnce);
-	try {
+	// 押す前に承認する側に倒しておく（`withDialogsAccepted` が寿命を持つ）
+	await withDialogsAccepted(page, async () => {
 		await trigger.click();
 
 		// DOM のダイアログが出る画面ではこちらを押す。
@@ -586,10 +607,7 @@ export const deleteRecord = async (
 		} catch {
 			// window.confirm で確定済み
 		}
-	} finally {
-		// 発火していれば既に外れているので、二重に外しても無害
-		page.off("dialog", acceptOnce);
-	}
+	});
 };
 
 /**
@@ -753,14 +771,6 @@ export const measureSetBehavior = async (
 	 */
 	options: { readonly leaveTo: string; readonly leaveScreen: string },
 ): Promise<number> => {
-	// **`page.once` は使えない。** 21 回遷移するので 1 回では足りず、
-	// 発火しなかった場合は武装したまま残って後続を横取りする。
-	// 期間中ずっと承認し、最後に必ず外す
-	const acceptAll = (dialog: Dialog): void => {
-		void dialog.accept();
-	};
-	page.on("dialog", acceptAll);
-
 	// **`page.goto` では画面が作り直されない。**
 	// ハッシュだけが違う同じ URL への遷移はリロードにならないので、
 	// 前のケースで出た kintone のエラー表示が残り、次のケースに数えられる
@@ -789,7 +799,9 @@ export const measureSetBehavior = async (
 		).__kintoneRecordProbe.suppressSamples(true),
 	);
 
-	try {
+	// **21 回遷移するので、期間中ずっとダイアログを承認する。**
+	// 汚れた編集画面から離れるたびに離脱確認が出る
+	return withDialogsAccepted(page, async () => {
 		await open(true);
 		const ids = await page.evaluate(() =>
 			(
@@ -845,7 +857,7 @@ export const measureSetBehavior = async (
 		await page.goto(options.leaveTo);
 		await waitForPanel(page, options.leaveScreen);
 		return measured;
-	} finally {
+	}).finally(async () => {
 		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。
 		// 例外で抜けた場合も含めて戻すために finally に置く
 		await page.evaluate(() =>
@@ -853,6 +865,5 @@ export const measureSetBehavior = async (
 				window as unknown as { __kintoneRecordProbe: ProbeApi }
 			).__kintoneRecordProbe.suppressSamples(false),
 		);
-		page.off("dialog", acceptAll);
-	}
+	});
 };
