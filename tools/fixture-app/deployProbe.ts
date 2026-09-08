@@ -31,7 +31,12 @@ const main = async (): Promise<void> => {
 	const app = env.fixtureAppId();
 
 	const data = readFileSync(PROBE_PATH, "utf8");
-	log(`probe.js を読み込み (${data.length} bytes)`);
+	// **文字数ではなくバイト数を出す。** `readFileSync(path, "utf8")` は
+	// 文字列を返すので `data.length` は文字数になり、日本語のコメントや文言が
+	// 1 文字 3 バイトなぶん実物より小さく出る（52,771 バイトが 41,521 と表示された）。
+	// この数字は「貼るものが正しいか」の判断に使うので、
+	// `app:check-probe` と同じ単位に揃える
+	log(`probe.js を読み込み (${Buffer.byteLength(data, "utf8")} bytes)`);
 
 	// kintone の fileKey は 1 回しか使えない。
 	// desktop と mobile に同じキーを渡すと「ほかと重複しています」で弾かれるため、
