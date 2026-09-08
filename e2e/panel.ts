@@ -775,6 +775,16 @@ export const measureSetBehavior = async (
 			// 2 件目以降は読み直す。1 件目は open() 済み
 			if (measured > 0) await open();
 
+			// **開始時にエラー表示が消えていることを確かめる。**
+			// 消えていなければ前のケースの残りを次のケースに数えてしまい、
+			// 誤った結論が基準になる。
+			// 「リロードで消えるはず」を前提にせず、毎回確かめる。
+			// ここで落ちたら、読み直しの方法を変える必要がある（reload / 別画面経由）
+			await assertNoCustomizeError(
+				page,
+				`set() のケース ${id} を始める前（前のケースのエラー表示が残っている）`,
+			);
+
 			const ran = await page.evaluate(
 				(caseId) =>
 					(

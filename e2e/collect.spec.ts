@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { type Dialog, expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
+import { FILE_SLOT_COUNT, filledRecord } from "../tools/fixture-app/records";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
 import {
@@ -426,9 +427,28 @@ test("実 kintone から採取する", async ({ page }) => {
 	//
 	// 保存しない。測るのは「set() が何を受け付けるか」で、
 	// 保存できるかは別の話（REST 側は write-behavior.md で測ってある）。
-	const setProbeRecord = await createClient().record.addRecord({
+	// **全項目入力済みのレコードで測る。**
+	// 必須だけ埋めた空のレコードで測ったら、19 ケース中 17 件が「変化なし」に
+	// なった（2026-09-08）。before が undefined なので、
+	// **無視されたのか適用されたのかが区別できない**。
+	// 添付が無いので FILE のケースも 3 件とも飛んだ。
+	//
+	// `filledRecord` は検証アプリの構築で使っているものと同じ。
+	// 添付ファイルも含むので FILE のケースが測れる
+	const probeClient = createClient();
+	const probeFileKeys: string[] = [];
+	for (let i = 0; i < FILE_SLOT_COUNT; i += 1) {
+		const { fileKey } = await probeClient.file.uploadFile({
+			file: {
+				name: `set-probe-${i + 1}.txt`,
+				data: `set() の受け入れ測定用 ${i + 1}`,
+			},
+		});
+		probeFileKeys.push(fileKey);
+	}
+	const setProbeRecord = await probeClient.record.addRecord({
 		app,
-		record: { singleLineTextRequired: { value: "set() の受け入れ測定用" } },
+		record: filledRecord(probeFileKeys, env.username()),
 	});
 	createdRecordIds.push(setProbeRecord.id);
 

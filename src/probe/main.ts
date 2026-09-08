@@ -35,9 +35,11 @@ import {
 import { inspectStructure, probe } from "./serialize.js";
 import {
 	CURRENT_VALUE,
+	EDITED_CELL,
 	type ResolvedCodes,
+	ROWS_DROP_ID,
+	ROWS_KEEP_ID,
 	SET_CASES,
-	STRIP_ROW_IDS,
 } from "./setCases.js";
 import * as store from "./store.js";
 import { ACTION } from "./testIds.js";
@@ -332,11 +334,29 @@ const materialize = (
 
 		if (copy.value === CURRENT_VALUE) copy.value = current;
 
-		if (copy.value === STRIP_ROW_IDS) {
+		// サブテーブルの行を組み立て直す。**セルを 1 つ書き換える。**
+		// そのまま渡すと前後が一致して、「id が保たれた」のか
+		// 「まるごと無視された」のかが区別できない
+		if (copy.value === ROWS_KEEP_ID || copy.value === ROWS_DROP_ID) {
+			const keepId = copy.value === ROWS_KEEP_ID;
 			const rows = Array.isArray(current) ? current : [];
 			copy.value = rows.map((row) => {
-				const { id: _dropped, ...rest } = row as { id?: unknown };
-				return rest;
+				const { id, value } = row as { id?: unknown; value?: unknown };
+				const cells =
+					typeof value === "object" && value !== null
+						? { ...(value as Record<string, { type?: unknown }>) }
+						: {};
+				// 書き換える対象は type で探す。フィールドコードは当てにしない
+				const target = Object.keys(cells).find(
+					(code) => cells[code]?.type === "SINGLE_LINE_TEXT",
+				);
+				if (target !== undefined) {
+					cells[target] = {
+						type: "SINGLE_LINE_TEXT",
+						value: EDITED_CELL,
+					} as { type: string };
+				}
+				return keepId ? { id, value: cells } : { value: cells };
 			});
 		}
 		out[code] = copy;

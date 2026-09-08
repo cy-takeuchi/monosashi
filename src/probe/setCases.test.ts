@@ -6,8 +6,9 @@ import { REJECTED_ON_WRITE } from "../convert/fieldTypes.js";
 import {
 	CURRENT_VALUE,
 	type ResolvedCodes,
+	ROWS_DROP_ID,
+	ROWS_KEEP_ID,
 	SET_CASES,
-	STRIP_ROW_IDS,
 } from "./setCases.js";
 
 /**
@@ -151,11 +152,47 @@ describe("何を測ろうとしているか", () => {
 			({ id }) => id === "subtable-drop-row-id",
 		)?.build(fullCodes);
 		expect(Object.values(keep ?? {})[0]).toMatchObject({
-			value: CURRENT_VALUE,
+			value: ROWS_KEEP_ID,
 		});
 		expect(Object.values(drop ?? {})[0]).toMatchObject({
-			value: STRIP_ROW_IDS,
+			value: ROWS_DROP_ID,
 		});
+	});
+
+	// **同じ値を渡すと変化が読めない。**
+	// 最初は読み取り専用に get() の値をそのまま返していたら、
+	// 19 ケース中 17 件が「変化なし」になって何も分からなかった（2026-09-08）。
+	//
+	// 読み取り専用のケースは、いまの値と違う値を渡していること
+	test("読み取り専用のケースは CURRENT_VALUE を渡していない", () => {
+		const readOnly = SET_CASES.filter(({ id }) => id.startsWith("readonly-"));
+		expect(readOnly.length).toBeGreaterThan(0);
+
+		const passthrough = readOnly.filter(({ build }) => {
+			const patch = build(fullCodes);
+			if (patch === undefined) return false;
+			return Object.values(patch).some(
+				(field) =>
+					typeof field === "object" &&
+					field !== null &&
+					(field as { value?: unknown }).value === CURRENT_VALUE,
+			);
+		});
+		expect(passthrough.map(({ id }) => id)).toEqual([]);
+	});
+
+	test("読み取り専用の全種別に、渡す値が用意されている", () => {
+		const missing = SET_CASES.filter(
+			({ id, build }) =>
+				id.startsWith("readonly-") &&
+				Object.values(build(fullCodes) ?? {}).some(
+					(field) =>
+						typeof field === "object" &&
+						field !== null &&
+						(field as { value?: unknown }).value === undefined,
+				),
+		).map(({ id }) => id);
+		expect(missing).toEqual([]);
 	});
 
 	test("type を省くケースが type を持っていない", () => {
@@ -214,9 +251,9 @@ describe("dialog リスナーを漏らさない", () => {
 describe("目印は値として区別できる", () => {
 	// materialize（main.ts）が `=== CURRENT_VALUE` で判定するので、
 	// 実データと衝突しないことが前提になる。Symbol なら衝突しない
-	test("CURRENT_VALUE と STRIP_ROW_IDS は別物", () => {
-		expect(CURRENT_VALUE).not.toBe(STRIP_ROW_IDS);
-		expect(typeof CURRENT_VALUE).toBe("symbol");
-		expect(typeof STRIP_ROW_IDS).toBe("symbol");
+	test("目印が互いに別物", () => {
+		const marks = [CURRENT_VALUE, ROWS_KEEP_ID, ROWS_DROP_ID];
+		expect(new Set(marks).size).toBe(marks.length);
+		for (const mark of marks) expect(typeof mark).toBe("symbol");
 	});
 });
