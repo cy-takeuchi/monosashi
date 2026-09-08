@@ -191,5 +191,3 @@ export const OFFICIAL_JS_APIS = [
 	"kintone.user.getIcons",
 	"kintone.user.getOrganizations",
 ] as const;
-
-export type OfficialJsApi = (typeof OFFICIAL_JS_APIS)[number];

@@ -69,7 +69,7 @@ export const EVENTS_DELETE_SUBMIT: KintoneEventName[] = [
 ];
 
 /** イベント名にフィールドコードが埋まる動的イベント。実行時にフィールド一覧から組み立てる */
-export const changeEventPrefixes = [
+const changeEventPrefixes = [
 	...both("app.record.create.change"),
 	...both("app.record.edit.change"),
 	pc("app.record.index.edit.change"),

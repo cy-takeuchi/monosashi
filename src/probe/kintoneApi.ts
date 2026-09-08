@@ -21,8 +21,7 @@ export const isMobile = (): boolean =>
 	location.pathname.indexOf("/k/m/") === 0 ||
 	location.pathname.indexOf("/m/") !== -1;
 
-export const appNamespace = () =>
-	isMobile() ? kintone.mobile.app : kintone.app;
+const appNamespace = () => (isMobile() ? kintone.mobile.app : kintone.app);
 
 export const getAppId = (): number | null => {
 	try {

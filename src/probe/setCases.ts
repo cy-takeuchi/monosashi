@@ -71,7 +71,7 @@ export type ResolvedCodes = {
 	readonly found: string;
 };
 
-export type SetCase = {
+type SetCase = {
 	readonly id: string;
 	/** 何を確かめたいか。そのまま表の 1 列になる */
 	readonly question: string;
