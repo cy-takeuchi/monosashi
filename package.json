@@ -1,6 +1,6 @@
 {
 	"name": "monosashi",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"type": "module",
 	"packageManager": "pnpm@12.3.4",
 	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
@@ -46,7 +46,7 @@
 		"build:types": "tsc -p tsconfig.build.json",
 		"build:js": "vite build",
 		"build:check": "tsc -p tsconfig.dist.json",
-		"pack:check": "pnpm run build && tsx tools/package/packCheck.ts",
+		"pack:check": "pnpm run build && tsx tools/package/packCheck.ts && tsx tools/package/bundleSize.ts",
 		"prepublishOnly": "pnpm run build",
 		"tsc": "tsc --noEmit",
 		"biome": "biome check --write .",
