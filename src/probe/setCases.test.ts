@@ -228,6 +228,35 @@ describe("失敗の検出は probe 側では行わない", () => {
 	});
 });
 
+describe("測定用レコードの作り方", () => {
+	// **重複禁止フィールドをそのまま渡すと落ちる。**
+	// filledRecord は検証アプリの構築でも使っており、そこで作ったレコードが
+	// 同じ値を持っている。2 件目として作るときは差し替えが要る
+	// （2026-09-08 に [400] [CB_VA01] で踏んだ）。
+	//
+	// unique な種別が増えたら、ここが落ちて差し替え漏れに気づける
+	test("unique なフィールドは測定用レコードで差し替えている", () => {
+		const fields = readFileSync("tools/fixture-app/fields.ts", "utf8");
+		const spec = readFileSync("e2e/collect.spec.ts", "utf8");
+		const probeBlock = spec.slice(spec.indexOf("filledRecord(probeFileKeys"));
+
+		// アプリ本体の unique フィールドを拾う（参照先アプリの分は除く）
+		// 参照先アプリ（lookupAppFields）の unique は別アプリなので除く
+		const main = fields.slice(
+			fields.indexOf("export const fixtureAppBaseFields"),
+		);
+		const uniques = [
+			...main.matchAll(/code: "(\w+)",[\s\S]{0,200}?unique: true/g),
+		].map((match) => match[1]);
+		expect(uniques.length).toBeGreaterThan(0);
+
+		const missing = uniques.filter(
+			(code) => code !== undefined && !probeBlock.includes(code),
+		);
+		expect(missing).toEqual([]);
+	});
+});
+
 describe("dialog リスナーを漏らさない", () => {
 	// **`page.once("dialog", ...)` は発火しなかったら武装したまま残る。**
 	// `deleteRecord` がそれで壊れた（2026-09-08）。DOM のダイアログで済んだ画面では

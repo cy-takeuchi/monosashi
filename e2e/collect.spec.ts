@@ -448,7 +448,15 @@ test("実 kintone から採取する", async ({ page }) => {
 	}
 	const setProbeRecord = await probeClient.record.addRecord({
 		app,
-		record: filledRecord(probeFileKeys, env.username()),
+		record: {
+			...filledRecord(probeFileKeys, env.username()),
+			// **重複禁止フィールドの値を変える。**
+			// filledRecord は検証アプリの構築でも使っており、そこで作った
+			// レコードが同じ値を持っている。そのまま渡すと
+			// `[400] [CB_VA01] 入力内容が正しくありません。` で落ちる
+			// （2026-09-08 に踏んだ。unique: true が付いている）
+			singleLineTextUnique: { value: `unique-set-probe-${Date.now()}` },
+		},
 	});
 	createdRecordIds.push(setProbeRecord.id);
 
