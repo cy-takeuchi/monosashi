@@ -5,7 +5,7 @@
  * 推測で「CALC は落とすべき」と決めるのではなく、実際に投げて確かめる。
  */
 
-export type Case = {
+type Case = {
 	id: string;
 	/** 何を確かめたいか */
 	question: string;

@@ -25,7 +25,7 @@
  * kintone の仕様ではない。そこまで固定すると採取側を不必要に縛るので、
  * change だけは接頭辞で要求する。
  */
-export type ContextRequirement = {
+type ContextRequirement = {
 	match: "exact" | "prefix";
 	event: string;
 	source: string;

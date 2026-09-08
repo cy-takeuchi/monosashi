@@ -183,7 +183,7 @@ const fieldTypeOf = (
  * フィールド（type と value を持つ객体）は type で分岐し、
  * それ以外のキーは名前で分岐する（envelope の viewId など）。
  */
-export const maskProbed = (node: Probed): Probed => {
+const maskProbed = (node: Probed): Probed => {
 	if (node.k === "array") {
 		return { ...node, items: node.items.map(maskProbed) };
 	}

@@ -129,7 +129,16 @@ const state: Promise<"VISIBLE" | "HIDDEN"> =
 // JS API の値の型はルートから引ける
 declare const loginUser: Api.LoginUser;
 
+// **DOM の型も Api から引けること。** 名前空間の外に置いていた頃は
+// exports が "." と "./kintone" の 2 つだけなので名前で参照できず、
+// showOpenDialog に body を渡す型が利用者から書けなかった
+declare const dialogBody: Api.DomElement;
+declare const uploadValue: Api.DomBlob;
+const dialog: Api.DialogConfig = { title: "確認", body: dialogBody };
+const upload: Api.ProxyUploadData = { format: "RAW", value: uploadValue };
+
 console.log(appId, user, pluginConfig, form, answer, shown, state, loginUser);
+console.log(dialog, upload);
 
 console.log(params, recordId, restRecord, restNumber);
 console.log(forSet, forSetCell, catRejected);

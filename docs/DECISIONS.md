@@ -2851,3 +2851,68 @@ await withDialogsAccepted(page, async () => { … });
 に変えた瞬間、`await Promise.resolve()` を 2 回挟んでいたテストが
 **空の出力を読んで落ちた**。段数に依存していた。
 `setImmediate` まで待てば、その時点のマイクロタスクは全部流れている。
+
+## export した先が無いことを検査する
+
+`biome --error-on-warnings` は**ファイル内**の未使用を見るが、
+**export した先が無いこと**は見ない。以前 `fieldsOfType` が死んだまま
+緑で通っていたのを見つけて `--error-on-warnings` を足したが、
+塞がったのは半分だった。
+
+`test/deadExports.test.ts` を足した時点で 15 件出た。
+
+| | 件数 | 内容 |
+|---|--:|---|
+| どこからも参照されていない | 2 | `e2e/panel.ts` の `sampleCount`（最初のコミットから）、`test/jsApi.ts` の `OfficialJsApi`（#10 から） |
+| 自分のファイルの中でだけ使う | 13 | `export` を外した |
+
+後者を放っておくと、そのファイルが**外に何を提供しているのか**が読めない。
+`e2e/panel.ts` は spec から使うヘルパを並べたファイルなのに、
+`assertNoCustomizeError` / `fieldInput` / `subtableCellInput` は
+どの spec からも使われていなかった。
+
+### 公開 API のファイルだけ除外する
+
+`src/index.ts` と `src/kintone.ts` の export は外から参照されないのが正常。
+`package.json` の `exports` が `.` と `./kintone` の 2 つだけなので、
+利用者から見える入口もこの 2 つ。ここを除外しないと全滅する。
+
+### コメントを剥がさないと検出したいものが素通りする
+
+死んだ export ほど JSDoc で言及されがち。剥がさないと
+「他のファイルのコメントに名前が出ている」を参照と数えてしまう。
+実際に、死んだ export を足したうえで別ファイルのコメントに名前を書いた
+変異を作り、**剥がしをやめると見逃す**ことを確かめた。
+
+### `\b` は非 ASCII の識別子に使えない（変異テストで踏んだ）
+
+「使われない export を足す」変異を `export const 誰も使わない = 1;` で
+書いたら**見逃した**。原因は 2 つあって、どちらも同じ根っこ。
+
+- 宣言を拾う正規表現が `(\w+)`。`\w` は ASCII なので**そもそも拾えない**
+- 参照の判定が `\b名前\b`。`\b` は `\w` を基準にするので**どこにも一致しない**
+
+拾えないと「参照ゼロ・宣言も無し」になり、export したことすら検知できない。
+今のリポジトリに非 ASCII の export は無いが、足した瞬間に黙って漏れる形。
+
+`[\p{ID_Start}$_][\p{ID_Continue}$]*` と
+`(?<![\p{ID_Continue}$])名前(?![\p{ID_Continue}$])` に直した。
+非 ASCII 名の変異でも検出されることを確かめた。
+
+## DOM の型は Api 名前空間の中に置く
+
+`DomElement` / `DomBlob` を `src/types/jsApi.ts` の名前空間の外に
+`export type` で置いていた。`dist/types/jsApi.d.ts` には出るが、
+**`package.json` の `exports` は `.` と `./kintone` の 2 つだけ**なので
+利用者からは名前で参照できなかった。
+
+`Api.DialogConfig["body"]` の添字経由でしか触れず、
+`showOpenDialog` に渡す body を変数に取る型が書けない。
+
+`Api` の中に移して `Api.DomElement` として届くようにした。
+`exports` を増やさずに済み、`Api` に閉じるので名前も汚れない。
+利用者から見て**増えるだけ**で、壊れるものは無い。
+
+`pack:check` の消費者コードに `Api.DomElement` / `Api.DomBlob` を足した。
+名前空間の外に戻す変異で、4 レーンすべて `TS2694` で落ちることを確かめた。
+DOM の無い Node レーンでも通る。

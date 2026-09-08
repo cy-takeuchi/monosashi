@@ -54,7 +54,7 @@ export const isEditingContext = (sample: Sample): boolean => {
 export const isRestContext = (sample: Sample): boolean =>
 	sample.source.startsWith("rest.");
 
-export type FieldEntry = { code: string; type: string; field: Probed };
+type FieldEntry = { code: string; type: string; field: Probed };
 
 /** レコードを走査してフィールドを列挙する。サブテーブル内も含む */
 export const fieldsOf = (data: Probed): FieldEntry[] => {

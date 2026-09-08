@@ -111,7 +111,7 @@ export const waitForPanel = async (
  * 「例外が出ていない」を成功と見なすと、誤った実測がそのまま基準データになる。
  * 実際それで「value を省くと静かに無視される」という誤った結論を出しかけた。
  */
-export const assertNoCustomizeError = async (
+const assertNoCustomizeError = async (
 	page: Page,
 	context: string,
 ): Promise<void> => {
@@ -194,11 +194,6 @@ export const waitForSample = (
 		timeout === undefined ? undefined : { timeout },
 	);
 };
-
-export const sampleCount = (page: Page): Promise<number> =>
-	page.evaluate(() =>
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.count(),
-	);
 
 /**
  * 実際に登録された change イベント名を取り出す。
@@ -365,7 +360,7 @@ export const rowCount = (page: Page): Promise<number> =>
  * 「2 段上」と決め打ちにすると、kintone が入れ子を 1 段変えただけで壊れる。
  * 実測では 2 段上だが、そこに依存しない形にしてある。
  */
-export const fieldInput = async (page: Page, label: string) => {
+const fieldInput = async (page: Page, label: string) => {
 	const anchor = page.getByText(label, { exact: true });
 	let path = "..";
 	for (let depth = 1; depth <= 5; depth += 1) {
@@ -425,7 +420,7 @@ export const measureUiFieldChange = async (
  * ヘッダー行の位置は決め打ちにせず、**入力欄を持つ最初の行**を探す。
  * 「1 行目が本文」と決めると、表の構造が変わったときに黙って別の行を触る。
  */
-export const subtableCellInput = async (page: Page, header: string) => {
+const subtableCellInput = async (page: Page, header: string) => {
 	const table = page
 		.getByRole("table")
 		.filter({ has: page.getByText(header, { exact: true }) })
