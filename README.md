@@ -23,9 +23,8 @@ e2e が実 kintone を操作して採り直せる。
 
 - **フィールド種別 28 種**すべてに裏づけがある
   （`GROUP` と `REFERENCE_TABLE` は「レコードには現れない」ことを確かめた上で除外）
-- **レコード系イベント 30 種すべて**に裏づけがある。
-  作成 / 詳細 / 編集 / 一覧 / 印刷 / モバイル、
-  `submit` / `change` / プロセス管理 / インライン編集 / 削除
+- **レコード系イベント 30 種すべて**に裏づけがある
+- 書き込みの受け入れ挙動も実測（REST 20 ケース / `set()` 22 ケース）
 - 2 回続けて採ると**バイト単位で同じ結果**になる。
   だから差分が出たら「kintone が変わった」と言える。週次で自動的に確かめている
 
@@ -45,52 +44,16 @@ e2e が実 kintone を操作して採り直せる。
 モバイルの `submit` / `change` / `process` が PC と同形であることも実測で確かめた。
 **同形だと思えることも、違うはずだということも、根拠にならない。**
 
+同じレコードでも**取り方**で形が変わる。たとえば編集画面で
+`value` が `undefined` のフィールド数は、`edit.show` の `event.record` では 0 件、
+`kintone.app.record.get()` では 21 件（54 フィールド中）。
+**「編集画面だから」では決まらない**（[設計判断の記録](docs/DECISIONS.md)）。
+
 ## 使う
 
 ```sh
 pnpm add monosashi
 ```
-
-### 動作条件
-
-| | |
-|---|---|
-| **TypeScript** | **5.9 以上**。7 系でも同じ結果になることを毎回確かめている |
-| `moduleResolution` | `bundler` / `nodenext`（`node10` は TS 7 で削除されたため対象外） |
-| 実行環境 | ブラウザと Node の両方。**ルート（`monosashi`）は DOM に依存しない** |
-| 実行時依存 | **ゼロ** |
-
-`pack:check` が **TypeScript 5.9 と 7 の両方**で、`bundler` と `nodenext` の
-両方の解決方式で、`pnpm pack` した tarball を検査する。
-どちらかでしか通らない `.d.ts` を出すと落ちる。
-
-`types: []` でも動く（TypeScript 7 は `@types` を暗黙に取り込まないので、
-5 系でも同じ条件になるよう検査側も空にしてある）。
-
-#### Node で使う
-
-`monosashi/kintone` を import しなければ、`kintone` グローバルも DOM も要らない。
-
-```ts
-// AWS Lambda など。lib に DOM を入れていなくても通る
-import { field, toUpdateParams } from "monosashi";
-```
-
-`Api.DialogConfig` のように DOM の型を含むものもルートから引ける。
-`Element` / `Blob` を直接書かず、**DOM が在れば本物、無ければ最小形**に
-落ちる形にしてある（`DomElement` / `DomBlob`）。
-
-`skipLibCheck: false` でも通ることを検査している。
-TypeScript の既定は `true` だが、**既定に頼ると型が黙って `any` に落ちる**
-（下の「REST の型も本体から出る」と同じ理由）。
-
-> [!NOTE]
-> **0.x のあいだは破壊的変更があり得る。** API を実プロジェクトで検証している最中で
-> （[#5](../../issues/5)）、そこで判明したことは 0.2.0 以降に反映する。
-
-公開物には [provenance](https://docs.npmjs.com/generating-provenance-statements)
-が付いている。どのリポジトリのどのワークフローがこの tarball を作ったかを
-npm のページから辿れる。
 
 ```ts
 // kintone グローバルの型はこの副作用 import で有効になる。プロジェクトに 1 回だけ書く
@@ -112,199 +75,99 @@ if (got !== null) {
 }
 ```
 
-### グローバル型を明示的に取り込む理由
+> [!NOTE]
+> **0.x のあいだは破壊的変更があり得る。** API を実プロジェクトで検証している最中で
+> （[#5](../../issues/5)）、そこで判明したことは 0.2.0 以降に反映する。
 
-`monosashi` を import しても `kintone` グローバルは型付けされない。
-有効にするには `monosashi/kintone` を明示的に import する。
+### 動作条件
 
-ライブラリが利用者のグローバルスコープを勝手に書き換えないため。
-`toRestWrite` や `field.*` は `@kintone/rest-api-client` と組み合わせて
-サーバサイドでも使えるが、そこで `kintone` グローバルが生えていると
-
-```ts
-kintone.events.on(...)   // 型は通る。実行時は kintone is not defined
-```
-
-が**コンパイルを通ってしまう**。存在しないものを型が保証する状態になり、
-このライブラリの目的と正反対になる。
-
-### `kintone` グローバルは 166 API すべてを宣言している
-
-`monosashi/kintone` は
-[公式ドキュメントの JS API 一覧](https://cybozu.dev/ja/kintone/docs/js-api/)
-に載っている **166 個すべて**を宣言する。
-
-| | 宣言している数 |
-|---|--:|
-| 公式ドキュメント | **166** |
-| `monosashi/kintone` | **166** |
-| `@kintone/dts-gen` 9.0.8 | 51（31%） |
-
-dts-gen の 51 個は公式一覧の**真部分集合**なので、
-`monosashi/kintone` を入れれば **dts-gen は要らない**。
-一致していることは `test/jsApi.test.ts` が毎回確かめている
-（足りない・余っているの両方で落ちる）。
-
-dts-gen に無かったもの、たとえば `getFormFields` / `getView` /
-`showConfirmDialog` / `createDialog` / `setFieldStyle` / `getStatusHistory` /
-`buildPageUrl` / `getPageType` / プロセス管理まわりが、そのまま使える。
-
-#### 根拠は 2 種類ある。混ぜていない
-
-| 根拠 | 対象 |
+| | |
 |---|---|
-| **実測**（`fixtures/measured.json`） | `events.on` の event、`record.get()` / `set()` のレコード |
-| **公式ドキュメント** | それ以外すべて。返る値の形は確かめていない |
+| **TypeScript** | **5.9 以上**。7 系でも同じ結果になることを毎回確かめている |
+| `moduleResolution` | `bundler` / `nodenext`（`node10` は TS 7 で削除されたため対象外） |
+| 実行環境 | ブラウザと Node の両方 |
+| 実行時依存 | **ゼロ** |
 
-ドキュメント由来の型は `Api` 名前空間に分けてある。
-
-```ts
-import type { Api } from "monosashi";
-
-const user: Api.LoginUser = kintone.getLoginUser();
-```
-
-`kintone.app.get()` がドキュメントどおりの形を返すかは**測っていない**。
-レコードの値と違って、そこは主張していない。
-
-#### 自前の `kintone.d.ts` を残したい場合
-
-`monosashi/kintone` は `declare global { namespace kintone { ... } }` を出す。
-**同じ名前空間を宣言しているものが他にあると、マージされる。**
-同名の関数はオーバーロードとして併存し、**先に宣言された側が採用される**。
-TypeScript は `Duplicate identifier` を出さず、
-どちらが勝ったかを教える診断は**一つも出ない**。
-
-どちらが先になるかはプログラムにファイルが入る順で決まり
-（`tsconfig` の `files` / `include` の並び、import の並び）、
-**安定した条件ではない**。順序を入れ替えただけで勝敗が入れ替わることを
-`pack:check` の「併用」シナリオ 2 つで固定してある。
-
-166 個すべてを宣言しているので、**普通は自前の宣言を捨てて置き換えればよい**。
-それでも残したいなら、`monosashi/kintone` を import せず、
-自分の `declare global` の中で monosashi の型を使う。
+`monosashi/kintone` を import しなければ、`kintone` グローバルも DOM も要らない。
+AWS Lambda などサーバサイドで本体だけを使える。
 
 ```ts
-import type {
-  Api,
-  EditingRecord,
-  EventOf,
-  KintoneEventName,
-  SetRecord,
-} from "monosashi";
-
-declare global {
-  namespace kintone {
-    namespace app {
-      namespace record {
-        function get(): { record: EditingRecord } | null;   // any を置き換える
-        function set(record: { record: SetRecord }): void;
-      }
-    }
-    namespace events {
-      function on<Name extends KintoneEventName>(
-        event: Name | Name[],
-        handler: (event: EventOf<Name>) => unknown,
-      ): void;
-    }
-  }
-}
+// lib に DOM を入れていなくても通る
+import { field, toUpdateParams } from "monosashi";
 ```
 
-マージが起きないので順序に依存しない。この形も `pack:check` で検査している。
+`pack:check` が **TypeScript 5.9 と 7 の両方**で、`bundler` と `nodenext` の
+両方の解決方式で、`skipLibCheck: false` と DOM 無しの条件まで含めて、
+`pnpm pack` した tarball を検査している。
 
-#### `@kintone/dts-gen` を土台にしていない理由
+公開物には [provenance](https://docs.npmjs.com/generating-provenance-statements)
+が付いている。どのリポジトリのどのワークフローがこの tarball を作ったかを
+npm のページから辿れる。
 
-`/// <reference types="@kintone/dts-gen/kintone" />` で読み込んで
-レコード周りだけ上書きする案を試して、**捨てた**。
+### 実行時に載る量
 
-参照が自分のファイルの中にあるので順序は自分で決められ、`get()` は勝つ。
-**ところが引数の位置で全部漏れる。**
+公開フォームへ 1 ファイルで配るなど、バイト数が判断材料になる場合のために実測した
+（Vite / esbuild minify / tree-shaking 有効）。
 
-```ts
-kintone.app.record.set({ でたらめ: 1 });                   // 通る
-kintone.events.on("app.record.detial.show", (e) => e);    // タイポも通る
-```
+| 使い方 | バンドルに載る量 | gzip |
+|---|--:|--:|
+| **型だけ**（`import type`） | **0 B** | **0 B** |
+| `guard.*` だけ | 2,006 B | 901 B |
+| 全部（`import * as`） | 8,916 B | 2,947 B |
 
-オーバーロードは「どれか 1 つが通れば通る」ので、
-`set(record: any)` が 1 つ混ざるだけで**書き込みが無検査になる**。
-「読みは厳しく、書きは無検査」という一番まずい状態になる。
+`pnpm add monosashi` で入るのはこれだけで、他には何も付いてこない
+（`pack:check` が毎回確かめている）。
 
-### API
+## API
 
 | | 用途 |
 |---|---|
 | `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
 | `SetRecord` | `kintone.app.record.set()` に渡す型。`disabled` / `error` を持てる |
-| `Api.*` | JS API が受け渡す値の型。**根拠は公式ドキュメント** |
+| `Rest` / `RestRecord` | REST API の型 |
 | `Saved` / `Editing` | フィールド型の名前空間 |
-| `Rest` / `RestRecord` | REST API の型。本体から出る（下記） |
+| `Api.*` | JS API が受け渡す値の型。**根拠は公式ドキュメント**（実測ではない） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
+| `guard.*` | 型ガード |
+| `field.*` | フィールドの構築 |
+| `setValue` / `canSetValue` | 型安全な代入 |
 | `toUpdateParams` / `toAddParams` | REST に渡すパラメータを作る |
 | `toSetRecord` | `kintone.app.record.set()` に渡す形にする |
 | `toRestWrite` / `toRest` | 変換の下位 API |
-| `field.*` | フィールドの構築 |
-| `setValue` / `canSetValue` | 型安全な代入 |
-| `guard.*` | 型ガード |
 
-### REST で取ったレコードを画面に反映する
+### `kintone` グローバル
 
-```ts
-import { toSetRecord } from "monosashi";
+`monosashi` を import しても `kintone` グローバルは型付けされない。
+有効にするには `monosashi/kintone` を明示的に import する
+（ライブラリが利用者のグローバルスコープを勝手に書き換えないため）。
 
-const { record } = await client.record.getRecord({ app, id });
-kintone.app.record.set({ record: toSetRecord(record) });
-```
+[公式ドキュメントの JS API 一覧](https://cybozu.dev/ja/kintone/docs/js-api/)
+に載っている **166 個すべて**を宣言する。`@kintone/dts-gen` は 51 個で、
+それは公式一覧の真部分集合なので **dts-gen は要らない**。
 
-**`toRestWrite` と同じ実装は使えない。** どちらも「書き込み」だが、
-落とすべきものが違う（`fixtures/set-behavior.md`・実測 22 ケース）。
+根拠は 2 種類あり、混ぜていない。
 
-| | REST `updateRecord` | `kintone.app.record.set()` |
-|---|---|---|
-| 読み取り専用 8 種別 | **全部拒否**（落とすのは必須） | **`CATEGORY` だけ拒否**。他は無視される |
-| サブテーブルの行 `id` を落とす | **行が置き換わりデータが壊れる** | id が保たれる |
-| `type` の省略 | REST は `{ value }` だけで通る | **拒否される** |
-
-`toSetRecord` の必須要件は 2 つだけ。**`CATEGORY` を落とすことと、`type` を付けること。**
-残りは整形で、落とし漏れがあっても黙って無視される。
-
-触らないものもある。
-
-| | 理由 |
+| 根拠 | 対象 |
 |---|---|
-| `FILE` の値 | 4 キーのままで通る。`{ fileKey }` に削らなくてよい |
-| `null` の値 | 受け入れられ、値が未入力になる |
+| **実測** | `events.on` の event、`record.get()` / `set()` のレコード |
+| **公式ドキュメント** | それ以外すべて（`Api` 名前空間）。返る値の形は確かめていない |
 
-**`null` を渡せることが `REST` → `set()` の要点。**
-REST の未入力（`DROP_DOWN` が `null`）をそのまま渡すと、
-画面側の未入力（`undefined`）になる。意味が正しく対応するので、値の変換は要らない。
+**自前の `kintone.d.ts` を持っているなら、置き換えればよい。**
+残したい場合は `monosashi/kintone` を import せず、自分の `declare global` の中で
+`EditingRecord` / `SetRecord` / `EventOf` を参照する
+（理由と手順は [DECISIONS](docs/DECISIONS.md)）。
 
-### `guard.*` の一覧
+### `guard.*`
 
-**28 種別すべてにある。** 判定は `field.type === "その種別"` の一点で、
-構造は見ない。例外は下の 2 つだけ。
+**28 種別すべてにある。** 判定は `field.type === "その種別"` の一点で、構造は見ない。
 
 ```ts
 import { guard } from "monosashi";
 
-// シグネチャは全部これ。入力の型を保ったまま絞り込む
-declare function isSubtable<T extends LooseField>(
-  field: T | undefined | null,
-): field is Narrow<T, "SUBTABLE">;
-```
-
-`undefined` と `null` を受ける。**前もって存在チェックを書かなくてよい。**
-
-```ts
-// これでよい
+// undefined と null を受ける。前もって存在チェックを書かなくてよい
 if (!guard.isSubtable(record[code])) return;
-
-// kintone-typeguard で要っていた前置きは要らない
-if (record[code] === undefined || !guard.isSubtable(record[code])) return;
 ```
 
-| ガード | 見る `type` |
-|---|---|
 | `isRecordNumber` | `RECORD_NUMBER` |
 | `isId` | `__ID__` |
 | `isRevision` | `__REVISION__` |
@@ -334,222 +197,95 @@ if (record[code] === undefined || !guard.isSubtable(record[code])) return;
 | `isGroupSelect` | `GROUP_SELECT` |
 | `isSubtable` | `SUBTABLE` |
 
-#### 緩いレコードからでも `value` まで絞れる
-
-`SavedRecord` / `EditingRecord` / `RestRecord` から引いたときは
-**入力の型がそのまま保たれる**（`Saved` から引けば `Saved` の型に絞られる）。
-
-`LooseRecord`（`{ [code: string]: { type: string; value: unknown } }`）から
-引いたときは、`value` が **3 文脈の union** になる。
-
-```ts
-import { guard, type LooseRecord } from "monosashi";
-
-declare const record: LooseRecord;   // 自前ヘルパの引数など
-
-const table = record[code];
-if (guard.isSubtable(table)) {
-  table.value.length;          // 行の配列に絞れている
-}
-
-const text = record[code];
-if (guard.isSingleLineText(text)) {
-  text.value;                  // string | undefined（Editing だけ undefined を持つ）
-  if (guard.hasValue(text)) {
-    text.value.trim();         // string
-  }
-}
-```
-
-`Editing` だけが「一度も値が設定されていないフィールドの `value` が undefined」
-という性質を持つので、文脈が分からないときはその可能性が残る。
-`hasValue` を重ねれば落ちる。
-
-#### `undefined` が付くかは「どの画面か」ではなく「どう取ったか」で決まる
-
-同じ**編集画面**でも、レコードの取り方で `value` の型が変わる。実測。
-
-| 取り方 | `value` が undefined のフィールド |
-|---|--:|
-| `app.record.edit.show` の `event.record` | **0 / 54** |
-| `kintone.app.record.get()` | **21 / 54** |
-| `app.record.edit.change.*` の `event.record` | 20〜28 / 54〜71 |
-| `app.record.edit.submit` の `event.record` | 21 / 54 |
-| `app.record.edit.submit.success` の `event.record` | **0 / 54** |
-| REST の `getRecord` | **0 / 54** |
-
-`edit.show` はサーバから来たレコードなので全フィールドに値がある（`SavedRecord`）。
-`kintone.app.record.get()` は**編集中のフォームの状態**を返すので、
-一度も値が入っていないフィールドは `value` が `undefined` になる（`EditingRecord`）。
-
-型もそのとおりに分かれている。
-
-```ts
-kintone.events.on("app.record.edit.show", (event) => {
-  const f = event.record[code];             // SavedRecord
-  if (guard.isSingleLineText(f)) f.value;   // string
-  return event;
-});
-
-const got = kintone.app.record.get();       // EditingRecord
-if (got !== null) {
-  const f = got.record[code];
-  if (guard.isSingleLineText(f)) f.value;   // string | undefined
-}
-```
-
-**「編集画面だから」では決まらない。** これが実測を根拠にしている理由のひとつ。
-
-#### `type` を見ない 2 つ
+`type` を見ないものが 2 つある。
 
 | ガード | 判定の根拠 |
 |---|---|
-| `isLookup` | **`confirmed` と `recordId` のキーの有無。** ルックアップのキーフィールドの `type` は元フィールドの型そのもの（`SINGLE_LINE_TEXT` など）で、`type` では区別できない。REST から取ったレコードでは常に `false`（これらのキーが無いため） |
-| `hasValue` | **`value !== undefined`。** `Editing` では一度も値が設定されていないフィールドの `value` が `undefined` になる（実測）。`""` や `[]` や `null` は通す |
+| `isLookup` | **`confirmed` と `recordId` のキーの有無。** ルックアップのキーフィールドの `type` は元フィールドの型そのもので、`type` では区別できない。REST から取ったレコードでは常に `false` |
+| `hasValue` | **`value !== undefined`。** `Editing` では一度も値が設定されていないフィールドの `value` が `undefined` になる。`""` や `[]` や `null` は通す |
 
-`isLookup` はコピー先のフィールドを判別できない。
-キーフィールドだけが `confirmed` / `recordId` を持つため。
-
-#### 何を根拠に検査しているか
-
-一覧が実装とずれないことは、**実測フィクスチャに対して**縛っている。
-`type` で集めた実測フィールドを全部通し、
-**取りこぼしゼロ**と**他種別の混入ゼロ**の両方を見る。
-フィールドコードは書かない（`src/guard/record.test.ts`）。
-
-### REST の型も本体から出る
+絞り込み先は入力の型で決まる。`SavedRecord` から引けば `Saved` の型に、
+`LooseRecord` から引けば 3 文脈の union になる。
 
 ```ts
-import type { Rest, RestRecord } from "monosashi";
+const text = record[code];
+if (guard.isSingleLineText(text) && guard.hasValue(text)) {
+  text.value.trim();   // string
+}
 ```
 
-**このパッケージは実行時の依存を持たない**（下の「実行時に載る量」）。
+### REST で取ったレコードを画面に反映する
 
-以前は `Rest` を `@kintone/rest-api-client` の型に委ねていた。
-新しい正規形を作らなければ型の同一性が壊れない、という判断だった。
-**その代償が、検出できない `any` だった。**
-利用者がそのパッケージを入れていないと、`skipLibCheck: true`
-（TypeScript の既定）では型がエラーにならず `any` に落ちる。
-`strict` も `noImplicitAny` も効かず、警告も出ない。
+```ts
+import { toSetRecord } from "monosashi";
 
-そこで自前で持つことにした。乖離しないことは、こちらのテストで縛る。
+const { record } = await client.record.getRecord({ app, id });
+kintone.app.record.set({ record: toSetRecord(record) });
+```
 
-| テスト | 守るもの |
-| --- | --- |
-| `src/types/rest.test-d.ts` | `@kintone/rest-api-client` との等価性。利用者が `client.record.addRecord()` に渡せること |
-| `test/coverage.test-d.ts` | 実測した全種別を覆っていること（`Saved` / `Editing` と同じ軸） |
+**`toRestWrite` と同じ実装は使えない。** どちらも「書き込み」だが、
+落とすべきものが違う（`fixtures/set-behavior.md`・実測 22 ケース）。
 
-`@kintone/rest-api-client` は devDependency としてこのリポジトリには常に在るので、
-委譲をやめても突き合わせは続けられる。
-その更新は Dependabot が拾い、上の等価性テストが可否を判定する。
+| | REST `updateRecord` | `kintone.app.record.set()` |
+|---|---|---|
+| 読み取り専用 8 種別 | **全部拒否**（落とすのは必須） | **`CATEGORY` だけ拒否**。他は無視される |
+| サブテーブルの行 `id` を落とす | **行が置き換わりデータが壊れる** | id が保たれる |
+| `type` の省略 | REST は `{ value }` だけで通る | **拒否される** |
 
 ## `kintone-typeguard` からの移行
 
 `kintone-typeguard` の後継として作っている。
 **レコードの値**についてはガードが揃っているが、**フォーム定義は守備範囲外**。
-1 対 1 で移せない箇所こそが移行の見積りを決めるので、そこを先に書く。
 
 ### レコードの値のガード ── 移せる
 
-| `kintone-typeguard` | `monosashi` | |
-|---|---|---|
-| `guardRecord.isSingleLineText` ほか 28 種別 | `guard.*` の同名 | **抜けは無い**（機械的に突き合わせ済み） |
-| `guardRecord.isDatetime` | `guard.isDateTime` | **綴りが違う**（`T` が大文字） |
-| `guardRecord.isDropDown` | `guard.isDropdown` | **綴りが違う**（`d` が小文字） |
-| `guardRecord.isID` | `guard.isId` | **綴りが違う** |
-| （無い） | `guard.isLookup` | ルックアップのキーを判別する |
-| （無い） | `guard.hasValue` | 値が設定されたことがあるかを判別する |
-
-綴りの 3 つはコンパイルエラーになるので黙って壊れることはない。
-
-前置きの存在チェックは要らなくなる。
-
-```ts
-// kintone-typeguard
-if (f === undefined || !guardRecord.isSubtable(f)) return;
-// monosashi
-if (!guard.isSubtable(f)) return;
-```
-
-### レコードの型 ── **1 対 1 にならない**
-
-ここが移行の本体。`kintone-typeguard` は取得元を問わず 1 つの型だったが、
-monosashi は**実測で形が違うことを確かめた**ので分かれている。
-
-| `kintone-typeguard` | `monosashi` | |
-|---|---|---|
-| `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** | どれになるかは**取り方**で決まる（下記） |
-| `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など | イベント名から event の形を引く |
-| `kintoneRecordFieldSet.Record` | `SetRecord` | `disabled` / `error` を持てる |
-| `kintoneRecordFieldUnified.*` | `Rest.*` / `RestRecord` | 実体はどちらも REST の正規形 |
-
-**`Get` の 1 型が 3 つに割れるのが、移行の見積りを決める。**
-呼び出しごとに「どの文脈のレコードか」を判断する必要がある。
-判断の基準は上の「`undefined` が付くかは『どの画面か』ではなく『どう取ったか』で決まる」。
-
-3 つを 1 つに潰していたことが `kintone-typeguard` の緩さの正体で、
-分かれていること自体が monosashi の存在理由でもある。
-
-### フォーム定義 ── **守備範囲外。移行先は無い**
+**28 種別すべてに対応があり、抜けは無い**（機械的に突き合わせ済み）。
+綴りが違うものが 3 つあるが、コンパイルエラーになるので黙って壊れることはない。
 
 | `kintone-typeguard` | `monosashi` |
 |---|---|
-| `guardFormField.*`（29 個） | **無い。作る予定も無い** |
-| `guardFormLayout.*`（29 個） | **無い。作る予定も無い** |
+| `guardRecord.isDatetime` | `guard.isDateTime` |
+| `guardRecord.isDropDown` | `guard.isDropdown` |
+| `guardRecord.isID` | `guard.isId` |
 
-`getFormFields` / `getFormLayout` が返す**フォームの設定**を判別するもので、
+`guard.isLookup` と `guard.hasValue` が増えている。
+前置きの存在チェックも要らなくなる。
+
+### レコードの型 ── **1 対 1 にならない**
+
+ここが移行の見積りを決める。
+
+| `kintone-typeguard` | `monosashi` |
+|---|---|
+| `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** |
+| `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など |
+| `kintoneRecordFieldSet.Record` | `SetRecord` |
+| `kintoneRecordFieldUnified.*` | `Rest.*` / `RestRecord` |
+
+`Get` の 1 型が 3 つに割れるので、**呼び出しごとに「どの文脈のレコードか」を
+判断する必要がある**。3 つを 1 つに潰していたことが `kintone-typeguard` の
+緩さの正体で、分かれていること自体が monosashi の存在理由でもある。
+
+### フォーム定義 ── **守備範囲外。移行先は無い**
+
+`guardFormField` / `guardFormLayout`（各 29 個）に相当するものは**無く、作る予定も無い**。
+`getFormFields` / `getFormLayout` が返すフォームの設定を判別するもので、
 レコードの値とは別物。フォーム定義には `value` が無いので、
-monosashi のガードは**引数の時点で受け取れない**。
+monosashi のガードは引数の時点で受け取れない。
 
-```
-error TS2345: Argument of type 'OneOf' is not assignable to parameter of
-type 'LooseField | null | undefined'.
-  Property 'value' is missing in type 'Calc' but required in type 'LooseField'.
-```
+種別も食い違う。monosashi が「レコードには現れない」と実測で除外した
+`GROUP` / `REFERENCE_TABLE` が、フォーム定義には存在する。
 
-種別も食い違う。monosashi は `GROUP` と `REFERENCE_TABLE` を
-**「レコードには現れない」と実測で確かめて除外**しているが、
-フォーム定義にはどちらも存在し、さらに `LABEL` / `SPACER` / `HR` という
-フィールドですらないレイアウト要素がある。
+### 変換 ── `converterGetToSet` は `toSetRecord`
 
-`Api.FormField` はルートから出しているが、**共通部分だけの緩い型**で、
-種別ごとの絞り込みには使えない。
-
-### 変換 ── 1 つ足りない
-
-| `kintone-typeguard` | `monosashi` | |
-|---|---|---|
-| （無い） | `toRestWrite` / `toUpdateParams` / `toAddParams` | JS API → REST。**実測 20 ケースに基づく** |
-| `guardUtils.converterGetToSet` | **無い** | `get()` → `set()` の変換 |
-
-`converterGetToSet` に相当するものは**まだ無い**。
-何を落とすべきかを `set()` に対して実測していないため
-（REST については `fixtures/write-behavior.md` に 20 ケースある）。
-推測で書かない方針なので、測ってから足す。
-
-## 実行時に載る量
-
-**このパッケージは実行時の依存を持たない。** `pnpm add monosashi` で入るのは
-これだけで、他には何も付いてこない（`pack:check` が毎回確かめている）。
-
-公開フォームへ 1 ファイルで配るような、バイト数が判断材料になる場合のために実測した
-（Vite / esbuild minify / tree-shaking 有効）。
-
-| 使い方 | バンドルに載る量 | gzip |
-|---|--:|--:|
-| **型だけ**（`import type`） | **0 B** | **0 B** |
-| `guard.*` だけ | 2,006 B | 901 B |
-| 全部（`import * as`） | 8,916 B | 2,947 B |
-
-型だけの場合、出力に monosashi のコードは**一行も残らない**
-（生成物を目視で確認済み）。
-`guard` / `field` / `setValue` / `toRestWrite` は実装なので、使った分だけ載る。
+`guardUtils.converterGetToSet` に相当するものは `toSetRecord`。
+ただし落とす対象は実測で決めており、`kintone-typeguard` とは中身が違う（上記）。
 
 ## もっと詳しく
 
 - [`fixtures/measured.json`](fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
 - [`fixtures/write-behavior.md`](fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
-- [`fixtures/set-behavior.md`](fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）。**REST とは要件が違う**
+- [`fixtures/set-behavior.md`](fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
 - [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
   実測で判明した kintone / API の制約と、**測り方を間違えた記録**も入っている
 - [開発する](CONTRIBUTING.md) — このリポジトリに手を入れるときの手順

@@ -844,11 +844,9 @@ file extensions in ECMAScript imports when '--moduleResolution' is 'nodenext'.
 利用者はまず出さない。解決に失敗した型は `any` になり、
 `kintone.app.record.get().record.存在しないプロパティ` が通る。
 
-README がまさにこれを警告していた。
-
-> **その代償が、検出できない `any` だった。**
-
-`@kintone/rest-api-client` への委譲をやめた理由がこれで、**同じ穴を自分で踏んでいた。**
+**`Rest` の委譲をやめた理由がこれ**（Q7「委譲は『検出できない `any`』と引き換えだった」）。
+利用者が `@kintone/rest-api-client` を入れていないと型が `any` に落ちる、
+という理由で自前に切り出したのに、**同じ穴を自分で踏んでいた。**
 
 **なぜ気づけなかったか。** `pack:check` の利用者コードは
 「コンパイルが通るか」だけを見ていた。`any` は何を書いても通る。
@@ -1966,7 +1964,7 @@ dist/types/jsApi.d.ts(311,16): error TS2304: Cannot find name 'Blob'.
 
 となる。**`skipLibCheck: true`（TypeScript の既定）では出ない。**
 出ない代わりに型が `any` に落ちる。
-README が rest-api-client への委譲をやめた理由として警告している状態そのもの。
+**`Rest` の委譲をやめた理由**（Q7）と同じ状態を、また自分で作っていた。
 
 **決定**: `globalThis` に在るかで分岐する型にする。
 
