@@ -1931,3 +1931,62 @@ Type 'SubtableRow<...>[] | SubtableRow<...>[] | SubtableRow<...>[]'
 - **`guardFormField`（フォーム設定のガード）。** 守備範囲外。
   フォーム設定は実測の対象にしていない
 
+
+## TypeScript は 5.9 と 7 の両方で dist を検査する
+
+**2026-09-08。** 導入先（kintone-plugins）は**型チェックが 7、エディタが 5.9**
+という二重構成で、さらに AWS SAM 側は 5 系の別プロジェクト。
+**どちらか片方でしか通らない `.d.ts` を出すと、片方が黙って `any` に落ちる。**
+
+`typescript-5.9` という別名で 5.9.3 を devDependency に入れ、
+`pack:check` が両方で走る（6 シナリオ × 2 解決方式 × 2 版 = 24 通り）。
+`pnpm exec tsc` をやめて、それぞれのバイナリを絶対パスで呼ぶ。
+
+**言語機能の差では落ちない。** TS 7 は 5.9 の移植なので構文はほぼ同じ。
+5.9 レーンが拾うのは解決の挙動の差（`@types` の暗黙取り込み、
+`moduleResolution` の扱い）で、そこが本番の食い違いどころでもある。
+レーンが空回りしていないことは、素の型エラーを入れて
+**両方が独立に落ちる**ことで確かめた。
+
+最低サポート版を **5.9** として README に明記した。
+
+## ルートは DOM に依存しない
+
+**2026-09-08。** `Api.DialogConfig` の `body?: Element` と
+`Api.ProxyUploadData` の `value: Blob` が **DOM の型を直接参照していた**。
+
+ルート（`monosashi`）から `Api` を出しているので、
+`dist/types/jsApi.d.ts` がそれを参照する。
+`lib` に DOM を入れていない利用者（AWS Lambda など）では
+
+```
+dist/types/jsApi.d.ts(287,16): error TS2304: Cannot find name 'Element'.
+dist/types/jsApi.d.ts(311,16): error TS2304: Cannot find name 'Blob'.
+```
+
+となる。**`skipLibCheck: true`（TypeScript の既定）では出ない。**
+出ない代わりに型が `any` に落ちる。
+README が rest-api-client への委譲をやめた理由として警告している状態そのもの。
+
+**決定**: `globalThis` に在るかで分岐する型にする。
+
+```ts
+export type DomElement = typeof globalThis extends {
+	Element: abstract new (...args: never) => infer T;
+} ? T : { readonly nodeType: number; readonly nodeName: string };
+```
+
+ブラウザでは本物の `Element`、Node では最小形になる。
+最小形でも `document.createElement()` の戻りは構造的に代入できるので、
+ブラウザ側の書き味は変わらない。
+
+**型を隠す案は採らなかった。** `DialogConfig` を `monosashi/kintone` 側に
+移せばルートは DOM から切れるが、
+自前ヘルパの引数に使いたい利用者がサブパスを import することになる。
+`createDialog` はブラウザ専用 API だが、**その型を扱うコードは Node でも書ける**
+（設定オブジェクトを組み立てて渡すだけの層など）。
+
+検査は `pack:check` の「Node（AWS SAM 相当）」シナリオ。
+`lib: ["ES2022"]`（DOM 無し）かつ `skipLibCheck: false` で、
+`monosashi/kintone` を import しない利用者を通す。
+`Element` を直接書く形に戻すと TS2304 で落ちることを確認した。

@@ -18,6 +18,33 @@
  * @see https://cybozu.dev/ja/kintone/docs/js-api/
  */
 
+/**
+ * DOM の `Element`。**DOM の型が無い環境でも解決できる形にする。**
+ *
+ * `Element` を直接書くと `dist/types/jsApi.d.ts` がそれを参照し、
+ * `lib` に DOM を入れていない利用者（AWS Lambda など）で
+ * `TS2304: Cannot find name 'Element'` になる。
+ *
+ * `skipLibCheck: true`（TypeScript の既定）では出ないが、
+ * **既定に頼らないのがこのリポジトリの方針**（README「検出できない any」）。
+ *
+ * `globalThis` に `Element` が在るかで分岐する。
+ * ブラウザでは本物の `Element` に、Node では最小形に落ちる。
+ * 最小形でも `document.createElement()` の戻りは構造的に代入できる。
+ */
+export type DomElement = typeof globalThis extends {
+	Element: abstract new (...args: never) => infer T;
+}
+	? T
+	: { readonly nodeType: number; readonly nodeName: string };
+
+/** DOM の `Blob`。分岐する理由は {@link DomElement} と同じ */
+export type DomBlob = typeof globalThis extends {
+	Blob: abstract new (...args: never) => infer T;
+}
+	? T
+	: { readonly size: number; readonly type: string };
+
 export namespace Api {
 	/** 画面の種類。`getPageType` と `buildPageUrl` が使う */
 	export type PageName =
@@ -321,7 +348,7 @@ export namespace Api {
 	/** `createDialog()` / `createBottomSheet()` に渡す指定。body に DOM を置ける */
 	export type DialogConfig = {
 		title?: string;
-		body?: Element;
+		body?: DomElement;
 		showOkButton?: boolean;
 		okButtonText?: string;
 		showCancelButton?: boolean;
@@ -349,5 +376,5 @@ export namespace Api {
 	];
 
 	/** `proxy.upload()` に渡すファイル */
-	export type ProxyUploadData = { format: "RAW"; value: Blob };
+	export type ProxyUploadData = { format: "RAW"; value: DomBlob };
 }

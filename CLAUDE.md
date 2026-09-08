@@ -37,6 +37,7 @@ CI のワークフローにステップを並べない。定義は `package.json
 | `fixtures/measured.json` を手で編集 | 実測の根拠が実測でなくなる |
 | `pnpm run app:deploy-probe` を勝手に実行 | kintone のシステム管理権限が要り、組織全体に効く |
 | `ncu -u` 後に `packageManager` を確認せず放置 | pnpm 本体が入れ替わる。`.ncurc.json` で除外済みだが確認はする |
+| `typescript` だけ上げて `typescript-5.9` を放置 | `pack:check` が両版で `dist` を検査している。片方だけ上げるとずれる |
 
 実 kintone に接続するコマンド（`e2e` / `app:*` / `probe:write` / `probe:converter`）は
 認証情報が要り、実際のアプリを操作する。**依頼されていなければ実行しない。**
@@ -112,7 +113,7 @@ JS API を足すときは、どちらの根拠かを JSDoc に書く。
 | `src/convert/` | JS API → REST の変換 |
 | `src/probe/` | 実測の採取カスタマイズ（ブラウザで動く） |
 | `src/kintone.ts` | `kintone` グローバルの宣言。公式 166 API |
-| `src/types/jsApi.ts` | JS API の値の型。**根拠はドキュメント** |
+| `src/types/jsApi.ts` | JS API の値の型。**根拠はドキュメント**。DOM を直接参照しない |
 | `test/` | 種別の網羅とフィクスチャ突き合わせ |
 | `tools/fixture/` | 採取結果の正規化 |
 | `tools/fixture-app/` | 検証アプリの構築・検証・probe の配備 |
