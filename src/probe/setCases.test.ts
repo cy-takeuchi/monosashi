@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { OBSERVED_FIELD_TYPES } from "../../test/fieldTypes";
+import { canSetValue } from "../build/setValue.js";
 import { REJECTED_ON_WRITE } from "../convert/fieldTypes.js";
 import {
 	CURRENT_VALUE,
@@ -80,6 +81,39 @@ describe("何を測ろうとしているか", () => {
 		const missing = REJECTED_ON_WRITE.filter((type) => !covered.includes(type));
 		// GROUP はレコードに現れないので、set() には渡せない（実測で除外済み）
 		expect(missing).toEqual(["GROUP"]);
+	});
+
+	// **`nullableString` の 3 種別すべてに null を渡している。**
+	//
+	// `VALUE_SHAPE` は `type` → 値の形の対応表で、
+	// `DROP_DOWN` / `DATE` / `TIME` は同じ形。1 つだけ測ると
+	// 「変換を形ごとに書けるか、種別ごとに要るか」が決まらない。
+	//
+	// ここが落ちたら、`VALUE_SHAPE` に `nullableString` の種別が増えたか、
+	// ケースを削ったかのどちらか。どちらも測り直しが要る
+	test("null を受け付ける全種別に null を渡している", () => {
+		// **表（VALUE_SHAPE）を export せず、canSetValue の挙動から導く。**
+		// 表を公開すると内部の形が公開 API になる。
+		// 挙動から引けば、表の作りが変わっても追随する
+		const nullable = OBSERVED_FIELD_TYPES.filter((type) =>
+			canSetValue({ f: { type, value: "" } }, "f", null),
+		);
+		expect(nullable.length).toBeGreaterThan(1);
+
+		const measured = nullable.filter((type) =>
+			SET_CASES.some(({ build }) => {
+				const patch = build(fullCodes);
+				if (patch === undefined) return false;
+				return Object.values(patch).some(
+					(field) =>
+						typeof field === "object" &&
+						field !== null &&
+						(field as { type?: unknown }).type === type &&
+						(field as { value?: unknown }).value === null,
+				);
+			}),
+		);
+		expect([...measured].sort()).toEqual([...nullable].sort());
 	});
 
 	test("REST と JS API で表現が違う DROP_DOWN を測っている", () => {

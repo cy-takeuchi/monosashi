@@ -121,6 +121,15 @@ export const SET_CASES: SetCase[] = [
 	// -------------------------------------------------------------------
 	// 本命。REST から取ったレコードをそのまま渡せるか
 	// -------------------------------------------------------------------
+	// `null` を渡すケースは **`nullableString` の 3 種別すべて**を測る。
+	//
+	// `VALUE_SHAPE`（`src/build/setValue.ts`）は `type` → 値の形の対応表で、
+	// `DROP_DOWN` / `DATE` / `TIME` は同じ `nullableString`。
+	// 1 つだけ測って「同じ形だから同じだろう」と決めると、
+	// **変換を形ごとに書くのか種別ごとに書くのかが決まらない**。
+	//
+	// 3 つ揃えれば 1 回の実測で分かる。
+	// 揃わなければ種別ごと、揃えば形ごとに書ける。
 	{
 		id: "dropdown-null",
 		question:
@@ -133,7 +142,8 @@ export const SET_CASES: SetCase[] = [
 	},
 	{
 		id: "date-null",
-		question: "DATE に null を渡す（REST も詳細画面も null なので通るはず）",
+		question:
+			"DATE に null を渡す（REST も詳細画面も null。DROP_DOWN と同じ形）",
 		build: (codes) => {
 			const code = codes.byType.DATE;
 			if (code === undefined) return undefined;
@@ -141,9 +151,19 @@ export const SET_CASES: SetCase[] = [
 		},
 	},
 	{
+		id: "time-null",
+		question:
+			"TIME に null を渡す（nullableString の 3 つ目。3 つ揃えて比べる）",
+		build: (codes) => {
+			const code = codes.byType.TIME;
+			if (code === undefined) return undefined;
+			return { [code]: { type: "TIME", value: null } };
+		},
+	},
+	{
 		id: "single-line-text-null",
 		question:
-			"SINGLE_LINE_TEXT に null を渡す（どの文脈でも '' なので、null は想定外の値）",
+			"SINGLE_LINE_TEXT に null を渡す（string 型なので null は想定外。対照として測る）",
 		build: (codes) => {
 			const code = codes.byType.SINGLE_LINE_TEXT;
 			if (code === undefined) return undefined;
