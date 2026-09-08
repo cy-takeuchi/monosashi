@@ -51,6 +51,39 @@ e2e が実 kintone を操作して採り直せる。
 pnpm add monosashi
 ```
 
+### 動作条件
+
+| | |
+|---|---|
+| **TypeScript** | **5.9 以上**。7 系でも同じ結果になることを毎回確かめている |
+| `moduleResolution` | `bundler` / `nodenext`（`node10` は TS 7 で削除されたため対象外） |
+| 実行環境 | ブラウザと Node の両方。**ルート（`monosashi`）は DOM に依存しない** |
+| 実行時依存 | **ゼロ** |
+
+`pack:check` が **TypeScript 5.9 と 7 の両方**で、`bundler` と `nodenext` の
+両方の解決方式で、`pnpm pack` した tarball を検査する。
+どちらかでしか通らない `.d.ts` を出すと落ちる。
+
+`types: []` でも動く（TypeScript 7 は `@types` を暗黙に取り込まないので、
+5 系でも同じ条件になるよう検査側も空にしてある）。
+
+#### Node で使う
+
+`monosashi/kintone` を import しなければ、`kintone` グローバルも DOM も要らない。
+
+```ts
+// AWS Lambda など。lib に DOM を入れていなくても通る
+import { field, toUpdateParams } from "monosashi";
+```
+
+`Api.DialogConfig` のように DOM の型を含むものもルートから引ける。
+`Element` / `Blob` を直接書かず、**DOM が在れば本物、無ければ最小形**に
+落ちる形にしてある（`DomElement` / `DomBlob`）。
+
+`skipLibCheck: false` でも通ることを検査している。
+TypeScript の既定は `true` だが、**既定に頼ると型が黙って `any` に落ちる**
+（下の「REST の型も本体から出る」と同じ理由）。
+
 > [!NOTE]
 > **0.x のあいだは破壊的変更があり得る。** API を実プロジェクトで検証している最中で
 > （[#5](../../issues/5)）、そこで判明したことは 0.2.0 以降に反映する。

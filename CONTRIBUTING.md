@@ -238,6 +238,13 @@ pnpm run pack:check
 pnpm を上げるときは `packageManager` を手で書き換え、**そのあと `pnpm install` を回す**。
 pnpm 12 から lockfile にも pnpm 自身が入るようになったので、両方を揃える必要がある。
 
+**TypeScript は 2 つ入っている。** `typescript`（7 系）と
+`typescript-5.9`（別名で入れた 5.9）。導入先が
+「型チェックは 7、エディタは 5.9」という二重構成で、
+さらに AWS SAM 側が 5 系の別プロジェクトのため、
+`pack:check` が両方で `dist` を検査する。**上げるときは両方を上げる。**
+片方だけ上げると、検査しているつもりの版が実物とずれる。
+
 ## 公開する
 
 publish は **`.github/workflows/release.yml`** だけが行う。手元からは実行しない

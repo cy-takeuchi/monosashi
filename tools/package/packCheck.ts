@@ -36,6 +36,22 @@ import { join } from "node:path";
  * （`Option 'moduleResolution=node10' has been removed`）ので、
  * このパッケージが要求する TS では指定そのものができない。
  */
+/**
+ * 検査する TypeScript の版。
+ *
+ * 導入先（kintone-plugins）は**型チェックが 7、エディタが 5.9**という二重構成。
+ * さらに AWS SAM 側は 5 系の別プロジェクト。
+ * **どちらか片方でしか通らない `.d.ts` を出すと、片方が黙って any に落ちる。**
+ *
+ * 5.9 は `typescript-5.9` という別名で devDependency に入れてある
+ * （同じパッケージの 2 版を 1 つのプロジェクトに入れるため）。
+ * 版を上げるときは両方を上げる。
+ */
+const COMPILERS = [
+	{ name: "7", bin: "node_modules/typescript/bin/tsc" },
+	{ name: "5.9", bin: "node_modules/typescript-5.9/bin/tsc" },
+] as const;
+
 const MODES = [
 	{ name: "bundler", module: "ESNext", resolution: "bundler" },
 	{ name: "nodenext", module: "nodenext", resolution: "nodenext" },
@@ -207,6 +223,36 @@ const value: string = got.record.text.存在しないプロパティ;
 export { value };
 `;
 
+/**
+ * AWS SAM の Lambda 相当。**`kintone` グローバルも DOM も無い**。
+ *
+ * `monosashi/kintone` を import しない。ルートだけを使う。
+ * ここが通ることが、サーバサイドで本体だけ使えることの証拠になる。
+ */
+const NODE_CONSUMER = `
+import {
+	type Api,
+	field,
+	guard,
+	type RestRecord,
+	toRestWrite,
+	toUpdateParams,
+} from "monosashi";
+
+declare const sink: (value: unknown) => void;
+declare const record: RestRecord;
+
+const params = toUpdateParams("1", { text: field.singleLineText("x") });
+const converted = toRestWrite({ text: field.singleLineText("x") });
+if (guard.isSingleLineText(record.code)) sink(record.code.value);
+
+// DOM を参照する型もルートから引ける。DOM が無い環境でも解決できること
+declare const upload: Api.ProxyUploadData;
+declare const dialog: Api.DialogConfig;
+
+sink([params, converted, upload, dialog]);
+`;
+
 type Scenario = {
 	readonly name: string;
 	readonly files: { readonly [fileName: string]: string };
@@ -225,6 +271,11 @@ type Scenario = {
 	 * false にすると `dist/*.d.ts` そのものが検査対象になる。
 	 */
 	readonly skipLibCheck?: boolean;
+	/**
+	 * 既定は `["ES2022", "DOM"]`。
+	 * DOM を外すと、ブラウザ前提の記述が型の解決に必須になっていないかを見られる。
+	 */
+	readonly lib?: readonly string[];
 	readonly note?: string;
 };
 
@@ -259,6 +310,17 @@ const SCENARIOS: readonly Scenario[] = [
 			"型が any に落ちたことに誰も気づけない。" +
 			"1 つ上との違いは files の並びだけで、どちらも診断はゼロ。" +
 			"この挙動が変わったら README を直す",
+	},
+	{
+		name: "Node（AWS SAM 相当）。kintone グローバルも DOM も無い",
+		files: { "node-consumer.ts": NODE_CONSUMER },
+		entries: ["node-consumer.ts"],
+		expected: [],
+		lib: ["ES2022"],
+		// **skipLibCheck を切る。** 切らないと、こちらの .d.ts が DOM を
+		// 参照していても TS2304 が出ず、型が黙って any に落ちる。
+		// 2026-09-08 まで実際にそうなっていた（Element / Blob を直接書いていた）
+		skipLibCheck: false,
 	},
 	{
 		name: "dist/*.d.ts 自体を検査する（skipLibCheck: false）",
@@ -349,6 +411,7 @@ const main = (): void => {
 							module: mode.module,
 							moduleResolution: mode.resolution,
 							skipLibCheck: scenario.skipLibCheck ?? true,
+							lib: scenario.lib ?? ["ES2022", "DOM"],
 							// 導入先（kintone-plugins）に合わせる。
 							// TypeScript 7 は @types を暗黙に取り込まないので、
 							// 5 系でも同じ条件になるよう明示的に空にする
@@ -361,29 +424,37 @@ const main = (): void => {
 				)}\n`,
 			);
 
-			let output = "";
-			try {
-				run("pnpm", ["exec", "tsc", "-p", configName], work);
-			} catch (error) {
-				output = String((error as { stdout?: string }).stdout ?? String(error));
-			}
-			const missing = scenario.expected.filter(
-				(code) => !output.includes(code),
-			);
-			const unexpected = scenario.expected.length === 0 && output.trim() !== "";
+			for (const compiler of COMPILERS) {
+				const label = `${mode.name} / TS ${compiler.name}`;
+				let output = "";
+				try {
+					run(join(root, compiler.bin), ["-p", configName], work);
+				} catch (error) {
+					output = String(
+						(error as { stdout?: string }).stdout ?? String(error),
+					);
+				}
+				const missing = scenario.expected.filter(
+					(code) => !output.includes(code),
+				);
+				const unexpected =
+					scenario.expected.length === 0 && output.trim() !== "";
 
-			if (missing.length === 0 && !unexpected) {
-				console.log(`  ✅ ${mode.name}`);
-				continue;
+				if (missing.length === 0 && !unexpected) {
+					console.log(`  ✅ ${label}`);
+					continue;
+				}
+				console.log(`  ❌ ${label}`);
+				if (missing.length > 0) {
+					console.log(
+						`      出るはずの診断が出ていない: ${missing.join(", ")}`,
+					);
+				}
+				for (const line of output.split("\n").slice(0, 8)) {
+					if (line.trim() !== "") console.log(`      ${line}`);
+				}
+				failures.push(`${scenario.name} / ${label}`);
 			}
-			console.log(`  ❌ ${mode.name}`);
-			if (missing.length > 0) {
-				console.log(`      出るはずの診断が出ていない: ${missing.join(", ")}`);
-			}
-			for (const line of output.split("\n").slice(0, 8)) {
-				if (line.trim() !== "") console.log(`      ${line}`);
-			}
-			failures.push(`${scenario.name} / ${mode.name}`);
 		}
 	}
 
