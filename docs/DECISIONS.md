@@ -1705,3 +1705,85 @@ Type 'SubtableRow<...>[] | SubtableRow<...>[] | SubtableRow<...>[]'
 `Saved` は `Editing` の部分型なので落とせなくもないが、
 その関係が保たれることを別に縛る必要が出るので、
 **表示のためだけに不変条件を増やさない**。
+
+## undefined が付くかは画面ではなく取り方で決まる
+
+**2026-09-08。** 「編集画面なら `value` は `string` だけで `undefined` にならないのでは」
+という問いを受けて、フィクスチャを数え直した。**画面では決まらない。**
+
+| 取り方（PC 編集画面） | `value` が undefined |
+|---|--:|
+| `app.record.edit.show` の `event.record` | **0 / 54** |
+| `kintone.app.record.get()` | **21 / 54** |
+| `app.record.edit.change.*` の `event.record` | 20〜28 / 54〜71 |
+| `app.record.edit.submit` の `event.record` | 21 / 54 |
+| `app.record.edit.submit.success` の `event.record` | **0 / 54** |
+| REST の `getRecord` | **0 / 54** |
+
+同じ画面の同じレコードでも、`edit.show` の `event.record` と
+`kintone.app.record.get()` で違う。
+前者はサーバから来たもの、後者は編集中のフォームの状態を返すため。
+
+型は既にこのとおりに分かれていた（`edit.show` → `SavedRecord`、
+`get()` → `EditingRecord`）ので**修正は無い**。README に表を足した。
+
+「編集画面だから」「詳細画面だから」で推測すると外れる、という
+このリポジトリの主張のもう一つの実例。
+
+## 型テストの主張が弱いと素通りする
+
+**2026-09-08。** 続けて 2 件見つかった。どちらも
+**テストは在るのに、主張が弱くて壊れても緑**というもの。
+
+| 主張 | 何を見逃すか |
+|---|---|
+| `expectTypeOf(f.value).not.toBeNever()` | `unknown` のまま残っていても通る |
+| `Extract<U, { disabled: unknown }>` が never | **optional** で生えた `disabled?:` を通す |
+
+2 つ目は制御した例で測った。
+
+| | `disabled?: boolean`（optional） | `disabled: boolean`（必須） |
+|---|---|---|
+| `Extract<U, { disabled: unknown }>` | **拾えない** | 拾える |
+| `K extends keyof U` で見る | 拾える | 拾える |
+
+`@kintone/dts-gen` の `fieldTypes` は **optional で** `disabled?` / `error?` を持つ。
+引き写しが混入したときに拾えないと意味が無いので、`keyof` で見る形にした。
+`Saved.Link` に両方の形で生やして、どちらも落ちることを確認した。
+
+### 変異が当たっていないのに結論を出しかけた
+
+この 2 つ目を調べる過程で、`field.ts` に仕込んだつもりの変異が
+**一度も当たっていなかった**（`Time` の実際の定義は `FieldOf<"TIME", string | null>`
+で、`FieldOf<"TIME", string>` を探していた）。
+それに気づかず「`Extract` は optional を素通りする」と結論しかけた。
+結論自体は別の測り直しで正しかったが、**根拠は無効だった**。
+
+変異テストは「落ちなかった」を根拠にするので、
+**仕込みが当たったことを先に確かめないと、何も測っていないのと同じになる**。
+以後、変異を入れたら適用結果を表示してから走らせる。
+
+## kintone-typeguard のテストから採ったもの
+
+依頼元のリポジトリ（`cy-takeuchi/kintone-typeguard`）の
+`src/test/vitest/typeguard.test.ts` を読んで、取り入れたものと採らなかったものを残す。
+
+**採った**
+
+- `@ts-expect-error` で「**通ってはいけない**」ことを主張する
+  （`field.value[0].disabled` が生えていないこと）。
+  こちらは 11 箇所で既に使っていたが、`disabled` / `error` は
+  `Saved.SingleLineText` の 1 種別しか縛っていなかった。union 全体に広げた
+- ガードで絞った先の型を `expectTypeOf` で確かめる。
+  向こうは種別を数個書いているが、こちらは**全ガードを総当たり**にした
+  （エクスポートから型述語を拾うので、ガードを足せば自動で対象になる）
+
+**採らなかった**
+
+- **実 kintone に接続するユニットテスト。** 向こうは `beforeAll` でアプリを作り、
+  REST でレコードを採ってから検証する。
+  こちらは凍結したフィクスチャに対してだけ走らせ、実接続は
+  e2e と週次のライブ検証に分けている（Q6）。
+  認証情報なしで数秒で回せることを優先する
+- **`guardFormField`（フォーム設定のガード）。** 守備範囲外。
+  フォーム設定は実測の対象にしていない
