@@ -97,6 +97,19 @@ export type SetCase = {
 	 * 結論を「無視された」にしないための印。
 	 */
 	readonly unobservable?: true;
+	/**
+	 * このケースが切り分けている**種別**。
+	 *
+	 * 結果から「その種別が拒否されるか」を引くために要る。
+	 * **「拒否されたケースの種別」は「拒否される種別」ではない。**
+	 * `unknown-field-code` は `SINGLE_LINE_TEXT` を渡すが、
+	 * 拒否理由はフィールドコードが無いことで、種別は無関係
+	 * （`toSetRecord.test.ts` がこの取り違えで落ちた。2026-09-08）。
+	 *
+	 * 種別を切り分けていないケース（`no-type` / `unknown-field-code` /
+	 * `lookup-extra-keys` / `id-revision`）には付けない。
+	 */
+	readonly isolates?: string;
 };
 
 /**
@@ -172,6 +185,7 @@ const DIFFERENT_VALUE: { readonly [type: string]: unknown } = {
 const readOnlyCases: SetCase[] = READ_ONLY_TYPES.map((type) => ({
 	id: `readonly-${type.toLowerCase()}`,
 	question: `読み取り専用の ${type} に別の値を渡す`,
+	isolates: type,
 	build: (codes) => {
 		const code = codes.byType[type];
 		if (code === undefined) return undefined;
@@ -201,6 +215,7 @@ export const SET_CASES: SetCase[] = [
 			if (code === undefined) return undefined;
 			return { [code]: { type: "DROP_DOWN", value: null } };
 		},
+		isolates: "DROP_DOWN",
 	},
 	{
 		id: "date-null",
@@ -211,6 +226,7 @@ export const SET_CASES: SetCase[] = [
 			if (code === undefined) return undefined;
 			return { [code]: { type: "DATE", value: null } };
 		},
+		isolates: "DATE",
 	},
 	{
 		id: "time-null",
@@ -221,6 +237,7 @@ export const SET_CASES: SetCase[] = [
 			if (code === undefined) return undefined;
 			return { [code]: { type: "TIME", value: null } };
 		},
+		isolates: "TIME",
 	},
 	{
 		id: "single-line-text-null",
@@ -231,6 +248,7 @@ export const SET_CASES: SetCase[] = [
 			if (code === undefined) return undefined;
 			return { [code]: { type: "SINGLE_LINE_TEXT", value: null } };
 		},
+		isolates: "SINGLE_LINE_TEXT",
 	},
 
 	// -------------------------------------------------------------------
@@ -262,6 +280,7 @@ export const SET_CASES: SetCase[] = [
 			if (code === undefined) return undefined;
 			return { [code]: { type: "CALC", value: "999999" } };
 		},
+		isolates: "CALC",
 	},
 
 	// -------------------------------------------------------------------
@@ -279,6 +298,7 @@ export const SET_CASES: SetCase[] = [
 		},
 		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
 		unobservable: true,
+		isolates: "FILE",
 	},
 	{
 		id: "file-key-only",
@@ -292,6 +312,7 @@ export const SET_CASES: SetCase[] = [
 		},
 		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
 		unobservable: true,
+		isolates: "FILE",
 	},
 	{
 		id: "file-empty",
@@ -302,6 +323,7 @@ export const SET_CASES: SetCase[] = [
 		},
 		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
 		unobservable: true,
+		isolates: "FILE",
 	},
 
 	// -------------------------------------------------------------------
@@ -317,6 +339,7 @@ export const SET_CASES: SetCase[] = [
 				[codes.subtable.code]: { type: "SUBTABLE", value: ROWS_KEEP_ID },
 			};
 		},
+		isolates: "SUBTABLE",
 	},
 	{
 		id: "subtable-drop-row-id",
@@ -328,6 +351,7 @@ export const SET_CASES: SetCase[] = [
 				[codes.subtable.code]: { type: "SUBTABLE", value: ROWS_DROP_ID },
 			};
 		},
+		isolates: "SUBTABLE",
 	},
 
 	// -------------------------------------------------------------------
