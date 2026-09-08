@@ -2673,7 +2673,7 @@ await withDialogsAccepted(page, async () => { … });
 
 ### ディレクトリを名指しで縛らない
 
-`test/tsconfig.test.ts` は「`e2e` が入っているか」ではなく
+`test/typecheckScope.test.ts` は「`e2e` が入っているか」ではなく
 **「`.ts` を置いた最上位ディレクトリが全部入っているか」**を縛る。
 名指しだと次に足すディレクトリで同じ穴が開く。この漏れの形は
 「ディレクトリを足したときに `include` を直し忘れる」なので、
@@ -2851,3 +2851,52 @@ await withDialogsAccepted(page, async () => { … });
 に変えた瞬間、`await Promise.resolve()` を 2 回挟んでいたテストが
 **空の出力を読んで落ちた**。段数に依存していた。
 `setImmediate` まで待てば、その時点のマイクロタスクは全部流れている。
+
+## typecheck を無効にすると、型テストは落ちずに消える
+
+`package.json` の `test` は `vitest run --typecheck` だった。
+`vitest.config.ts` に `typecheck.enabled: true` があるので、
+**フラグは二重指定**で、外しても型テストは走る（実測で確認）。
+
+外す前に、`enabled` 側が失われたときに何が起きるかを測った。
+
+| | ファイル | テスト |
+|---|--:|--:|
+| `enabled: true` | 16 | 356 |
+| `enabled: false` | **11** | **287** |
+
+**落ちるのではなく収集されなくなる。** 嘘の型主張
+（`expectTypeOf<string>().toEqualTypeOf<number>()`）を入れたまま緑になり、
+5 ファイル・69 テストが消えたことは表示されない。
+
+つまり `--typecheck` は「二重指定で無害」ではなく、
+**`enabled` が失われたときの保険**だった。消すなら別の保険が要る。
+
+`test/typecheckScope.test.ts`（`tsconfig.test.ts` から改名）に
+`typecheck.enabled === true` と、リポジトリ内の `*.test-d.ts` が
+全部 `include` に拾われていることを足した。
+`vitest.config.ts` は import できるので、正規表現ではなく実際の値で見る。
+
+門が 2 つあることを明示した。`tsc --noEmit` が見るのは
+**書いたコードが型として通るか**まで。「型がこの区別をしていること」を
+確かめているのは `*.test-d.ts` で、そちらは vitest が動かしている。
+**どちらも設定の 1 行で閉じる。**
+
+### glob を正規表現にするとき 1 回の走査で置き換える
+
+`**/` を別の文字に退避させてから戻す書き方にしたら、退避先に制御文字を
+使ったため biome の `noControlCharactersInRegex` に叱られた。
+普通の文字にするとパターン自体と衝突し得る。
+`replace` に関数を渡して 1 回の走査で処理する。
+
+### 変異ハーネスのコメント除去がまた値を食った（6 度目）
+
+`enabled: true` を `false` にする変異が「本体に対象が無い」で止まった。
+原因は変異ハーネス側のコメント除去で、`/\*[\s\S]*?\*\//` が
+**`"node_modules/**"` の `/\*` からブロックコメントとして食い始め**、
+`enabled: true` まで飲み込んでいた。
+
+[`型チェックの門は tsconfig の include 1 行で開く`](#型チェックの門は-tsconfig-の-include-1-行で開く) に
+「tsconfig を読むときブロックコメントは剥がせない」と書いたのと**同じ罠**を、
+今度はテスト側ではなく変異ハーネス側で踏んだ。
+glob を値に持つ設定ファイルでは、行頭がコメントの行だけを落とす。

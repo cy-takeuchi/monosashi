@@ -20,7 +20,7 @@
  * これを足すまで `e2e/` は型を誰にも見られておらず、
  * この JSDoc の主張は e2e 側については嘘だった
  * （`main.ts` の `satisfies` 側だけが効いていた）。
- * 漏れは `test/tsconfig.test.ts` が縛っている。
+ * 漏れは `test/typecheckScope.test.ts` が縛っている。
  *
  * ## 戻り値は JSON 直列化できるものだけ
  *

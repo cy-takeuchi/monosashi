@@ -18,7 +18,7 @@
 	// いなかった（`biome` は見るが lint と整形だけ）。`const x: number = "文字列"`
 	// を入れても `check` が緑になる状態で、`ProbeApi` を e2e が import している
 	// ことを根拠にした「片方だけ直すと tsc が落ちる」という主張が嘘だった。
-	// 漏れを test/tsconfig.test.ts が縛っている
+	// 漏れを test/typecheckScope.test.ts が縛っている
 	"include": [
 		"src/**/*",
 		"test/**/*",

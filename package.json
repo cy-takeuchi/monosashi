@@ -59,7 +59,7 @@
 		"probe:converter": "tsx tools/probe-write/verifyConverter.ts",
 		"app:deploy-probe": "tsx tools/fixture-app/deployProbe.ts",
 		"app:check-probe": "tsx tools/fixture-app/checkProbe.ts",
-		"test": "vitest run --typecheck",
+		"test": "vitest run",
 		"e2e": "playwright test",
 		"fixture:build": "tsx tools/fixture/build.ts",
 		"fixture:set-behavior": "tsx tools/fixture/setBehavior.ts",
