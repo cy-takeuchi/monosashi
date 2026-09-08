@@ -29,6 +29,9 @@ pnpm run check
 
 CI のワークフローにステップを並べない。定義は `package.json` の `check` 1 箇所に置く。
 
+`biome:check` は `--error-on-warnings` 付き。**警告でも落ちる**
+（付ける前は死んだコードが緑のまま通っていた）。
+
 ## 実行してはいけないこと
 
 | | 理由 |
@@ -44,19 +47,15 @@ CI のワークフローにステップを並べない。定義は `package.json
 
 ## 実測とドキュメントを混ぜない
 
-`kintone` グローバルの宣言（`src/kintone.ts`）は公式ドキュメントの
-**166 API すべて**を持つが、**実測が根拠なのは 4 個だけ**
-（`events.on` の event と `app.record.get` / `set` のレコード）。
+`src/kintone.ts` は公式ドキュメントの **166 API すべて**を宣言するが、
+**実測が根拠なのは 4 個だけ**（`events.on` の event と `record.get` / `set` のレコード）。
+残りはドキュメントを読んで書いたもので、**返る値の形は確かめていない**。
 
-残りは公式ドキュメントを読んで書いたもので、**返る値の形は確かめていない**。
 ドキュメント由来の型は `src/types/jsApi.ts` の `Api` 名前空間に分けてある。
+**測っていないものを、測ったふりで書かない。** JS API を足すときは
+どちらの根拠かを JSDoc に書く（実測なら採り直す、ドキュメントなら読み直す）。
 
-**測っていないものを、測ったふりで書かない。**
-JS API を足すときは、どちらの根拠かを JSDoc に書く。
-実測なら採り直す、ドキュメントなら読み直す、と直し方が変わるため。
-
-一覧は `test/jsApi.ts` の `OFFICIAL_JS_APIS` が持ち、
-`test/jsApi.test.ts` が宣言と突き合わせる（足りない・余っているの両方で落ちる）。
+一覧は `test/jsApi.ts` が持ち、`test/jsApi.test.ts` が宣言と突き合わせる。
 
 ## 直してはいけない「重複」
 
@@ -68,6 +67,20 @@ JS API を足すときは、どちらの根拠かを JSDoc に書く。
 
 ずれは `test/fieldTypes.ts` を軸に `test/coverage.test.ts` と
 `test/coverage.test-d.ts` が縛っている。種別を足すときは 4 箇所すべてに書く。
+
+## 書き込みは REST と `set()` で要件が違う
+
+`toRestWrite` と `toSetRecord` は**同じ実装を使い回さない**。
+落とすべきものが実測で違う（`fixtures/write-behavior.md` / `fixtures/set-behavior.md`）。
+
+| | REST | `set()` |
+|---|---|---|
+| 落とすのが必須 | 読み取り専用 8 種別 | **`CATEGORY` だけ** |
+| 行 `id` | 落とすと行が置き換わる | 落としても保たれる |
+| `type` | 付けない | **必ず付ける** |
+
+`REJECTED_ON_WRITE` を流用すると `set()` では厳しすぎ、逆は緩すぎる。
+片方を直したときにもう片方も直したくなるが、**根拠が別**。
 
 ## 守備範囲を広げない
 
@@ -104,11 +117,16 @@ JS API を足すときは、どちらの根拠かを JSDoc に書く。
   環境依存値を伏せるのは Node 側（`tools/fixture/normalize.ts`）
 - 正規化はフィールドの**コードではなく `type` で判定する**（組み込みのコードは言語で変わる）
 - 採取コードを二重に持たない。`probe-dist/probe.js` が唯一の成果物
+- **`set()` の失敗は例外にならない。** kintone が画面にエラーを出すだけで
+  呼び出し元には何も返らない。try/catch では何も測れない。
+  判定は e2e が画面を見て行う（`e2e/panel.ts`）
+- **probe を変えたら貼り直す。** `app:check-probe` が配信物のハッシュを
+  比べているので、貼り直すまで週次のライブ検証が失敗する
 
 ## 判断を記録する
 
 設計判断・実測で判明した制約・**測り方を間違えた記録**は
-[`docs/DECISIONS.md`](docs/DECISIONS.md) に残す（1200 行超）。
+[`docs/DECISIONS.md`](docs/DECISIONS.md) に残す（2500 行超）。
 
 新しい判断をしたら、実装だけでなくここに追記する。
 特に「試したが捨てた」ものは、同じ道を再び通らないために書く。
@@ -120,7 +138,7 @@ JS API を足すときは、どちらの根拠かを JSDoc に書く。
 | `src/types/` | 型の定義。`field` / `record` / `event` / `rest` / `loose` |
 | `src/guard/` | 型ガード |
 | `src/build/` | `field.*` の構築子と `setValue` |
-| `src/convert/` | JS API → REST の変換 |
+| `src/convert/` | REST / `set()` への変換。**落とす対象が違う** |
 | `src/probe/` | 実測の採取カスタマイズ（ブラウザで動く） |
 | `src/kintone.ts` | `kintone` グローバルの宣言。公式 166 API |
 | `src/types/jsApi.ts` | JS API の値の型。**根拠はドキュメント**。DOM を直接参照しない |
