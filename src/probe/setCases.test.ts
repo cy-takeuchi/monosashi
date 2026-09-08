@@ -27,6 +27,7 @@ const fullCodes: ResolvedCodes = {
 	file: {
 		code: "code_FILE",
 		first: { contentType: "text/plain", fileKey: "k", name: "n", size: "1" },
+		fromEvent: false,
 	},
 	found: "テスト用",
 };

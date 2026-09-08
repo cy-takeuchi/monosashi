@@ -86,11 +86,35 @@ const record = (
  */
 let blockSubmitWith: string | null = null;
 
+/**
+ * `event.record` で見えた FILE の値。フィールドコード → 添付の配列。
+ *
+ * **`kintone.app.record.get()` は編集画面で FILE を空配列で返す**（実測 2026-09-08）。
+ * レコードに添付があっても `value` が `[]` になり、
+ * `set()` の測定でその値を使えない。
+ *
+ * `event.record` 側には入っているので、show イベントで見えたものを覚えておく。
+ * 1 ケースごとにリロードするので、そのたびに show が飛んで更新される。
+ */
+let fileValuesFromEvent: { [code: string]: unknown[] } = {};
+
 on(EVENTS_WITH_RECORD, (event) => {
 	record(event.type, "event.record", event.record, {
 		envelope: probe(event),
 		structure: inspectStructure(event.record),
 	});
+
+	// FILE の中身を覚えておく（get() では取れないため）
+	const fromEvent: { [code: string]: unknown[] } = {};
+	for (const [code, field] of Object.entries(
+		event.record as { [code: string]: { type?: unknown; value?: unknown } },
+	)) {
+		if (field?.type !== "FILE") continue;
+		if (Array.isArray(field.value) && field.value.length > 0) {
+			fromEvent[code] = field.value;
+		}
+	}
+	if (Object.keys(fromEvent).length > 0) fileValuesFromEvent = fromEvent;
 
 	// submit 系は既定では event をそのまま返す。返さないと保存が止まる
 	if (blockSubmitWith === null || !event.type.endsWith(".submit")) {
@@ -302,10 +326,20 @@ const resolveCodes = (
 		}
 
 		if (field.type === "FILE" && file === undefined) {
-			const first = Array.isArray(field.value) ? field.value[0] : undefined;
+			// **get() は編集画面で FILE を空で返す**（実測 2026-09-08）。
+			// event.record で見えたものに落とす。無ければ諦める
+			const values =
+				Array.isArray(field.value) && field.value.length > 0
+					? field.value
+					: (fileValuesFromEvent[code] ?? []);
+			const first = values[0];
 			// 中身のある FILE でないと 4 キーを渡すケースが作れない
 			if (typeof first === "object" && first !== null) {
-				file = { code, first: first as Record<string, unknown> };
+				file = {
+					code,
+					first: first as Record<string, unknown>,
+					fromEvent: !(Array.isArray(field.value) && field.value.length > 0),
+				};
 			}
 		}
 	}

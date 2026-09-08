@@ -50,6 +50,14 @@ export type ResolvedCodes = {
 		| {
 				readonly code: string;
 				readonly first: Readonly<Record<string, unknown>>;
+				/**
+				 * `event.record` から採ったか。
+				 *
+				 * **`get()` は編集画面で FILE を空配列で返す**（実測 2026-09-08）。
+				 * その場合だけ `event.record` で見えた値に落とすので、
+				 * どちらを使ったかを結果に残す。
+				 */
+				readonly fromEvent: boolean;
 		  }
 		| undefined;
 	/**
