@@ -268,6 +268,72 @@ if (record[code] === undefined || !guard.isSubtable(record[code])) return;
 | `isGroupSelect` | `GROUP_SELECT` |
 | `isSubtable` | `SUBTABLE` |
 
+#### 緩いレコードからでも `value` まで絞れる
+
+`SavedRecord` / `EditingRecord` / `RestRecord` から引いたときは
+**入力の型がそのまま保たれる**（`Saved` から引けば `Saved` の型に絞られる）。
+
+`LooseRecord`（`{ [code: string]: { type: string; value: unknown } }`）から
+引いたときは、`value` が **3 文脈の union** になる。
+
+```ts
+import { guard, type LooseRecord } from "monosashi";
+
+declare const record: LooseRecord;   // 自前ヘルパの引数など
+
+const table = record[code];
+if (guard.isSubtable(table)) {
+  table.value.length;          // 行の配列に絞れている
+}
+
+const text = record[code];
+if (guard.isSingleLineText(text)) {
+  text.value;                  // string | undefined（Editing だけ undefined を持つ）
+  if (guard.hasValue(text)) {
+    text.value.trim();         // string
+  }
+}
+```
+
+`Editing` だけが「一度も値が設定されていないフィールドの `value` が undefined」
+という性質を持つので、文脈が分からないときはその可能性が残る。
+`hasValue` を重ねれば落ちる。
+
+#### `undefined` が付くかは「どの画面か」ではなく「どう取ったか」で決まる
+
+同じ**編集画面**でも、レコードの取り方で `value` の型が変わる。実測。
+
+| 取り方 | `value` が undefined のフィールド |
+|---|--:|
+| `app.record.edit.show` の `event.record` | **0 / 54** |
+| `kintone.app.record.get()` | **21 / 54** |
+| `app.record.edit.change.*` の `event.record` | 20〜28 / 54〜71 |
+| `app.record.edit.submit` の `event.record` | 21 / 54 |
+| `app.record.edit.submit.success` の `event.record` | **0 / 54** |
+| REST の `getRecord` | **0 / 54** |
+
+`edit.show` はサーバから来たレコードなので全フィールドに値がある（`SavedRecord`）。
+`kintone.app.record.get()` は**編集中のフォームの状態**を返すので、
+一度も値が入っていないフィールドは `value` が `undefined` になる（`EditingRecord`）。
+
+型もそのとおりに分かれている。
+
+```ts
+kintone.events.on("app.record.edit.show", (event) => {
+  const f = event.record[code];             // SavedRecord
+  if (guard.isSingleLineText(f)) f.value;   // string
+  return event;
+});
+
+const got = kintone.app.record.get();       // EditingRecord
+if (got !== null) {
+  const f = got.record[code];
+  if (guard.isSingleLineText(f)) f.value;   // string | undefined
+}
+```
+
+**「編集画面だから」では決まらない。** これが実測を根拠にしている理由のひとつ。
+
 #### `type` を見ない 2 つ
 
 | ガード | 判定の根拠 |

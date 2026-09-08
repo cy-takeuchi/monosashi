@@ -1760,8 +1760,174 @@ const fn = (guards as { [key: string]: unknown })[toGuardName(type)];
 | `test/coverage.test.ts` | 関数が在って `type` で判別すること（消したら落ちる） |
 | `src/guard/record.test.ts` | 実測データを取りこぼさず、他種別を混入させないこと |
 
+### 「表を作る」と「エクスポートから拾う」の使い分け
+
+`src/guard/guard.test-d.ts` の型テストは、逆に**表を持たずに**
+`keyof typeof guards` で全ガードを拾っている。矛盾ではない。
+
+| | やり方 | 理由 |
+|---|---|---|
+| `type` からガードを引く（実行時） | **表**（`GUARD_OF`） | 種別が軸。名前を文字列操作で作ると型検査が消える |
+| ガードを全部数える（型レベル） | **エクスポートから拾う** | ガードが軸。`keyof typeof` は型安全で、足せば自動で対象になる |
+
+分かれ目は**文字列を組み立てるかどうか**。
+`is${camelCase(type)}` は型の外での組み立てで、外れても分からない。
+`keyof typeof guards` は組み立てていないので外れようがない。
+
 `isLookup` と `hasValue` は表に入れない。**`type` で判定していない**ため。
 ルックアップのキーフィールドの `type` は元フィールドの型そのもので、
 通常のフィールドと区別がつかない（`confirmed` / `recordId` の有無で見る）。
 `hasValue` は `value !== undefined` で、種別に紐づかない。
 種別ごとの検査の対象にならないので個別にテストする。
+
+## 緩いレコードでガードが value を絞っていなかった
+
+**2026-09-08。** `LooseRecord` から引いたフィールドをガードに通しても、
+`value` が `unknown` のまま残っていた。
+
+```ts
+declare const record: LooseRecord;
+const table = record[code];
+if (isSubtable(table)) table.value.length;   // TS18046: 'unknown'
+```
+
+`Narrow` の緩い入力向けの分岐が `T & { type: Type }` で、
+**`type` しか絞っていなかった**ため。
+
+`LooseRecord` は「変換・代入・ガードの入力型。自前のヘルパを書くときに
+同じ骨格を再定義しなくて済むよう公開する」としているのに、
+**そこでガードが効かないなら公開した意味が無い**。
+
+`Saved` / `Editing` / `Rest` から引いた場合は `Extract` が効くので問題なかった。
+穴は緩い入力のときだけ。
+
+**決定**: `InAnyContext<Type>`（3 文脈のうちその `type` を持つもの）と
+交差させて `value` まで絞る。`unknown & FileInformation[]` は
+`FileInformation[]` になるので、3 文脈の value の union が残る。
+
+### 型テストが弱くて気づけなかった
+
+この経路の型テストは**存在していた**。主張が弱かった。
+
+```ts
+if (isSubtable(f)) {
+  expectTypeOf(f.value).not.toBeNever();   // unknown は never ではないので通る
+}
+```
+
+`not.toBeNever()` は「絞り込みが壊れて never になっていないか」しか見ない。
+**`unknown` のまま素通りしていることは検出できない。**
+
+`toEqualTypeOf<string | undefined>()` のように**何に絞られるか**を書き、
+`f.value.trim()` のような**実際の使い方**も置いた。
+`Narrow` を元に戻すと 2 件落ちることを確認した。
+
+`not.toBeXxx()` 系の主張は、この種の「弱いまま通る」を作りやすい。
+
+### 3 文脈を 1 つに畳めるか測った → 畳めない
+
+union の表示が長くなるので、最も広い 1 つに畳めないかを確かめた。
+
+| | |
+|---|---|
+| `Saved` は `Editing` に代入できる | **できる** |
+| `Rest` は `Editing` に代入できる | **できない** |
+
+`Rest` が外れるのはサブテーブルで、`SubtableRow` の `id` が
+`Rest` では `string`、`Editing` では `string \| null`、
+さらに行の中身（`InSubtable`）の union も違うため。
+
+畳めないので 3 つとも残す。代償として、種別を間違えたときのエラーが
+
+```
+Type 'SubtableRow<...>[] | SubtableRow<...>[] | SubtableRow<...>[]'
+  is not assignable to type 'string'.
+```
+
+のように同じ形の重複を含む。2 行目は読めるので許容する。
+`Saved` は `Editing` の部分型なので落とせなくもないが、
+その関係が保たれることを別に縛る必要が出るので、
+**表示のためだけに不変条件を増やさない**。
+
+## undefined が付くかは画面ではなく取り方で決まる
+
+**2026-09-08。** 「編集画面なら `value` は `string` だけで `undefined` にならないのでは」
+という問いを受けて、フィクスチャを数え直した。**画面では決まらない。**
+
+| 取り方（PC 編集画面） | `value` が undefined |
+|---|--:|
+| `app.record.edit.show` の `event.record` | **0 / 54** |
+| `kintone.app.record.get()` | **21 / 54** |
+| `app.record.edit.change.*` の `event.record` | 20〜28 / 54〜71 |
+| `app.record.edit.submit` の `event.record` | 21 / 54 |
+| `app.record.edit.submit.success` の `event.record` | **0 / 54** |
+| REST の `getRecord` | **0 / 54** |
+
+同じ画面の同じレコードでも、`edit.show` の `event.record` と
+`kintone.app.record.get()` で違う。
+前者はサーバから来たもの、後者は編集中のフォームの状態を返すため。
+
+型は既にこのとおりに分かれていた（`edit.show` → `SavedRecord`、
+`get()` → `EditingRecord`）ので**修正は無い**。README に表を足した。
+
+「編集画面だから」「詳細画面だから」で推測すると外れる、という
+このリポジトリの主張のもう一つの実例。
+
+## 型テストの主張が弱いと素通りする
+
+**2026-09-08。** 続けて 2 件見つかった。どちらも
+**テストは在るのに、主張が弱くて壊れても緑**というもの。
+
+| 主張 | 何を見逃すか |
+|---|---|
+| `expectTypeOf(f.value).not.toBeNever()` | `unknown` のまま残っていても通る |
+| `Extract<U, { disabled: unknown }>` が never | **optional** で生えた `disabled?:` を通す |
+
+2 つ目は制御した例で測った。
+
+| | `disabled?: boolean`（optional） | `disabled: boolean`（必須） |
+|---|---|---|
+| `Extract<U, { disabled: unknown }>` | **拾えない** | 拾える |
+| `K extends keyof U` で見る | 拾える | 拾える |
+
+`@kintone/dts-gen` の `fieldTypes` は **optional で** `disabled?` / `error?` を持つ。
+引き写しが混入したときに拾えないと意味が無いので、`keyof` で見る形にした。
+`Saved.Link` に両方の形で生やして、どちらも落ちることを確認した。
+
+### 変異が当たっていないのに結論を出しかけた
+
+この 2 つ目を調べる過程で、`field.ts` に仕込んだつもりの変異が
+**一度も当たっていなかった**（`Time` の実際の定義は `FieldOf<"TIME", string | null>`
+で、`FieldOf<"TIME", string>` を探していた）。
+それに気づかず「`Extract` は optional を素通りする」と結論しかけた。
+結論自体は別の測り直しで正しかったが、**根拠は無効だった**。
+
+変異テストは「落ちなかった」を根拠にするので、
+**仕込みが当たったことを先に確かめないと、何も測っていないのと同じになる**。
+以後、変異を入れたら適用結果を表示してから走らせる。
+
+## kintone-typeguard のテストから採ったもの
+
+依頼元のリポジトリ（`cy-takeuchi/kintone-typeguard`）の
+`src/test/vitest/typeguard.test.ts` を読んで、取り入れたものと採らなかったものを残す。
+
+**採った**
+
+- `@ts-expect-error` で「**通ってはいけない**」ことを主張する
+  （`field.value[0].disabled` が生えていないこと）。
+  こちらは 11 箇所で既に使っていたが、`disabled` / `error` は
+  `Saved.SingleLineText` の 1 種別しか縛っていなかった。union 全体に広げた
+- ガードで絞った先の型を `expectTypeOf` で確かめる。
+  向こうは種別を数個書いているが、こちらは**全ガードを総当たり**にした
+  （エクスポートから型述語を拾うので、ガードを足せば自動で対象になる）
+
+**採らなかった**
+
+- **実 kintone に接続するユニットテスト。** 向こうは `beforeAll` でアプリを作り、
+  REST でレコードを採ってから検証する。
+  こちらは凍結したフィクスチャに対してだけ走らせ、実接続は
+  e2e と週次のライブ検証に分けている（Q6）。
+  認証情報なしで数秒で回せることを優先する
+- **`guardFormField`（フォーム設定のガード）。** 守備範囲外。
+  フォーム設定は実測の対象にしていない
+
