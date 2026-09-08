@@ -1636,3 +1636,72 @@ dts-gen が `HTMLElement` を返しており、既存のカスタマイズは
 `Element` に広げると**その呼び出しが全部落ちる**。
 移行のたびに `as HTMLElement` を書かせることになり、
 `as` を減らすというこのライブラリの目的と正反対になる。
+
+## 緩いレコードでガードが value を絞っていなかった
+
+**2026-09-08。** `LooseRecord` から引いたフィールドをガードに通しても、
+`value` が `unknown` のまま残っていた。
+
+```ts
+declare const record: LooseRecord;
+const table = record[code];
+if (isSubtable(table)) table.value.length;   // TS18046: 'unknown'
+```
+
+`Narrow` の緩い入力向けの分岐が `T & { type: Type }` で、
+**`type` しか絞っていなかった**ため。
+
+`LooseRecord` は「変換・代入・ガードの入力型。自前のヘルパを書くときに
+同じ骨格を再定義しなくて済むよう公開する」としているのに、
+**そこでガードが効かないなら公開した意味が無い**。
+
+`Saved` / `Editing` / `Rest` から引いた場合は `Extract` が効くので問題なかった。
+穴は緩い入力のときだけ。
+
+**決定**: `InAnyContext<Type>`（3 文脈のうちその `type` を持つもの）と
+交差させて `value` まで絞る。`unknown & FileInformation[]` は
+`FileInformation[]` になるので、3 文脈の value の union が残る。
+
+### 型テストが弱くて気づけなかった
+
+この経路の型テストは**存在していた**。主張が弱かった。
+
+```ts
+if (isSubtable(f)) {
+  expectTypeOf(f.value).not.toBeNever();   // unknown は never ではないので通る
+}
+```
+
+`not.toBeNever()` は「絞り込みが壊れて never になっていないか」しか見ない。
+**`unknown` のまま素通りしていることは検出できない。**
+
+`toEqualTypeOf<string | undefined>()` のように**何に絞られるか**を書き、
+`f.value.trim()` のような**実際の使い方**も置いた。
+`Narrow` を元に戻すと 2 件落ちることを確認した。
+
+`not.toBeXxx()` 系の主張は、この種の「弱いまま通る」を作りやすい。
+
+### 3 文脈を 1 つに畳めるか測った → 畳めない
+
+union の表示が長くなるので、最も広い 1 つに畳めないかを確かめた。
+
+| | |
+|---|---|
+| `Saved` は `Editing` に代入できる | **できる** |
+| `Rest` は `Editing` に代入できる | **できない** |
+
+`Rest` が外れるのはサブテーブルで、`SubtableRow` の `id` が
+`Rest` では `string`、`Editing` では `string \| null`、
+さらに行の中身（`InSubtable`）の union も違うため。
+
+畳めないので 3 つとも残す。代償として、種別を間違えたときのエラーが
+
+```
+Type 'SubtableRow<...>[] | SubtableRow<...>[] | SubtableRow<...>[]'
+  is not assignable to type 'string'.
+```
+
+のように同じ形の重複を含む。2 行目は読めるので許容する。
+`Saved` は `Editing` の部分型なので落とせなくもないが、
+その関係が保たれることを別に縛る必要が出るので、
+**表示のためだけに不変条件を増やさない**。

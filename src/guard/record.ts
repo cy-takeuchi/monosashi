@@ -1,4 +1,4 @@
-import type { Editing, Saved } from "../types/field.js";
+import type { Editing, Rest, Saved } from "../types/field.js";
 import type { LooseField } from "../types/loose.js";
 
 /**
@@ -24,17 +24,57 @@ import type { LooseField } from "../types/loose.js";
  */
 
 /**
+ * 3 文脈のどれかで、その `type` を持ちうるフィールド。
+ *
+ * `value` の型は文脈で違う（`Editing` だけ `undefined` を持つなど）ので、
+ * 緩い入力から絞るときはその union になる。
+ * さらに絞りたければ `hasValue` を重ねる。
+ */
+type InAnyContext<Type extends string> = Extract<
+	Saved.OneOf | Editing.OneOf | Rest.OneOf,
+	{ type: Type }
+>;
+
+/**
  * 入力の型を保ったまま、指定した type のものに絞り込む。
  *
- * ユニオンから該当メンバーを取り出すのが基本だが、
- * 入力が `{ type: string }` のような緩い型のときは Extract が never になり
- * 絞り込みが機能しなくなる。プラグインのコードでは
- * 緩い型のレコードを扱う場面が多いので、その場合は交差型に倒す。
+ * ## ユニオンならそこから取り出す
+ *
+ * `SavedRecord` / `EditingRecord` / `RestRecord` から引いたフィールドは
+ * 28 種別のユニオンなので、`Extract` で該当メンバーが取れる。
+ * 入力の型をそのまま保つので、`Saved` から引けば `Saved` の、
+ * `Editing` から引けば `Editing` の型に絞られる。
+ *
+ * ## 緩い入力では value も絞る
+ *
+ * `LooseField`（`{ type: string; value: unknown }`）が入力のときは
+ * `Extract` が `never` になる。`type: string` は `type: "SUBTABLE"` に
+ * 代入できないため。
+ *
+ * ここで以前は `T & { type: Type }` に倒していたが、**value が unknown のまま残る**。
+ *
+ * ```ts
+ * declare const record: LooseRecord;         // 自前ヘルパの引数
+ * const table = record[code];
+ * if (isSubtable(table)) table.value.length; // TS18046: 'unknown'
+ * ```
+ *
+ * `LooseRecord` は「自前のヘルパを書くときに骨格を再定義しなくて済むよう」
+ * 公開しているのに、そこでガードが効かないと公開した意味が無い。
+ *
+ * `InAnyContext` と交差させて value まで絞る。
+ * `unknown & FileInformation[]` は `FileInformation[]` になるので、
+ * 3 文脈の value の union が残る。
+ *
+ * 28 種別に無い `type` を渡した場合は `InAnyContext` が `never` になるので、
+ * そのときだけ元の交差型に戻す（`type` だけは絞れる）。
  */
 type Narrow<T, Type extends string> = [Extract<T, { type: Type }>] extends [
 	never,
 ]
-	? T & { type: Type }
+	? [InAnyContext<Type>] extends [never]
+		? T & { type: Type }
+		: T & InAnyContext<Type>
 	: Extract<T, { type: Type }>;
 
 const is =

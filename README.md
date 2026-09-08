@@ -268,6 +268,37 @@ if (record[code] === undefined || !guard.isSubtable(record[code])) return;
 | `isGroupSelect` | `GROUP_SELECT` |
 | `isSubtable` | `SUBTABLE` |
 
+#### 緩いレコードからでも `value` まで絞れる
+
+`SavedRecord` / `EditingRecord` / `RestRecord` から引いたときは
+**入力の型がそのまま保たれる**（`Saved` から引けば `Saved` の型に絞られる）。
+
+`LooseRecord`（`{ [code: string]: { type: string; value: unknown } }`）から
+引いたときは、`value` が **3 文脈の union** になる。
+
+```ts
+import { guard, type LooseRecord } from "monosashi";
+
+declare const record: LooseRecord;   // 自前ヘルパの引数など
+
+const table = record[code];
+if (guard.isSubtable(table)) {
+  table.value.length;          // 行の配列に絞れている
+}
+
+const text = record[code];
+if (guard.isSingleLineText(text)) {
+  text.value;                  // string | undefined（Editing だけ undefined を持つ）
+  if (guard.hasValue(text)) {
+    text.value.trim();         // string
+  }
+}
+```
+
+`Editing` だけが「一度も値が設定されていないフィールドの `value` が undefined」
+という性質を持つので、文脈が分からないときはその可能性が残る。
+`hasValue` を重ねれば落ちる。
+
 #### `type` を見ない 2 つ
 
 | ガード | 判定の根拠 |
