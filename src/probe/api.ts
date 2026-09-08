@@ -16,6 +16,12 @@
  * `main.ts` が `satisfies ProbeApi` で代入し、e2e はこの型を import する。
  * 片方だけ直すと `tsc` が落ちる。
  *
+ * **ただしそれは `tsconfig.json` の `include` に `e2e` が入っている前提。**
+ * これを足すまで `e2e/` は型を誰にも見られておらず、
+ * この JSDoc の主張は e2e 側については嘘だった
+ * （`main.ts` の `satisfies` 側だけが効いていた）。
+ * 漏れは `test/tsconfig.test.ts` が縛っている。
+ *
  * ## 戻り値は JSON 直列化できるものだけ
  *
  * `page.evaluate` の戻り値は JSON を通るので、関数やクラスは落ちて空になる。
