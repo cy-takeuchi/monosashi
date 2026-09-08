@@ -52,6 +52,11 @@ env $(env | grep -o '^[A-Z_]*=op://' | sed 's/=op:\/\//\ /' | sed 's/^/-u /') \
   op run --account <アカウント> --env-file=.env -- pnpm run <script>
 ```
 
+**このリポジトリでは `--account my.1password.com`。**
+`.env` の参照が `op://Private/...` で、`Private` は個人アカウントの既定 vault のため。
+`OP_ACCOUNT` に業務アカウントが入っている環境では、
+明示しないと `"Private" isn't a vault in this account` で落ちる。
+
 **`--account` を明示するのは、環境変数 `OP_ACCOUNT` を上書きするため。**
 `OP_ACCOUNT` がユーザー全体（`~/.claude/settings.json` など）で設定されていると
 そのアカウントだけを探しに行くので、このリポジトリで別のアカウントを使いたい場合に必要になる。
