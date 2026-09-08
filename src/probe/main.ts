@@ -345,85 +345,88 @@ const materialize = (
 };
 
 /**
- * `SET_CASES` を順に `set()` へ渡して、結果を記録する。
+ * 1 ケースだけ `set()` へ渡して、渡したものと前後の値を記録する。
  *
- * ## 1 ケースずつ前を読み直す
+ * ## なぜ 1 ケースずつなのか
  *
- * 前のケースの `set()` が画面を書き換えているので、
- * `before` はケースごとに `get()` し直す。
- * 最初に 1 回だけ読むと、2 件目以降の `before` が実態とずれる。
+ * **一度 kintone のエラー表示が出ると、後続の `set()` も失敗する。**
+ * 21 ケースをまとめて回すと最初の失敗が残り全部を汚染し、
+ * 「どのケースが原因か」が分からなくなる（2026-09-08 に実際そうなった）。
  *
- * ## 例外で止めない
+ * e2e が 1 ケースごとに編集画面を読み直してから呼ぶ。
  *
- * 途中のケースで落ちても残りを続ける。
- * 「どのケースで落ちたか」を知るために測っているので、
- * 1 件目で止まると何も分からない。
+ * ## 成否を返さない
+ *
+ * `set()` に不正な値を渡しても**例外は飛ばない**。
+ * kintone が画面にエラーを出すだけで、呼び出し元には何も返らない
+ * （`e2e/panel.ts` に既に記録がある）。
+ *
+ * だから判定は e2e 側が行う。ここは材料を残すだけ。
+ * try/catch は置かない。**置くと「捕まえられる」という誤解が残る。**
+ *
+ * @returns 走らせたら true、対象が無くて飛ばしたら false
  */
-const captureSetBehavior = (): void => {
-	for (const setCase of SET_CASES) {
-		const screen = sampleScreen();
-		const base = {
-			id: setCase.id,
-			question: setCase.question,
-			at: new Date().toISOString(),
-			isMobile: isMobile(),
-			screen,
-		};
+const runSetCase = (id: string): boolean => {
+	const setCase = SET_CASES.find((candidate) => candidate.id === id);
+	if (setCase === undefined) throw new Error(`ケース ${id} がありません`);
 
-		const before = getRecordViaJsApi() as
-			| Record<string, { type?: unknown; value?: unknown }>
-			| undefined;
-		if (before === undefined) {
-			store.addSetCase({
-				...base,
-				threw: false,
-				skipped: "レコードを取得できません",
-			});
-			continue;
-		}
+	const screen = sampleScreen();
+	const base = {
+		id: setCase.id,
+		question: setCase.question,
+		at: new Date().toISOString(),
+		isMobile: isMobile(),
+		screen,
+	};
 
-		const codes = resolveCodes(before);
-		const patch = setCase.build(codes);
-		if (patch === undefined) {
-			store.addSetCase({
-				...base,
-				threw: false,
-				skipped: "この画面に対象のフィールドが無い",
-			});
-			continue;
-		}
+	const before = getRecordViaJsApi() as
+		| Record<string, { type?: unknown; value?: unknown }>
+		| undefined;
+	if (before === undefined) {
+		store.addSetCase({ ...base, skipped: "レコードを取得できません" });
+		return false;
+	}
 
-		const sent = materialize(patch, before);
-		const watched = setCase.watch?.(codes) ?? Object.keys(sent);
-		const pick = (
-			rec: Record<string, { type?: unknown; value?: unknown }> | undefined,
-		): unknown =>
-			Object.fromEntries(watched.map((code) => [code, rec?.[code]]));
-
-		const beforeWatched = pick(before);
-		let threw = false;
-		let message: string | undefined;
-		try {
-			setRecordViaJsApi(sent);
-		} catch (error) {
-			threw = true;
-			message = error instanceof Error ? error.message : String(error);
-		}
-
-		// 例外が出ても読み直す。「投げたが値は変わっていた」を見逃さないため
-		const after = getRecordViaJsApi() as
-			| Record<string, { type?: unknown; value?: unknown }>
-			| undefined;
-
+	const codes = resolveCodes(before);
+	const patch = setCase.build(codes);
+	if (patch === undefined) {
 		store.addSetCase({
 			...base,
-			sent: probe(sent),
-			threw,
-			...(message === undefined ? {} : { message }),
-			before: probe(beforeWatched),
-			after: probe(pick(after)),
+			skipped: "この画面に対象のフィールドが無い",
 		});
+		return false;
 	}
+
+	const sent = materialize(patch, before);
+	const watched = setCase.watch?.(codes) ?? Object.keys(sent);
+	const pick = (
+		rec: Record<string, { type?: unknown; value?: unknown }> | undefined,
+	): unknown => Object.fromEntries(watched.map((code) => [code, rec?.[code]]));
+
+	const beforeWatched = pick(before);
+
+	// **先に記録してから set() を呼ぶ。**
+	// set() がページを壊してもここまでは残る。あとで書くと、
+	// 落ちたケースの「渡したもの」が失われて原因が追えない
+	store.addSetCase({
+		...base,
+		sent: probe(sent),
+		before: probe(beforeWatched),
+	});
+
+	setRecordViaJsApi(sent);
+
+	// set() が失敗していても読み直せる。値が変わったかを見るため
+	const after = getRecordViaJsApi() as
+		| Record<string, { type?: unknown; value?: unknown }>
+		| undefined;
+	store.addSetCase({
+		...base,
+		sent: probe(sent),
+		before: probe(beforeWatched),
+		after: probe(pick(after)),
+	});
+	return true;
 };
 
 /**
@@ -917,13 +920,6 @@ const boot = (event: { type?: string }): unknown => {
 						text: "必須を埋める",
 						run: fillRequired,
 					},
-					{
-						// **最後に置く。** 読み取り専用フィールドや不正な値を渡すので、
-						// 画面が汚れる。ほかの採取を先に済ませてから押す
-						id: ACTION.setBehavior,
-						text: "set() の受け入れを測る",
-						run: captureSetBehavior,
-					},
 				];
 			// set() は作成 / 編集画面でしか動かない
 			case "screen.edit":
@@ -967,13 +963,6 @@ const boot = (event: { type?: string }): unknown => {
 						id: ACTION.fillRequired,
 						text: "必須を埋める",
 						run: fillRequired,
-					},
-					{
-						// **最後に置く。** 読み取り専用フィールドや不正な値を渡すので、
-						// 画面が汚れる。ほかの採取を先に済ませてから押す
-						id: ACTION.setBehavior,
-						text: "set() の受け入れを測る",
-						run: captureSetBehavior,
 					},
 				];
 			default:
@@ -1062,6 +1051,17 @@ on(
 	changeEvents: (): string[] => registeredChangeEvents,
 	/** 判定された画面。ボタンの出し分けがこれに依存している */
 	screen: (): string => screenName(),
+
+	/**
+	 * set() の受け入れ挙動を測る口（#14）。
+	 *
+	 * **パネルのボタンにしない。** 1 ケースごとに画面を読み直す必要があり、
+	 * それは probe 側からはできない。まとめて走らせると最初の失敗が
+	 * 残り全部を汚染する。
+	 */
+	setCaseIds: (): string[] => SET_CASES.map(({ id }) => id),
+	runSetCase,
+	markSetCase: store.markSetCase,
 
 	/**
 	 * UI 操作の前後で発火した change イベントを拾うための口。

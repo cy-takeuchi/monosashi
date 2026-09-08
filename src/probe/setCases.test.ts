@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { OBSERVED_FIELD_TYPES } from "../../test/fieldTypes";
 import { canSetValue } from "../build/setValue.js";
@@ -163,6 +164,30 @@ describe("何を測ろうとしているか", () => {
 		);
 		const field = Object.values(patch ?? {})[0] as object;
 		expect("type" in field).toBe(false);
+	});
+});
+
+describe("失敗の検出は probe 側では行わない", () => {
+	// **set() に不正な値を渡しても例外は飛ばない。**
+	// kintone が画面にエラーを出すだけで、呼び出し元には何も返らない
+	// （e2e/panel.ts に既に記録がある。2026-09-08 に実際に踏んだ）。
+	//
+	// try/catch を置くと「捕まえられる」という誤解が残るので置かない。
+	// ここが落ちたら、その誤解に戻りかけている
+	test("probe に try/catch を置いていない", () => {
+		const source = readFileSync("src/probe/main.ts", "utf8");
+		const runSetCase = source.slice(
+			source.indexOf("const runSetCase = "),
+			source.indexOf("let changeEventCount"),
+		);
+		expect(runSetCase).not.toContain("try {");
+		expect(runSetCase).not.toContain("catch");
+	});
+
+	test("判定は errorShown で受け取る形になっている", () => {
+		const source = readFileSync("src/probe/store.ts", "utf8");
+		expect(source).toContain("errorShown");
+		expect(source).toContain("markSetCase");
 	});
 });
 

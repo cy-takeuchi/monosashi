@@ -33,6 +33,9 @@ type ProbeApi = {
 	endWatch: (label: string) => void;
 	rowCount: () => number;
 	blockNextSubmit: (message: string) => void;
+	setCaseIds: () => string[];
+	runSetCase: (id: string) => boolean;
+	markSetCase: (id: string, errorShown: boolean) => void;
 };
 
 /**
@@ -704,4 +707,74 @@ const inlineCellInput = async (
 		);
 	}
 	return box.first();
+};
+
+/**
+ * `set()` の受け入れ挙動を 1 ケースずつ測る（#14）。
+ *
+ * ## なぜ 1 ケースずつ画面を読み直すのか
+ *
+ * `set()` は不正な値を渡しても**例外を投げない**。
+ * kintone が画面にエラーを出すだけで、probe 側では検出できない。
+ * さらに **一度その表示が出ると後続の `set()` も失敗する**。
+ *
+ * まとめて回すと最初の失敗が残り全部を汚染し、
+ * 「どのケースが原因か」が分からなくなる（2026-09-08 に実際そうなった）。
+ *
+ * だからケースごとに
+ *
+ *   1. 編集画面を読み直す（前のエラー表示を消す）
+ *   2. 1 ケースだけ走らせる
+ *   3. エラー表示が出たかを見て、probe に書き戻す
+ *
+ * を繰り返す。**`click()` は使わない。**
+ * あれは「エラーが出ていないこと」を成功の条件にしているので、
+ * エラーを出させて測るこの用途では必ず落ちる。
+ */
+export const measureSetBehavior = async (
+	page: Page,
+	app: string,
+	recordId: string,
+): Promise<number> => {
+	const open = async (): Promise<void> => {
+		await page.goto(`/k/${app}/show#record=${recordId}&mode=edit`);
+		await waitForPanel(page, "screen.edit");
+	};
+
+	await open();
+	const ids = await page.evaluate(() =>
+		(
+			window as unknown as { __kintoneRecordProbe: ProbeApi }
+		).__kintoneRecordProbe.setCaseIds(),
+	);
+
+	let measured = 0;
+	for (const id of ids) {
+		// 2 件目以降は読み直す。1 件目は open() 済み
+		if (measured > 0) await open();
+
+		const ran = await page.evaluate(
+			(caseId) =>
+				(
+					window as unknown as { __kintoneRecordProbe: ProbeApi }
+				).__kintoneRecordProbe.runSetCase(caseId),
+			id,
+		);
+		if (!ran) continue; // この画面に対象が無い。skipped として記録済み
+
+		// **エラー表示の有無を数える。** count が 0 かどうかだけを見る。
+		// 文言は汎用（どのフィールドが原因かは出ない）なので、
+		// 1 ケースずつ走らせていることが対応づけの根拠になる
+		const shown = (await page.getByText(CUSTOMIZE_ERROR).count()) > 0;
+
+		await page.evaluate(
+			({ caseId, errorShown }) =>
+				(
+					window as unknown as { __kintoneRecordProbe: ProbeApi }
+				).__kintoneRecordProbe.markSetCase(caseId, errorShown),
+			{ caseId: id, errorShown: shown },
+		);
+		measured += 1;
+	}
+	return measured;
 };

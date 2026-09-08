@@ -19,6 +19,7 @@ import {
 	exportSamples,
 	measureBlockedSubmit,
 	measureInlineEdit,
+	measureSetBehavior,
 	measureUiCellChange,
 	measureUiFieldChange,
 	measureUiRowChange,
@@ -420,23 +421,22 @@ test("実 kintone から採取する", async ({ page }) => {
 
 	// --- set() の受け入れ挙動（#14）-------------------------------------------
 	// **必ず最後に、専用のレコードで測る。**
-	// 読み取り専用フィールドや不正な値を渡すので、フォームが汚れる。
-	// 途中に混ぜると、そのあとの保存が失敗して採取全体が壊れる。
+	// 不正な値を渡すので kintone のカスタマイズエラー表示が出る。
+	// 一度出ると後続の set() も失敗するので、途中に混ぜると採取全体が壊れる。
 	//
 	// 保存しない。測るのは「set() が何を受け付けるか」で、
-	// 保存できるかどうかは別の話（REST 側は write-behavior.md で測ってある）。
+	// 保存できるかは別の話（REST 側は write-behavior.md で測ってある）。
 	const setProbeRecord = await createClient().record.addRecord({
 		app,
 		record: { singleLineTextRequired: { value: "set() の受け入れ測定用" } },
 	});
 	createdRecordIds.push(setProbeRecord.id);
 
-	await page.goto(`/k/${app}/show#record=${setProbeRecord.id}&mode=edit`);
-	await waitForPanel(page, "screen.edit");
-	await click(page, ACTION.setBehavior);
+	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id);
+	expect(measuredCases).toBeGreaterThan(0);
 
-	// 汚れたフォームから離れるので、離脱確認が出たら受け入れる。
-	// Playwright は既定で window.confirm をキャンセルするため、明示的に accept する
+	// 汚れた編集画面から離れる。離脱確認が出たら受け入れる。
+	// Playwright は既定で window.confirm をキャンセルするので明示的に accept する
 	page.once("dialog", (dialog) => {
 		void dialog.accept();
 	});
@@ -453,6 +453,13 @@ test("実 kintone から採取する", async ({ page }) => {
 	// 0 件だと「測ったが全部飛ばされた」と「ボタンを押していない」の
 	// 区別がつかない。押した以上は何か記録されているはず
 	expect(store.setBehavior?.length ?? 0).toBeGreaterThan(0);
+	// **判定が付いていることを確かめる。** errorShown が無いと
+	// fixture:set-behavior が結論を出せない
+	expect(
+		(store.setBehavior ?? []).filter(
+			(result) => (result as { errorShown?: unknown }).errorShown !== undefined,
+		).length,
+	).toBeGreaterThan(0);
 
 	mkdirSync(OUT_DIR, { recursive: true });
 	writeFileSync(`${OUT_DIR}/raw.json`, json);

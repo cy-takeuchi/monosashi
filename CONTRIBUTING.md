@@ -197,6 +197,10 @@ pnpm run fixture:build                              # 正規化
 pnpm run fixture:set-behavior                       # fixtures/set-behavior.md を生成
 ```
 
+**判定は e2e が行う。** probe は set() の失敗を検出できない
+（不正な値でも例外が飛ばず、kintone が画面にエラーを出すだけ）。
+手でボタンを押して走らせる口は用意していない。
+
 ケース定義だけなら実 kintone なしで検査できる。
 
 ```sh
