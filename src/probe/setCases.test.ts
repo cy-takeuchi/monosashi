@@ -18,6 +18,28 @@ import {
  * 「その確かめ方では答えが出ない」という手戻りを、実測の前に見つける。
  */
 
+/**
+ * ソースを読んで検査するときの下ごしらえ。
+ *
+ * ## 探す前に「そこに在る」ことを確かめる
+ *
+ * `main.ts` から `runSetCase.ts` へ切り出したとき、
+ * 対象を `main.ts` のまま探していたのに**テストは緑だった**。
+ * 空文字列を検査していただけで、何も守っていなかった（2026-09-08）。
+ *
+ * `anchor` が見つからなければ落とす。
+ *
+ * ## コメントを外す
+ *
+ * 「try/catch を置かない」のような方針は JSDoc で説明しているので、
+ * 素朴に文字列で探すと**自分の説明文に当たる**。
+ */
+const codeOf = (path: string, anchor: string): string => {
+	const source = readFileSync(path, "utf8");
+	expect(source, `${path} に ${anchor} が無い`).toContain(anchor);
+	return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+};
+
 /** 全種別が載った検証アプリを模したもの */
 const fullCodes: ResolvedCodes = {
 	byType: Object.fromEntries(
@@ -215,19 +237,17 @@ describe("失敗の検出は probe 側では行わない", () => {
 	// try/catch を置くと「捕まえられる」という誤解が残るので置かない。
 	// ここが落ちたら、その誤解に戻りかけている
 	test("probe に try/catch を置いていない", () => {
-		const source = readFileSync("src/probe/main.ts", "utf8");
-		const runSetCase = source.slice(
-			source.indexOf("const runSetCase = "),
-			source.indexOf("let changeEventCount"),
+		const code = codeOf(
+			"src/probe/runSetCase.ts",
+			"export const runSetCase = ",
 		);
-		expect(runSetCase).not.toContain("try {");
-		expect(runSetCase).not.toContain("catch");
+		expect(code).not.toContain("try {");
+		expect(code).not.toContain("catch");
 	});
 
 	test("判定は errorShown で受け取る形になっている", () => {
-		const source = readFileSync("src/probe/store.ts", "utf8");
-		expect(source).toContain("errorShown");
-		expect(source).toContain("markSetCase");
+		const code = codeOf("src/probe/store.ts", "export const markSetCase");
+		expect(code).toContain("errorShown");
 	});
 });
 
@@ -291,8 +311,8 @@ describe("測定用レコードの作り方", () => {
 	//
 	// unique な種別が増えたら、ここが落ちて差し替え漏れに気づける
 	test("unique なフィールドは測定用レコードで差し替えている", () => {
-		const fields = readFileSync("tools/fixture-app/fields.ts", "utf8");
-		const spec = readFileSync("e2e/collect.spec.ts", "utf8");
+		const fields = codeOf("tools/fixture-app/fields.ts", "unique: true");
+		const spec = codeOf("e2e/collect.spec.ts", "filledRecord(probeFileKeys");
 		const probeBlock = spec.slice(spec.indexOf("filledRecord(probeFileKeys"));
 
 		// アプリ本体の unique フィールドを拾う（参照先アプリの分は除く）
@@ -321,7 +341,7 @@ describe("dialog リスナーを漏らさない", () => {
 	// 登録したら必ず外す。ソースを読んで、登録の数だけ解除があることを見る
 	test("dialog を登録した数だけ page.off がある", () => {
 		for (const file of ["e2e/panel.ts", "e2e/collect.spec.ts"]) {
-			const source = readFileSync(file, "utf8");
+			const source = codeOf(file, "page.");
 			const registered = [...source.matchAll(/page\.(?:on|once)\("dialog"/g)]
 				.length;
 			const removed = [...source.matchAll(/page\.off\("dialog"/g)].length;
@@ -333,7 +353,7 @@ describe("dialog リスナーを漏らさない", () => {
 });
 
 describe("目印は値として区別できる", () => {
-	// materialize（main.ts）が `=== CURRENT_VALUE` で判定するので、
+	// materialize（runSetCase.ts）が `=== CURRENT_VALUE` で判定するので、
 	// 実データと衝突しないことが前提になる。Symbol なら衝突しない
 	test("目印が互いに別物", () => {
 		const marks = [CURRENT_VALUE, ROWS_KEEP_ID, ROWS_DROP_ID];
