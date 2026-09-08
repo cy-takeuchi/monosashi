@@ -231,6 +231,30 @@ describe("失敗の検出は probe 側では行わない", () => {
 	});
 });
 
+describe("観測できないケースに印が付いている", () => {
+	// **`get()` は編集画面で FILE を空配列で返す**（実測 2026-09-08）。
+	// 印が無いと「変わらなかった」と「見えていない」を取り違えて
+	// 「無視された」という誤った結論が基準になる
+	test("FILE のケースは unobservable", () => {
+		const fileCases = SET_CASES.filter(({ id }) => id.startsWith("file-"));
+		expect(fileCases.length).toBeGreaterThan(0);
+
+		const unmarked = fileCases
+			.filter(({ unobservable }) => unobservable !== true)
+			.map(({ id }) => id);
+		expect(unmarked).toEqual([]);
+	});
+
+	// 観測できるケースに印を付けると、変化を見なくなって検出力が落ちる
+	test("FILE 以外には印を付けていない", () => {
+		const marked = SET_CASES.filter(
+			({ id, unobservable }) =>
+				unobservable === true && !id.startsWith("file-"),
+		).map(({ id }) => id);
+		expect(marked).toEqual([]);
+	});
+});
+
 describe("ケースごとに画面を作り直す", () => {
 	// **`page.goto` では作り直されない。** ハッシュだけが違う同じ URL への
 	// 遷移はリロードにならないので、前のケースのエラー表示が残る

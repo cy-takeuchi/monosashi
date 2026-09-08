@@ -112,6 +112,25 @@ export type SetCaseResult = {
 	 * 結論を出す前に `fixture:set-behavior` が弾く。
 	 */
 	errorShown?: boolean;
+	/**
+	 * サブテーブルの行 id が前後で保たれたか。
+	 *
+	 * **行 id は正規化で `<row-id>` に伏せられる**ので、
+	 * `before` / `after` を並べても比較できない。
+	 * 真偽値は環境に依らないので、probe 側で比べて残す。
+	 *
+	 * 監視対象にサブテーブルが無ければ `undefined`。
+	 */
+	rowIdsPreserved?: boolean;
+	/**
+	 * 前後の値を観測できるか。
+	 *
+	 * **`kintone.app.record.get()` は編集画面で FILE を空配列で返す**
+	 * （実測 2026-09-08）。この経路で観測できないフィールドは
+	 * 「変わらなかった」と「見えていない」の区別がつかないので、
+	 * 結論を「無視された」にしてはいけない。
+	 */
+	observable?: boolean;
 	/** 採取時刻。正規化で伏せられる */
 	at: string;
 	isMobile: boolean;

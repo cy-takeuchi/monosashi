@@ -487,11 +487,36 @@ const runSetCase = (id: string): boolean => {
 	const after = getRecordViaJsApi() as
 		| Record<string, { type?: unknown; value?: unknown }>
 		| undefined;
+
+	// **行 id は正規化で伏せられるので、ここで比べて真偽値を残す。**
+	// before / after を並べても `<row-id>` 同士になって比較できない
+	const rowIds = (
+		rec: Record<string, { type?: unknown; value?: unknown }> | undefined,
+	): string | undefined => {
+		const codes = watched.filter((code) => rec?.[code]?.type === "SUBTABLE");
+		if (codes.length === 0) return undefined;
+		return codes
+			.map((code) => {
+				const rows = rec?.[code]?.value;
+				const ids = Array.isArray(rows)
+					? rows.map((row) => String((row as { id?: unknown }).id))
+					: [];
+				return `${code}:${ids.join(",")}`;
+			})
+			.join(" ");
+	};
+	const idsBefore = rowIds(before);
+	const idsAfter = rowIds(after);
+
 	store.addSetCase({
 		...base,
 		sent: probe(sent),
 		before: probe(beforeWatched),
 		after: probe(pick(after)),
+		...(idsBefore === undefined
+			? {}
+			: { rowIdsPreserved: idsBefore === idsAfter }),
+		...(setCase.unobservable === true ? { observable: false } : {}),
 	});
 	return true;
 };

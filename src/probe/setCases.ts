@@ -89,6 +89,14 @@ export type SetCase = {
 	 * 「A を渡したら B が変わった」を見たいときだけ指定する。
 	 */
 	readonly watch?: (codes: ResolvedCodes) => readonly string[];
+	/**
+	 * 前後の値を `get()` で観測できないケース。
+	 *
+	 * **FILE は `get()` が常に空配列を返す**（実測 2026-09-08）。
+	 * 「変わらなかった」と「見えていない」の区別がつかないので、
+	 * 結論を「無視された」にしないための印。
+	 */
+	readonly unobservable?: true;
 };
 
 /**
@@ -269,6 +277,8 @@ export const SET_CASES: SetCase[] = [
 				[codes.file.code]: { type: "FILE", value: [codes.file.first] },
 			};
 		},
+		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
+		unobservable: true,
 	},
 	{
 		id: "file-key-only",
@@ -280,6 +290,8 @@ export const SET_CASES: SetCase[] = [
 			if (typeof fileKey !== "string") return undefined;
 			return { [codes.file.code]: { type: "FILE", value: [{ fileKey }] } };
 		},
+		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
+		unobservable: true,
 	},
 	{
 		id: "file-empty",
@@ -288,6 +300,8 @@ export const SET_CASES: SetCase[] = [
 			if (codes.file === undefined) return undefined;
 			return { [codes.file.code]: { type: "FILE", value: [] } };
 		},
+		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
+		unobservable: true,
 	},
 
 	// -------------------------------------------------------------------
