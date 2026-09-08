@@ -130,6 +130,8 @@ JS API を足すときは、どちらの根拠かを JSDoc に書く。
 | `tools/package/` | `pack:check` |
 | `e2e/` | Playwright。実 kintone を操作して採取する |
 | `fixtures/measured.json` | 実測データ。型の唯一の根拠 |
+| `fixtures/write-behavior.md` | REST 書き込みの受け入れ挙動（20 ケース） |
+| `fixtures/set-behavior.md` | `set()` の受け入れ挙動（22 ケース） |
 
 ## コミット
 

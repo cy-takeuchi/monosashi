@@ -36,6 +36,7 @@ type ProbeApi = {
 	setCaseIds: () => string[];
 	runSetCase: (id: string) => boolean;
 	markSetCase: (id: string, errorShown: boolean) => void;
+	suppressSamples: (on: boolean) => void;
 };
 
 /**
@@ -46,17 +47,37 @@ type ProbeApi = {
  * 呼び出しはすべてブラウザ側で完結させ、結果の値だけを受け取る。
  */
 
+/**
+ * 画面が切り替わってパネルが出るまでの待ち時間。
+ *
+ * ここが待つのは 4 つの合計。**Playwright の既定（5 秒）では足りない。**
+ *
+ *   1. 遷移
+ *   2. ページの読み込み
+ *   3. kintone のカスタマイズの起動
+ *   4. パネルの描画と画面判定
+ *
+ * 保存直後の詳細画面への遷移で 5 秒を超えて落ちた（2026-09-08）。
+ * ログインが 14 秒かかった実行で、環境が遅い日に当たると起きる。
+ *
+ * `expect` はポーリングなので、速いときにこの値が待ち時間になることはない。
+ * 短く見積もる利点が無いぶん、実際にかかりうる時間に合わせる。
+ */
+const PANEL_TIMEOUT_MS = 30_000;
+
 /** パネルが描画され、change ハンドラの登録が終わるまで待つ */
 export const waitForPanel = async (
 	page: Page,
 	expectedScreen: string,
 ): Promise<void> => {
 	const panel = page.locator(`[data-testid="${PANEL}"]`);
-	await panel.waitFor({ state: "visible" });
+	await panel.waitFor({ state: "visible", timeout: PANEL_TIMEOUT_MS });
 
 	// ボタンの出し分けが画面判定に依存している。
 	// 想定と違う画面のまま採取が進むと、採れないものを採ったつもりになる
-	await expect(panel).toHaveAttribute("data-screen", expectedScreen);
+	await expect(panel).toHaveAttribute("data-screen", expectedScreen, {
+		timeout: PANEL_TIMEOUT_MS,
+	});
 
 	// change ハンドラの登録は getFieldCodes を待つので非同期。
 	// 待たずに set() 系を実行すると、発火していても件数が 0 になり
@@ -748,6 +769,14 @@ export const measureSetBehavior = async (
 	page: Page,
 	app: string,
 	recordId: string,
+	/**
+	 * 測定後に移動する先。
+	 *
+	 * **自動採取を止めたまま離れ、着地まで待つ**ため、ここで受け取る。
+	 * 呼び出し側で移動すると、その画面の show が採られて 1 件増える。
+	 * show は読み込み完了より後に飛ぶので、着地の待機までここに含める。
+	 */
+	options: { readonly leaveTo: string; readonly leaveScreen: string },
 ): Promise<number> => {
 	// **`page.once` は使えない。** 21 回遷移するので 1 回では足りず、
 	// 発火しなかった場合は武装したまま残って後続を横取りする。
@@ -757,13 +786,36 @@ export const measureSetBehavior = async (
 	};
 	page.on("dialog", acceptAll);
 
-	const open = async (): Promise<void> => {
-		await page.goto(`/k/${app}/show#record=${recordId}&mode=edit`);
+	// **`page.goto` では画面が作り直されない。**
+	// ハッシュだけが違う同じ URL への遷移はリロードにならないので、
+	// 前のケースで出た kintone のエラー表示が残り、次のケースに数えられる
+	// （2026-09-08 に開始時チェックが検出した）。
+	// 2 件目以降は `reload()` にする。
+	const open = async (first: boolean): Promise<void> => {
+		if (first) {
+			await page.goto(`/k/${app}/show#record=${recordId}&mode=edit`);
+		} else {
+			await page.reload();
+		}
 		await waitForPanel(page, "screen.edit");
 	};
 
+	// **最初の遷移より前に止める。**
+	// リロードのたびに show イベントが飛ぶので、止めないと同じ文脈の
+	// サンプルが 20 件以上積み上がり、情報は増えないのに measured.json が
+	// 膨らんで週次の差分が読めなくなる。
+	//
+	// フラグは localStorage なので、いま開いている画面で立てれば
+	// 遷移後も効く。**開いてから立てると 1 件目の show が採られてしまう**
+	// （2026-09-08 に 1 件だけ増えたのがこれ）
+	await page.evaluate(() =>
+		(
+			window as unknown as { __kintoneRecordProbe: ProbeApi }
+		).__kintoneRecordProbe.suppressSamples(true),
+	);
+
 	try {
-		await open();
+		await open(true);
 		const ids = await page.evaluate(() =>
 			(
 				window as unknown as { __kintoneRecordProbe: ProbeApi }
@@ -773,7 +825,17 @@ export const measureSetBehavior = async (
 		let measured = 0;
 		for (const id of ids) {
 			// 2 件目以降は読み直す。1 件目は open() 済み
-			if (measured > 0) await open();
+			if (measured > 0) await open(false);
+
+			// **開始時にエラー表示が消えていることを確かめる。**
+			// 消えていなければ前のケースの残りを次のケースに数えてしまい、
+			// 誤った結論が基準になる。
+			// 「リロードで消えるはず」を前提にせず、毎回確かめる。
+			// ここで落ちたら、読み直しの方法を変える必要がある（reload / 別画面経由）
+			await assertNoCustomizeError(
+				page,
+				`set() のケース ${id} を始める前（前のケースのエラー表示が残っている）`,
+			);
 
 			const ran = await page.evaluate(
 				(caseId) =>
@@ -798,8 +860,24 @@ export const measureSetBehavior = async (
 			);
 			measured += 1;
 		}
+		// **止めたまま離れ、着地まで待つ。**
+		// 汚れた編集画面から出るので離脱確認が出るが、
+		// この関数が張っている acceptAll がまだ効いている。
+		//
+		// **`goto` の解決だけでは足りない。** kintone の show イベントは
+		// 読み込み完了より後に飛ぶので、待たずに停止を解除すると
+		// 着地先のサンプルが 1 件採られる（2026-09-08 に 1 件増えた）
+		await page.goto(options.leaveTo);
+		await waitForPanel(page, options.leaveScreen);
 		return measured;
 	} finally {
+		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。
+		// 例外で抜けた場合も含めて戻すために finally に置く
+		await page.evaluate(() =>
+			(
+				window as unknown as { __kintoneRecordProbe: ProbeApi }
+			).__kintoneRecordProbe.suppressSamples(false),
+		);
 		page.off("dialog", acceptAll);
 	}
 };

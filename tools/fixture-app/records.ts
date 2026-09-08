@@ -28,6 +28,11 @@ export const emptyRecord = (): Record<string, { value: unknown }> => ({
 /**
  * 全項目入力済みレコード。
  *
+ * **`singleLineTextUnique` は重複禁止（`unique: true`）。**
+ * これを 2 件目として作るときは値を差し替えないと
+ * `[400] [CB_VA01] 入力内容が正しくありません。` で落ちる
+ * （2026-09-08 に踏んだ。set() の測定用レコードを追加で作ったとき）。
+ *
  * fileKey は実行時にアップロードして差し込むため引数で受ける。
  * kintone の fileKey は 1 回しか使えないため、添付を置く箇所の数だけ必要。
  * ここでは本体の file と サブテーブル1行目の t_file で 2 つ使う。

@@ -112,6 +112,25 @@ export type SetCaseResult = {
 	 * 結論を出す前に `fixture:set-behavior` が弾く。
 	 */
 	errorShown?: boolean;
+	/**
+	 * サブテーブルの行 id が前後で保たれたか。
+	 *
+	 * **行 id は正規化で `<row-id>` に伏せられる**ので、
+	 * `before` / `after` を並べても比較できない。
+	 * 真偽値は環境に依らないので、probe 側で比べて残す。
+	 *
+	 * 監視対象にサブテーブルが無ければ `undefined`。
+	 */
+	rowIdsPreserved?: boolean;
+	/**
+	 * 前後の値を観測できるか。
+	 *
+	 * **`kintone.app.record.get()` は編集画面で FILE を空配列で返す**
+	 * （実測 2026-09-08）。この経路で観測できないフィールドは
+	 * 「変わらなかった」と「見えていない」の区別がつかないので、
+	 * 結論を「無視された」にしてはいけない。
+	 */
+	observable?: boolean;
 	/** 採取時刻。正規化で伏せられる */
 	at: string;
 	isMobile: boolean;
@@ -160,9 +179,39 @@ const save = (store: ProbeStore): void => {
  * 包む前の生レコードに対して stringify しないことが要点（serialize.ts の冒頭を参照）。
  */
 export const add = (sample: Sample): void => {
+	// **set() の測定中は自動採取を止める。**
+	// 測定は 1 ケースごとに編集画面をリロードするので、
+	// そのたびに show イベントが飛んで同じ文脈のサンプルが積み上がる。
+	// 情報は増えないのに measured.json が膨らみ、週次の差分が読めなくなる。
+	//
+	// localStorage に置くのは、リロードを跨いで効かせる必要があるため。
+	// show イベントはページ読み込み中に飛ぶので、
+	// e2e が毎回フラグを立て直す形にはできない
+	if (isSuppressed()) return;
 	const store = load();
 	store.samples.push(sample);
 	save(store);
+};
+
+const SUPPRESS_KEY = `${STORAGE_KEY}/suppress`;
+
+const isSuppressed = (): boolean => {
+	try {
+		return localStorage.getItem(SUPPRESS_KEY) === "1";
+	} catch {
+		return false;
+	}
+};
+
+/**
+ * 自動採取の停止を切り替える（e2e から呼ぶ）。
+ *
+ * 止めるのは `add`（サンプル）だけ。
+ * `addSetCase` は測定そのものなので止めない。
+ */
+export const suppressSamples = (on: boolean): void => {
+	if (on) localStorage.setItem(SUPPRESS_KEY, "1");
+	else localStorage.removeItem(SUPPRESS_KEY);
 };
 
 /**
@@ -197,6 +246,7 @@ export const markSetCase = (id: string, errorShown: boolean): void => {
 };
 
 export const clear = (): void => {
+	suppressSamples(false);
 	localStorage.removeItem(STORAGE_KEY);
 };
 

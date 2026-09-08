@@ -104,6 +104,10 @@ const verdict = (result: SetCaseResult): string => {
 	// 「エラーが出なかった」と取り違えると誤った結論が基準になる
 	if (result.errorShown === undefined) return "判定なし";
 	if (result.errorShown) return "**拒否**";
+	// **観測できないものを「無視された」と書かない。**
+	// get() が値を見せないフィールド（FILE）は、
+	// 変わらなかったのか見えていないのかが区別できない
+	if (result.observable === false) return "エラーなし（変化は未観測）";
 	if (values(result.before) === values(result.after)) return "無視された";
 	return "受け入れ";
 };
@@ -154,8 +158,15 @@ const main = (): void => {
 			result.skipped === undefined
 				? [cell(values(result.before), 34), cell(values(result.after), 34)]
 				: [cell(result.skipped, 34), ""];
+		// 行 id の比較は真偽値でしか残せない（正規化で伏せられるため）
+		const rowIds =
+			result.rowIdsPreserved === undefined
+				? ""
+				: result.rowIdsPreserved
+					? " ／ 行 id は保たれた"
+					: " ／ **行 id が変わった**";
 		lines.push(
-			`| ${cell(result.question, 80)} | ${result.screen} | ${verdict(result)} | ${note[0]} | ${note[1]} |`,
+			`| ${cell(result.question, 80)} | ${result.screen} | ${verdict(result)}${rowIds} | ${note[0]} | ${note[1]} |`,
 		);
 	}
 
@@ -179,6 +190,9 @@ const main = (): void => {
 	lines.push("| **拒否** | kintone がエラーを表示した |");
 	lines.push("| 無視された | エラーは出ないが値も変わらない |");
 	lines.push("| 受け入れ | エラーも出ず、値が変わった |");
+	lines.push(
+		"| エラーなし（変化は未観測） | エラーは出ないが、`get()` がその値を見せない（FILE） |",
+	);
 	lines.push("| 判定なし | e2e を通していない（手動実行など） |");
 	lines.push("| 測っていない | その画面に対象のフィールドが無い |");
 	lines.push("");

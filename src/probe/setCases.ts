@@ -50,8 +50,25 @@ export type ResolvedCodes = {
 		| {
 				readonly code: string;
 				readonly first: Readonly<Record<string, unknown>>;
+				/**
+				 * `event.record` から採ったか。
+				 *
+				 * **`get()` は編集画面で FILE を空配列で返す**（実測 2026-09-08）。
+				 * その場合だけ `event.record` で見えた値に落とすので、
+				 * どちらを使ったかを結果に残す。
+				 */
+				readonly fromEvent: boolean;
 		  }
 		| undefined;
+	/**
+	 * 何が見つかったかの覚え書き。**飛ばした理由に添える。**
+	 *
+	 * 「この画面に対象のフィールドが無い」だけだと、
+	 * フィールドが無いのか、あるが中身が空なのかが分からない。
+	 * 2026-09-08 に FILE のケースが 2 回続けて飛び、
+	 * **もう 1 回走らせないと理由が分からない**状態になった。
+	 */
+	readonly found: string;
 };
 
 export type SetCase = {
@@ -72,6 +89,14 @@ export type SetCase = {
 	 * 「A を渡したら B が変わった」を見たいときだけ指定する。
 	 */
 	readonly watch?: (codes: ResolvedCodes) => readonly string[];
+	/**
+	 * 前後の値を `get()` で観測できないケース。
+	 *
+	 * **FILE は `get()` が常に空配列を返す**（実測 2026-09-08）。
+	 * 「変わらなかった」と「見えていない」の区別がつかないので、
+	 * 結論を「無視された」にしないための印。
+	 */
+	readonly unobservable?: true;
 };
 
 /**
@@ -82,8 +107,21 @@ export type SetCase = {
  */
 export const CURRENT_VALUE = Symbol("現在の値をそのまま使う");
 
-/** 「行 id を外す」の目印。実際の加工は実行側が行う */
-export const STRIP_ROW_IDS = Symbol("サブテーブルの行 id を外す");
+/**
+ * サブテーブルの行を組み立て直す目印。
+ *
+ * どちらも**セルを 1 つ書き換える**。同じ行をそのまま渡すと
+ * 前後が一致してしまい、「id が保たれた」のか「まるごと無視された」のかが
+ * 区別できない（読み取り専用のケースと同じ理由）。
+ *
+ * 書き換えるセルは `type` が `SINGLE_LINE_TEXT` の最初のもの。
+ * フィールドコードは我々が決めたものなので当てにしない。
+ */
+export const ROWS_KEEP_ID = Symbol("行 id を保ったまま、セルを 1 つ書き換える");
+export const ROWS_DROP_ID = Symbol("行 id を外して、セルを 1 つ書き換える");
+
+/** 上の 2 つがセルに入れる値。前後の差として読める文字列にする */
+export const EDITED_CELL = "set() で書き換えたセル";
 
 /** 読み取り専用として REST が拒否した種別（`fixtures/write-behavior.md`）*/
 const READ_ONLY_TYPES = [
@@ -98,22 +136,46 @@ const READ_ONLY_TYPES = [
 ] as const;
 
 /**
- * 読み取り専用フィールドを 1 種別ずつ渡すケース。
+ * 読み取り専用の種別ごとに、**いまと違う値**を渡す。
  *
- * まとめて 1 ケースにすると「どれが拒否されたか」が分からない。
- * REST 版も 1 種別ずつ投げている。
+ * ## なぜ「get() の値をそのまま」ではだめだったか
  *
- * 値は `get()` で読んだものをそのまま返す。
- * 別の値を作ると「値が不正だから拒否された」のか
+ * 最初は現在の値をそのまま返していた。**変わらないのが当たり前**で、
+ * 「無視された」としか記録できず、
+ * **書き換えられるのかどうかが分からない**（2026-09-08 に踏んだ）。
+ *
+ * 違う値を渡すと 3 つに分かれる。
+ *
+ * | 結果 | 意味 |
+ * |---|---|
+ * | エラー表示 | 種別として拒否される |
+ * | 値が変わった | **書き換えられてしまう**（落とさないと画面が壊れる） |
+ * | 値が変わらない | 黙って無視される |
+ *
+ * ## 型ごとに「明らかに違う値」を用意する
+ *
+ * `VALUE_SHAPE` が受け付ける形に合わせる。形を外すと
+ * 「値の形が不正だから拒否された」のか
  * 「種別として拒否された」のかが混ざる。
  */
+const DIFFERENT_VALUE: { readonly [type: string]: unknown } = {
+	RECORD_NUMBER: "SET-9999",
+	CREATOR: { code: "no-such-user", name: "実測用の別人" },
+	CREATED_TIME: "2000-01-01T00:00:00Z",
+	MODIFIER: { code: "no-such-user", name: "実測用の別人" },
+	UPDATED_TIME: "2000-01-01T00:00:00Z",
+	STATUS: "実測用の別ステータス",
+	STATUS_ASSIGNEE: [{ code: "no-such-user", name: "実測用の別人" }],
+	CATEGORY: ["実測用の別カテゴリー"],
+};
+
 const readOnlyCases: SetCase[] = READ_ONLY_TYPES.map((type) => ({
 	id: `readonly-${type.toLowerCase()}`,
-	question: `読み取り専用の ${type} を渡す（値は get() のまま）`,
+	question: `読み取り専用の ${type} に別の値を渡す`,
 	build: (codes) => {
 		const code = codes.byType[type];
 		if (code === undefined) return undefined;
-		return { [code]: { type, value: CURRENT_VALUE } };
+		return { [code]: { type, value: DIFFERENT_VALUE[type] } };
 	},
 }));
 
@@ -133,7 +195,7 @@ export const SET_CASES: SetCase[] = [
 	{
 		id: "dropdown-null",
 		question:
-			"DROP_DOWN に null を渡す（REST の未入力表現。JS API は '' なので変換が要るか）",
+			"値が入った DROP_DOWN に null を渡す（REST の未入力表現。消えるか無視されるか）",
 		build: (codes) => {
 			const code = codes.byType.DROP_DOWN;
 			if (code === undefined) return undefined;
@@ -163,7 +225,7 @@ export const SET_CASES: SetCase[] = [
 	{
 		id: "single-line-text-null",
 		question:
-			"SINGLE_LINE_TEXT に null を渡す（string 型なので null は想定外。対照として測る）",
+			"値が入った SINGLE_LINE_TEXT に null を渡す（string 型なので想定外。対照）",
 		build: (codes) => {
 			const code = codes.byType.SINGLE_LINE_TEXT;
 			if (code === undefined) return undefined;
@@ -177,26 +239,28 @@ export const SET_CASES: SetCase[] = [
 	...readOnlyCases,
 	{
 		id: "id-revision",
-		question: "$id / $revision をレコードに含めて渡す",
+		question: "$id / $revision に別の値を渡す（書き換えられてしまうか）",
 		build: (codes) => {
 			const id = codes.byType.__ID__;
 			const revision = codes.byType.__REVISION__;
 			if (id === undefined && revision === undefined) return undefined;
 			const out: Record<string, unknown> = {};
-			if (id !== undefined) out[id] = { type: "__ID__", value: CURRENT_VALUE };
+			// 現在の値をそのまま渡すと変化が読めない（読み取り専用のケースと同じ理由）
+			if (id !== undefined) out[id] = { type: "__ID__", value: "999999" };
 			if (revision !== undefined) {
-				out[revision] = { type: "__REVISION__", value: CURRENT_VALUE };
+				out[revision] = { type: "__REVISION__", value: "999" };
 			}
 			return out;
 		},
 	},
 	{
 		id: "calc",
-		question: "CALC を渡す（REST は受け入れて無視する。set() は別 API）",
+		question:
+			"CALC に別の値を渡す（REST は受け入れて無視する。set() は別 API）",
 		build: (codes) => {
 			const code = codes.byType.CALC;
 			if (code === undefined) return undefined;
-			return { [code]: { type: "CALC", value: CURRENT_VALUE } };
+			return { [code]: { type: "CALC", value: "999999" } };
 		},
 	},
 
@@ -213,6 +277,8 @@ export const SET_CASES: SetCase[] = [
 				[codes.file.code]: { type: "FILE", value: [codes.file.first] },
 			};
 		},
+		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
+		unobservable: true,
 	},
 	{
 		id: "file-key-only",
@@ -224,6 +290,8 @@ export const SET_CASES: SetCase[] = [
 			if (typeof fileKey !== "string") return undefined;
 			return { [codes.file.code]: { type: "FILE", value: [{ fileKey }] } };
 		},
+		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
+		unobservable: true,
 	},
 	{
 		id: "file-empty",
@@ -232,6 +300,8 @@ export const SET_CASES: SetCase[] = [
 			if (codes.file === undefined) return undefined;
 			return { [codes.file.code]: { type: "FILE", value: [] } };
 		},
+		// get() は編集画面で FILE を空配列で返すので、前後を比べられない
+		unobservable: true,
 	},
 
 	// -------------------------------------------------------------------
@@ -239,25 +309,23 @@ export const SET_CASES: SetCase[] = [
 	// -------------------------------------------------------------------
 	{
 		id: "subtable-keep-row-id",
-		question: "サブテーブルの行に既存の id を付けて渡す（id が保たれるか）",
+		question:
+			"行 id を付けたままセルを書き換える（id が保たれるか。REST の行をそのまま渡せるか）",
 		build: (codes) => {
 			if (codes.subtable === undefined) return undefined;
 			return {
-				[codes.subtable.code]: { type: "SUBTABLE", value: CURRENT_VALUE },
+				[codes.subtable.code]: { type: "SUBTABLE", value: ROWS_KEEP_ID },
 			};
 		},
 	},
 	{
 		id: "subtable-drop-row-id",
 		question:
-			"サブテーブルの行から id を外して渡す（行が置き換わるか、id が振り直されるか）",
+			"行 id を外してセルを書き換える（id が振り直されるか、行が置き換わるか）",
 		build: (codes) => {
 			if (codes.subtable === undefined) return undefined;
 			return {
-				[codes.subtable.code]: {
-					type: "SUBTABLE",
-					value: STRIP_ROW_IDS,
-				},
+				[codes.subtable.code]: { type: "SUBTABLE", value: ROWS_DROP_ID },
 			};
 		},
 	},
@@ -268,14 +336,16 @@ export const SET_CASES: SetCase[] = [
 	{
 		id: "lookup-extra-keys",
 		question:
-			"ルックアップのキーに confirmed / recordId を付けたまま渡す（JS API 由来をそのまま渡した場合）",
+			"confirmed / recordId を付けたまま渡す（JS API 由来をそのまま渡した場合）",
 		build: (codes) => {
 			const code = codes.byType.SINGLE_LINE_TEXT;
 			if (code === undefined) return undefined;
 			return {
 				[code]: {
+					// 値も変える。同じ値だと「余分なキーのせいで無視された」のか
+					// 「もともと変わらない」のかが分からない
 					type: "SINGLE_LINE_TEXT",
-					value: CURRENT_VALUE,
+					value: "余分なキー付きで渡した値",
 					confirmed: true,
 					recordId: "1",
 				},

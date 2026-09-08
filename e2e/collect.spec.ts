@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { type Dialog, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
+import { FILE_SLOT_COUNT, filledRecord } from "../tools/fixture-app/records";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
 import {
@@ -426,30 +427,46 @@ test("実 kintone から採取する", async ({ page }) => {
 	//
 	// 保存しない。測るのは「set() が何を受け付けるか」で、
 	// 保存できるかは別の話（REST 側は write-behavior.md で測ってある）。
-	const setProbeRecord = await createClient().record.addRecord({
+	// **全項目入力済みのレコードで測る。**
+	// 必須だけ埋めた空のレコードで測ったら、19 ケース中 17 件が「変化なし」に
+	// なった（2026-09-08）。before が undefined なので、
+	// **無視されたのか適用されたのかが区別できない**。
+	// 添付が無いので FILE のケースも 3 件とも飛んだ。
+	//
+	// `filledRecord` は検証アプリの構築で使っているものと同じ。
+	// 添付ファイルも含むので FILE のケースが測れる
+	const probeClient = createClient();
+	const probeFileKeys: string[] = [];
+	for (let i = 0; i < FILE_SLOT_COUNT; i += 1) {
+		const { fileKey } = await probeClient.file.uploadFile({
+			file: {
+				name: `set-probe-${i + 1}.txt`,
+				data: `set() の受け入れ測定用 ${i + 1}`,
+			},
+		});
+		probeFileKeys.push(fileKey);
+	}
+	const setProbeRecord = await probeClient.record.addRecord({
 		app,
-		record: { singleLineTextRequired: { value: "set() の受け入れ測定用" } },
+		record: {
+			...filledRecord(probeFileKeys, env.username()),
+			// **重複禁止フィールドの値を変える。**
+			// filledRecord は検証アプリの構築でも使っており、そこで作った
+			// レコードが同じ値を持っている。そのまま渡すと
+			// `[400] [CB_VA01] 入力内容が正しくありません。` で落ちる
+			// （2026-09-08 に踏んだ。unique: true が付いている）
+			singleLineTextUnique: { value: `unique-set-probe-${Date.now()}` },
+		},
 	});
 	createdRecordIds.push(setProbeRecord.id);
 
-	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id);
+	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id, {
+		// 汚れた編集画面から離れ、着地するまで止めたままにする。
+		// show は読み込み完了より後に飛ぶので、待たずに解除すると 1 件増える
+		leaveTo: `/k/${app}/?view=${listView.id}`,
+		leaveScreen: "screen.index",
+	});
 	expect(measuredCases).toBeGreaterThan(0);
-
-	// 汚れた編集画面から離れる。離脱確認が出たら受け入れる。
-	//
-	// **`page.once` にしない。** 発火しなかった場合に武装したまま残り、
-	// あとのダイアログを横取りする（`deleteRecord` がそれで壊れた）。
-	// 使う範囲を挟んで必ず外す
-	const acceptLeave = (dialog: Dialog): void => {
-		void dialog.accept();
-	};
-	page.on("dialog", acceptLeave);
-	try {
-		await page.goto(`/k/${app}/?view=${listView.id}`);
-		await waitForPanel(page, "screen.index");
-	} finally {
-		page.off("dialog", acceptLeave);
-	}
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

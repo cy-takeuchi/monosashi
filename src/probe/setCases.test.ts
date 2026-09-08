@@ -6,8 +6,9 @@ import { REJECTED_ON_WRITE } from "../convert/fieldTypes.js";
 import {
 	CURRENT_VALUE,
 	type ResolvedCodes,
+	ROWS_DROP_ID,
+	ROWS_KEEP_ID,
 	SET_CASES,
-	STRIP_ROW_IDS,
 } from "./setCases.js";
 
 /**
@@ -26,7 +27,9 @@ const fullCodes: ResolvedCodes = {
 	file: {
 		code: "code_FILE",
 		first: { contentType: "text/plain", fileKey: "k", name: "n", size: "1" },
+		fromEvent: false,
 	},
+	found: "テスト用",
 };
 
 /** 何も無い画面。飛ばす経路が動くか */
@@ -34,6 +37,7 @@ const emptyCodes: ResolvedCodes = {
 	byType: {},
 	subtable: undefined,
 	file: undefined,
+	found: "テスト用（空）",
 };
 
 describe("ケース定義", () => {
@@ -151,11 +155,47 @@ describe("何を測ろうとしているか", () => {
 			({ id }) => id === "subtable-drop-row-id",
 		)?.build(fullCodes);
 		expect(Object.values(keep ?? {})[0]).toMatchObject({
-			value: CURRENT_VALUE,
+			value: ROWS_KEEP_ID,
 		});
 		expect(Object.values(drop ?? {})[0]).toMatchObject({
-			value: STRIP_ROW_IDS,
+			value: ROWS_DROP_ID,
 		});
+	});
+
+	// **同じ値を渡すと変化が読めない。**
+	// 最初は読み取り専用に get() の値をそのまま返していたら、
+	// 19 ケース中 17 件が「変化なし」になって何も分からなかった（2026-09-08）。
+	//
+	// 読み取り専用のケースは、いまの値と違う値を渡していること
+	test("読み取り専用のケースは CURRENT_VALUE を渡していない", () => {
+		const readOnly = SET_CASES.filter(({ id }) => id.startsWith("readonly-"));
+		expect(readOnly.length).toBeGreaterThan(0);
+
+		const passthrough = readOnly.filter(({ build }) => {
+			const patch = build(fullCodes);
+			if (patch === undefined) return false;
+			return Object.values(patch).some(
+				(field) =>
+					typeof field === "object" &&
+					field !== null &&
+					(field as { value?: unknown }).value === CURRENT_VALUE,
+			);
+		});
+		expect(passthrough.map(({ id }) => id)).toEqual([]);
+	});
+
+	test("読み取り専用の全種別に、渡す値が用意されている", () => {
+		const missing = SET_CASES.filter(
+			({ id, build }) =>
+				id.startsWith("readonly-") &&
+				Object.values(build(fullCodes) ?? {}).some(
+					(field) =>
+						typeof field === "object" &&
+						field !== null &&
+						(field as { value?: unknown }).value === undefined,
+				),
+		).map(({ id }) => id);
+		expect(missing).toEqual([]);
 	});
 
 	test("type を省くケースが type を持っていない", () => {
@@ -191,6 +231,87 @@ describe("失敗の検出は probe 側では行わない", () => {
 	});
 });
 
+describe("観測できないケースに印が付いている", () => {
+	// **`get()` は編集画面で FILE を空配列で返す**（実測 2026-09-08）。
+	// 印が無いと「変わらなかった」と「見えていない」を取り違えて
+	// 「無視された」という誤った結論が基準になる
+	test("FILE のケースは unobservable", () => {
+		const fileCases = SET_CASES.filter(({ id }) => id.startsWith("file-"));
+		expect(fileCases.length).toBeGreaterThan(0);
+
+		const unmarked = fileCases
+			.filter(({ unobservable }) => unobservable !== true)
+			.map(({ id }) => id);
+		expect(unmarked).toEqual([]);
+	});
+
+	// 観測できるケースに印を付けると、変化を見なくなって検出力が落ちる
+	test("FILE 以外には印を付けていない", () => {
+		const marked = SET_CASES.filter(
+			({ id, unobservable }) =>
+				unobservable === true && !id.startsWith("file-"),
+		).map(({ id }) => id);
+		expect(marked).toEqual([]);
+	});
+});
+
+describe("ケースごとに画面を作り直す", () => {
+	// **`page.goto` では作り直されない。** ハッシュだけが違う同じ URL への
+	// 遷移はリロードにならないので、前のケースのエラー表示が残る
+	// （2026-09-08 に開始時チェックが検出した）。
+	//
+	// ここが落ちたら goto に戻りかけている
+	test("2 件目以降は reload している", () => {
+		const source = readFileSync("e2e/panel.ts", "utf8");
+		const driver = source.slice(
+			source.indexOf("export const measureSetBehavior"),
+		);
+		expect(driver).toContain("page.reload()");
+	});
+
+	// 止めたままにすると、このあとの採取が全部消える
+	test("自動採取の停止を必ず戻している", () => {
+		const source = readFileSync("e2e/panel.ts", "utf8");
+		const driver = source.slice(
+			source.indexOf("export const measureSetBehavior"),
+		);
+		expect(driver).toContain("suppressSamples(true)");
+		expect(driver).toContain("suppressSamples(false)");
+		// finally に置いていないと、例外で抜けたときに戻らない
+		const finallyBlock = driver.slice(driver.lastIndexOf("} finally {"));
+		expect(finallyBlock).toContain("suppressSamples(false)");
+	});
+});
+
+describe("測定用レコードの作り方", () => {
+	// **重複禁止フィールドをそのまま渡すと落ちる。**
+	// filledRecord は検証アプリの構築でも使っており、そこで作ったレコードが
+	// 同じ値を持っている。2 件目として作るときは差し替えが要る
+	// （2026-09-08 に [400] [CB_VA01] で踏んだ）。
+	//
+	// unique な種別が増えたら、ここが落ちて差し替え漏れに気づける
+	test("unique なフィールドは測定用レコードで差し替えている", () => {
+		const fields = readFileSync("tools/fixture-app/fields.ts", "utf8");
+		const spec = readFileSync("e2e/collect.spec.ts", "utf8");
+		const probeBlock = spec.slice(spec.indexOf("filledRecord(probeFileKeys"));
+
+		// アプリ本体の unique フィールドを拾う（参照先アプリの分は除く）
+		// 参照先アプリ（lookupAppFields）の unique は別アプリなので除く
+		const main = fields.slice(
+			fields.indexOf("export const fixtureAppBaseFields"),
+		);
+		const uniques = [
+			...main.matchAll(/code: "(\w+)",[\s\S]{0,200}?unique: true/g),
+		].map((match) => match[1]);
+		expect(uniques.length).toBeGreaterThan(0);
+
+		const missing = uniques.filter(
+			(code) => code !== undefined && !probeBlock.includes(code),
+		);
+		expect(missing).toEqual([]);
+	});
+});
+
 describe("dialog リスナーを漏らさない", () => {
 	// **`page.once("dialog", ...)` は発火しなかったら武装したまま残る。**
 	// `deleteRecord` がそれで壊れた（2026-09-08）。DOM のダイアログで済んだ画面では
@@ -214,9 +335,9 @@ describe("dialog リスナーを漏らさない", () => {
 describe("目印は値として区別できる", () => {
 	// materialize（main.ts）が `=== CURRENT_VALUE` で判定するので、
 	// 実データと衝突しないことが前提になる。Symbol なら衝突しない
-	test("CURRENT_VALUE と STRIP_ROW_IDS は別物", () => {
-		expect(CURRENT_VALUE).not.toBe(STRIP_ROW_IDS);
-		expect(typeof CURRENT_VALUE).toBe("symbol");
-		expect(typeof STRIP_ROW_IDS).toBe("symbol");
+	test("目印が互いに別物", () => {
+		const marks = [CURRENT_VALUE, ROWS_KEEP_ID, ROWS_DROP_ID];
+		expect(new Set(marks).size).toBe(marks.length);
+		for (const mark of marks) expect(typeof mark).toBe("symbol");
 	});
 });

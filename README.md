@@ -516,6 +516,7 @@ type 'LooseField | null | undefined'.
 
 - [`fixtures/measured.json`](fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
 - [`fixtures/write-behavior.md`](fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
+- [`fixtures/set-behavior.md`](fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）。**REST とは要件が違う**
 - [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
   実測で判明した kintone / API の制約と、**測り方を間違えた記録**も入っている
 - [開発する](CONTRIBUTING.md) — このリポジトリに手を入れるときの手順

@@ -35,9 +35,11 @@ import {
 import { inspectStructure, probe } from "./serialize.js";
 import {
 	CURRENT_VALUE,
+	EDITED_CELL,
 	type ResolvedCodes,
+	ROWS_DROP_ID,
+	ROWS_KEEP_ID,
 	SET_CASES,
-	STRIP_ROW_IDS,
 } from "./setCases.js";
 import * as store from "./store.js";
 import { ACTION } from "./testIds.js";
@@ -84,11 +86,35 @@ const record = (
  */
 let blockSubmitWith: string | null = null;
 
+/**
+ * `event.record` で見えた FILE の値。フィールドコード → 添付の配列。
+ *
+ * **`kintone.app.record.get()` は編集画面で FILE を空配列で返す**（実測 2026-09-08）。
+ * レコードに添付があっても `value` が `[]` になり、
+ * `set()` の測定でその値を使えない。
+ *
+ * `event.record` 側には入っているので、show イベントで見えたものを覚えておく。
+ * 1 ケースごとにリロードするので、そのたびに show が飛んで更新される。
+ */
+let fileValuesFromEvent: { [code: string]: unknown[] } = {};
+
 on(EVENTS_WITH_RECORD, (event) => {
 	record(event.type, "event.record", event.record, {
 		envelope: probe(event),
 		structure: inspectStructure(event.record),
 	});
+
+	// FILE の中身を覚えておく（get() では取れないため）
+	const fromEvent: { [code: string]: unknown[] } = {};
+	for (const [code, field] of Object.entries(
+		event.record as { [code: string]: { type?: unknown; value?: unknown } },
+	)) {
+		if (field?.type !== "FILE") continue;
+		if (Array.isArray(field.value) && field.value.length > 0) {
+			fromEvent[code] = field.value;
+		}
+	}
+	if (Object.keys(fromEvent).length > 0) fileValuesFromEvent = fromEvent;
 
 	// submit 系は既定では event をそのまま返す。返さないと保存が止まる
 	if (blockSubmitWith === null || !event.type.endsWith(".submit")) {
@@ -300,14 +326,37 @@ const resolveCodes = (
 		}
 
 		if (field.type === "FILE" && file === undefined) {
-			const first = Array.isArray(field.value) ? field.value[0] : undefined;
+			// **get() は編集画面で FILE を空で返す**（実測 2026-09-08）。
+			// event.record で見えたものに落とす。無ければ諦める
+			const values =
+				Array.isArray(field.value) && field.value.length > 0
+					? field.value
+					: (fileValuesFromEvent[code] ?? []);
+			const first = values[0];
 			// 中身のある FILE でないと 4 キーを渡すケースが作れない
 			if (typeof first === "object" && first !== null) {
-				file = { code, first: first as Record<string, unknown> };
+				file = {
+					code,
+					first: first as Record<string, unknown>,
+					fromEvent: !(Array.isArray(field.value) && field.value.length > 0),
+				};
 			}
 		}
 	}
-	return { byType, subtable, file };
+	// 飛ばしたときに理由を辿れるようにする。
+	// FILE と SUBTABLE は「あるが空」で飛ぶことがあるので要素数まで残す
+	const shapes = Object.entries(rec)
+		.filter(([, field]) => typeof field?.type === "string")
+		.filter(([, field]) => field.type === "FILE" || field.type === "SUBTABLE")
+		.map(([code, field]) => {
+			const n = Array.isArray(field.value) ? field.value.length : "配列でない";
+			return `${code}(${String(field.type)})=${n}`;
+		});
+	const found = [`種別 ${Object.keys(byType).length} 個`, ...shapes].join(
+		" / ",
+	);
+
+	return { byType, subtable, file, found };
 };
 
 /**
@@ -332,11 +381,29 @@ const materialize = (
 
 		if (copy.value === CURRENT_VALUE) copy.value = current;
 
-		if (copy.value === STRIP_ROW_IDS) {
+		// サブテーブルの行を組み立て直す。**セルを 1 つ書き換える。**
+		// そのまま渡すと前後が一致して、「id が保たれた」のか
+		// 「まるごと無視された」のかが区別できない
+		if (copy.value === ROWS_KEEP_ID || copy.value === ROWS_DROP_ID) {
+			const keepId = copy.value === ROWS_KEEP_ID;
 			const rows = Array.isArray(current) ? current : [];
 			copy.value = rows.map((row) => {
-				const { id: _dropped, ...rest } = row as { id?: unknown };
-				return rest;
+				const { id, value } = row as { id?: unknown; value?: unknown };
+				const cells =
+					typeof value === "object" && value !== null
+						? { ...(value as Record<string, { type?: unknown }>) }
+						: {};
+				// 書き換える対象は type で探す。フィールドコードは当てにしない
+				const target = Object.keys(cells).find(
+					(code) => cells[code]?.type === "SINGLE_LINE_TEXT",
+				);
+				if (target !== undefined) {
+					cells[target] = {
+						type: "SINGLE_LINE_TEXT",
+						value: EDITED_CELL,
+					} as { type: string };
+				}
+				return keepId ? { id, value: cells } : { value: cells };
 			});
 		}
 		out[code] = copy;
@@ -392,7 +459,7 @@ const runSetCase = (id: string): boolean => {
 	if (patch === undefined) {
 		store.addSetCase({
 			...base,
-			skipped: "この画面に対象のフィールドが無い",
+			skipped: `対象のフィールドが無い（${codes.found}）`,
 		});
 		return false;
 	}
@@ -420,11 +487,36 @@ const runSetCase = (id: string): boolean => {
 	const after = getRecordViaJsApi() as
 		| Record<string, { type?: unknown; value?: unknown }>
 		| undefined;
+
+	// **行 id は正規化で伏せられるので、ここで比べて真偽値を残す。**
+	// before / after を並べても `<row-id>` 同士になって比較できない
+	const rowIds = (
+		rec: Record<string, { type?: unknown; value?: unknown }> | undefined,
+	): string | undefined => {
+		const codes = watched.filter((code) => rec?.[code]?.type === "SUBTABLE");
+		if (codes.length === 0) return undefined;
+		return codes
+			.map((code) => {
+				const rows = rec?.[code]?.value;
+				const ids = Array.isArray(rows)
+					? rows.map((row) => String((row as { id?: unknown }).id))
+					: [];
+				return `${code}:${ids.join(",")}`;
+			})
+			.join(" ");
+	};
+	const idsBefore = rowIds(before);
+	const idsAfter = rowIds(after);
+
 	store.addSetCase({
 		...base,
 		sent: probe(sent),
 		before: probe(beforeWatched),
 		after: probe(pick(after)),
+		...(idsBefore === undefined
+			? {}
+			: { rowIdsPreserved: idsBefore === idsAfter }),
+		...(setCase.unobservable === true ? { observable: false } : {}),
 	});
 	return true;
 };
@@ -1062,6 +1154,13 @@ on(
 	setCaseIds: (): string[] => SET_CASES.map(({ id }) => id),
 	runSetCase,
 	markSetCase: store.markSetCase,
+	/**
+	 * 測定中は自動採取（show イベントのサンプル）を止める。
+	 *
+	 * 1 ケースごとにリロードするので、止めないと同じ文脈のサンプルが
+	 * 20 件以上積み上がる。情報は増えないのに measured.json が膨らむ。
+	 */
+	suppressSamples: store.suppressSamples,
 
 	/**
 	 * UI 操作の前後で発火した change イベントを拾うための口。
