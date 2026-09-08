@@ -2793,3 +2793,61 @@ await withDialogsAccepted(page, async () => { … });
 `switch` から抽出して突き合わせた。`main.ts` は 977 → 954 行。
 **行数はほとんど減っていない**（表の JSDoc が増えた分で相殺）。
 狙いは行数ではなく、対応が 1 箇所になることと型で落ちること。
+
+## 実行スクリプトの入口を 1 箇所にする
+
+`tools/` のスクリプト 9 本が、それぞれ末尾に入口を持っていた。
+7 本は同じ 4 行の `main().catch(...)`、2 本（`packCheck.ts` /
+`fixture/setBehavior.ts`）は `main();` の直呼び。
+
+**7 本のうち 1 本だけ `describeError` ではなく `String(error)` だった**
+（`fixture-app/verify.ts`）。`describeError` は kintone の REST エラーの
+`errors` を展開してフィールドごとの理由を出す。`String` にすると
+`KintoneRestAPIError: 入力内容が正しくありません` の 1 行で終わる。
+
+よりによって `verify.ts` は**検証アプリのフィールドの食い違いを報告するのが
+仕事**で、9 本の中で一番情報の少ない出力になっていた。
+写して回ると、こういう食い違いが黙って残る。
+
+`tools/shared/run.ts` の `runScript(main)` に寄せた。同期の `main` も受ける。
+
+### `describeError` を `client.ts` から出した
+
+この関数は kintone の何にも触らない純粋関数なのに `client.ts` にあった。
+`run.ts` から使うと、`packCheck.ts` のような **kintone を使わない
+スクリプトが `@kintone/rest-api-client` を引き込む**。
+`tools/shared/describeError.ts` に分けた。
+
+### スタックも出す（意図した変更）
+
+`describeError` は `Error` から `message` しか取らない。kintone の REST
+エラーには十分だが、**素の `TypeError` では 1 行しか出ず、どこで落ちたか
+分からない**。`pack:check` は CI で走るので、そこで 1 行だけ出ても直せない。
+以前の 7 本も同じ状態だった。出る情報が減る場合は無い。
+
+**1 回の `write` にまとめる。** パイプ越しの stderr は非同期になり得るので、
+直後の `process.exit` で途中まで消える。2 回に分けるとスタックだけ落ちる。
+`tsx` でパイプに流して、終了コード 1 とスタック 4 行が揃うことを確かめた。
+
+### 変異が JSDoc に当たっていた（5 度目）
+
+`process.exit(1)` を `exit(0)` に変える変異が「見逃した」と出た。
+実際は **JSDoc に書いたコード例に当たっていた**。
+`ns != s` は成立するので、変異が当たった判定としては役に立たない。
+
+コメントを除いた本体に対象が在ることを先に確かめ、
+**本体側の出現位置を特定してから**置き換えるようにしたら、
+`exit(0)` も `exit` を消す変異も検出された。
+
+「変異が当たったことを表示してから結果を読む」を
+[`dialog の登録はヘルパ 1 箇所に閉じる`](#dialog-の登録はヘルパ-1-箇所に閉じる) と
+[`型チェックの門は tsconfig の include 1 行で開く`](#型チェックの門は-tsconfig-の-include-1-行で開く) にも書いたが、
+**「当たった」の確かめ方が甘いという形**でまた踏んだ。
+差分が出たことは、意図した場所に当たったことを意味しない。
+
+### マイクロタスクを決まった回数待たない
+
+`runScript` の中を `main().catch()` から `Promise.resolve().then(main).catch()`
+に変えた瞬間、`await Promise.resolve()` を 2 回挟んでいたテストが
+**空の出力を読んで落ちた**。段数に依存していた。
+`setImmediate` まで待てば、その時点のマイクロタスクは全部流れている。

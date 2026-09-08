@@ -1,12 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import {
-	appUrl,
-	createClient,
-	describeError,
-	log,
-	waitForDeploy,
-} from "../shared/client";
+import { appUrl, createClient, log, waitForDeploy } from "../shared/client";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 
 /**
  * 採取カスタマイズを検証アプリに適用する。
@@ -71,7 +66,4 @@ const main = async (): Promise<void> => {
 	log("  分析時にレコードの状態で突き合わせられます。");
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${describeError(error)}\n`);
-	process.exit(1);
-});
+runScript(main);

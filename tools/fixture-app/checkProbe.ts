@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { createClient, describeError, log } from "../shared/client";
+import { createClient, log } from "../shared/client";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 
 /**
  * 検証アプリに貼られている採取カスタマイズが、手元のビルド結果と同一かを確かめる。
@@ -99,7 +100,4 @@ const main = async (): Promise<void> => {
 	log("貼られている採取カスタマイズは手元のビルドと同一です。");
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${describeError(error)}\n`);
-	process.exit(1);
-});
+runScript(main);

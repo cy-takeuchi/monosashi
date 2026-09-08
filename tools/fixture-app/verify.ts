@@ -1,5 +1,6 @@
 import { createClient, log } from "../shared/client";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 import { allFixtureFieldCodes, subtableFieldCodes } from "./fields";
 
 /**
@@ -128,7 +129,4 @@ const main = async (): Promise<void> => {
 	log("検証アプリの構成に問題はありません。");
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${String(error)}\n`);
-	process.exit(1);
-});
+runScript(main);
