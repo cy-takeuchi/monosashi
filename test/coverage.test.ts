@@ -3,10 +3,10 @@ import { field } from "../src/build/field";
 import { canSetValue } from "../src/build/setValue";
 import { isDroppedOnWrite, isRejectedOnWrite } from "../src/convert/fieldTypes";
 import { toRestWrite } from "../src/convert/toRestWrite";
-import * as guard from "../src/guard/record";
 import { matchesContext, REQUIRED_CONTEXTS } from "./contexts";
 import { OBSERVED_FIELD_TYPES } from "./fieldTypes";
 import { fieldsOf, loadSamples } from "./fixtures";
+import { GUARD_OF } from "./guards";
 
 /**
  * 実装が全フィールド種別を漏れなく扱えていることを確かめる。
@@ -90,26 +90,16 @@ describe("setValue が全種別を検査する", () => {
 });
 
 describe("ガードが全種別にある", () => {
-	// ガードは type から関数名が機械的に決まるので、名前で引けることを確かめる。
-	// 例外は SINGLE_LINE_TEXT のような複合語ではなく DROP_DOWN → isDropdown。
-	const guardName: { [type: string]: string } = {
-		DROP_DOWN: "isDropdown",
-		DATETIME: "isDateTime",
-		__ID__: "isId",
-		__REVISION__: "isRevision",
-	};
-
-	const toCamel = (type: string): string =>
-		`is${type
-			.toLowerCase()
-			.replace(/_(.)/g, (_, c: string) => c.toUpperCase())
-			.replace(/^(.)/, (_, c: string) => c.toUpperCase())}`;
-
-	test.each(OBSERVED_FIELD_TYPES)("%s のガードがある", (type) => {
-		const name = guardName[type] ?? toCamel(type);
-		const fn = (guard as unknown as { [key: string]: unknown })[name];
-		expect(typeof fn, `${name} が見つかりません`).toBe("function");
-		const is = fn as (value: unknown) => boolean;
+	// 表そのものは `Record<ObservedFieldType, ...>` なので、
+	// 種別を足して書き忘れれば **tsc が落ちる**（test/guards.ts）。
+	// ここでは実行時のふるまいを見る。
+	//
+	// 実測データに対する検査は src/guard/record.test.ts が持つ。
+	// あちらは「取りこぼしゼロ」と「他種別の混入ゼロ」を実測で縛るもので、
+	// ここは「関数が在って、type で判別する」という最低限を縛る。
+	// ガードを丸ごと消したときに落ちるのはこちら
+	test.each(OBSERVED_FIELD_TYPES)("%s のガードが type で判別する", (type) => {
+		const is = GUARD_OF[type];
 		expect(is({ type, value: undefined })).toBe(true);
 		expect(is({ type: "他の型", value: undefined })).toBe(false);
 	});
