@@ -47,17 +47,37 @@ type ProbeApi = {
  * 呼び出しはすべてブラウザ側で完結させ、結果の値だけを受け取る。
  */
 
+/**
+ * 画面が切り替わってパネルが出るまでの待ち時間。
+ *
+ * ここが待つのは 4 つの合計。**Playwright の既定（5 秒）では足りない。**
+ *
+ *   1. 遷移
+ *   2. ページの読み込み
+ *   3. kintone のカスタマイズの起動
+ *   4. パネルの描画と画面判定
+ *
+ * 保存直後の詳細画面への遷移で 5 秒を超えて落ちた（2026-09-08）。
+ * ログインが 14 秒かかった実行で、環境が遅い日に当たると起きる。
+ *
+ * `expect` はポーリングなので、速いときにこの値が待ち時間になることはない。
+ * 短く見積もる利点が無いぶん、実際にかかりうる時間に合わせる。
+ */
+const PANEL_TIMEOUT_MS = 30_000;
+
 /** パネルが描画され、change ハンドラの登録が終わるまで待つ */
 export const waitForPanel = async (
 	page: Page,
 	expectedScreen: string,
 ): Promise<void> => {
 	const panel = page.locator(`[data-testid="${PANEL}"]`);
-	await panel.waitFor({ state: "visible" });
+	await panel.waitFor({ state: "visible", timeout: PANEL_TIMEOUT_MS });
 
 	// ボタンの出し分けが画面判定に依存している。
 	// 想定と違う画面のまま採取が進むと、採れないものを採ったつもりになる
-	await expect(panel).toHaveAttribute("data-screen", expectedScreen);
+	await expect(panel).toHaveAttribute("data-screen", expectedScreen, {
+		timeout: PANEL_TIMEOUT_MS,
+	});
 
 	// change ハンドラの登録は getFieldCodes を待つので非同期。
 	// 待たずに set() 系を実行すると、発火していても件数が 0 になり
