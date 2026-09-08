@@ -1,4 +1,7 @@
 import { type Dialog, expect, type Locator, type Page } from "@playwright/test";
+// **API の形は probe 側が持つ。** ここで手で書くと、probe を直したときに
+// 黙ってずれる（`src/probe/api.ts`）。ACTION と同じ扱いにする
+import type { ProbeApi } from "../src/probe/api";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
 import {
 	CUSTOMIZE_ERROR,
@@ -17,34 +20,6 @@ import {
  * set() が change イベントを発火すると実測で分かったため、
  * フィールドへの入力を Playwright が行う必要がなくなった。
  * 入力の代わりに probe のボタンを押す。
- */
-
-type ProbeApi = {
-	export: () => string;
-	clear: () => void;
-	count: () => number;
-	coverage: () => { key: string; n: number }[];
-	ready: () => boolean;
-	lastError: () => string | null;
-	screen: () => string;
-	changeEvents: () => string[];
-	beginWatch: () => void;
-	watched: () => string[];
-	endWatch: (label: string) => void;
-	rowCount: () => number;
-	blockNextSubmit: (message: string) => void;
-	setCaseIds: () => string[];
-	runSetCase: (id: string) => boolean;
-	markSetCase: (id: string, errorShown: boolean) => void;
-	suppressSamples: (on: boolean) => void;
-};
-
-/**
- * probe の API はブラウザ側にしか無い。
- *
- * `page.evaluate` の戻り値は JSON 直列化されるので、
- * API オブジェクトをそのまま返しても関数は落ちて空になる。
- * 呼び出しはすべてブラウザ側で完結させ、結果の値だけを受け取る。
  */
 
 /**

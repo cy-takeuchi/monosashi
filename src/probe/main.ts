@@ -12,6 +12,7 @@
  *   event.record 側はハンドラ内でしか採れないので、そちらは登録時に採る。
  */
 
+import type { ProbeApi } from "./api.js";
 import {
 	buildChangeEvents,
 	EVENTS_AFTER_SUBMIT,
@@ -869,7 +870,9 @@ on(
  * ブラウザのダウンロードを介さないのは、
  * ファイルの落ちる先や名前が環境に依存するため。
  */
-(window as unknown as Record<string, unknown>).__kintoneRecordProbe = {
+// **`satisfies` で縛る。** e2e が `ProbeApi` を import しているので、
+// 片方だけ直すと tsc が落ちる（`api.ts`）
+const api = {
 	export: store.exportToString,
 	clear: store.clear,
 	count: store.count,
@@ -969,4 +972,6 @@ on(
 		const table = code === undefined ? undefined : rec[code];
 		return Array.isArray(table?.value) ? table.value.length : -1;
 	},
-};
+} satisfies ProbeApi;
+
+(window as unknown as Record<string, unknown>).__kintoneRecordProbe = api;

@@ -2589,3 +2589,31 @@ expect(runSetCase).not.toContain("catch");   // 空文字列を検査してい�
 | **ソースを読むテストの対象が消えた** | **空文字列は何も含まない** |
 
 いずれも「落ちるはずのものを落として確かめる」までは気づけなかった。
+
+## probe と e2e の契約を型でも 1 箇所にする
+
+**2026-09-08。** `ACTION`（ボタンの識別子）は `testIds.ts` で 1 箇所管理していて、
+理由もそこに書いてある。
+
+> Playwright 側でリテラルを書くと、probe を直したときに黙ってずれる。
+> このプロジェクトで何度も塞いできた形なので、最初から 1 箇所にする。
+
+**同じ理屈が API の形には適用されていなかった。**
+`window.__kintoneRecordProbe` の型（17 メンバ）を e2e 側で手で書いていた。
+
+`setCaseIds` / `runSetCase` / `markSetCase` / `suppressSamples` を足したとき、
+両側に手で書いた。**一致していたのは気をつけたからで、仕組みではなかった。**
+
+`src/probe/api.ts` に `ProbeApi` を置き、
+`main.ts` が `satisfies ProbeApi` で代入し、e2e はそれを import する。
+
+両方向で落ちることを確認した。
+
+| 壊し方 | 結果 |
+|---|---|
+| 型に足して実装に足さない | `TS2741: Property … is missing` |
+| 実装の引数を変える | `TS2322: '(id: number) => boolean' is not assignable` |
+
+`satisfies` にするのは `GUARD_OF` と同じ理由。
+型注釈（`: ProbeApi`）にすると各メンバの具体的な型が潰れるが、
+`satisfies` なら書き忘れは同じように落ちたうえで具体的な型が残る。
