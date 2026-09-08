@@ -37,7 +37,7 @@ import { rememberFileValues, runSetCase } from "./runSetCase.js";
 import { inspectStructure, probe } from "./serialize.js";
 import { SET_CASES } from "./setCases.js";
 import * as store from "./store.js";
-import { ACTION } from "./testIds.js";
+import { ACTION, type ActionId } from "./testIds.js";
 import {
 	currentLabel,
 	getLastError,
@@ -716,130 +716,105 @@ const registerChangeEvents = (): Promise<void> => {
 	return changeRegistration;
 };
 
+/**
+ * ボタン 1 つの定義。**id と表示・処理の対応はここだけ。**
+ *
+ * 以前は画面ごとの `switch` の中に `{ id, text, run }` を書き下していて、
+ * 13 個のうち 9 個が 2〜3 回書かれていた（`JS API で採取` は 3 回）。
+ * `ACTION` の id は `testIds.ts` の 1 箇所管理なのに、
+ * **id と `run` の対応だけが画面ごとに手写し**だった。
+ *
+ * 片方の画面だけ `run` を打ち間違えても型は通り、
+ * e2e は違う操作を測って**それらしい結果**を出す。
+ * `ProbeApi` を 1 箇所にしたのと同じ理由で、ここも 1 箇所にする。
+ *
+ * `Record<ActionId, ...>` なので、`ACTION` に足すとここが落ちる。
+ */
+const ACTIONS: Record<
+	ActionId,
+	{ text: string; run: () => void | Promise<void> }
+> = {
+	[ACTION.jsApi]: { text: "JS API で採取", run: captureJsApi },
+	[ACTION.rest]: { text: "REST で採取", run: captureRest },
+	[ACTION.both]: {
+		text: "両方採取",
+		run: async () => {
+			captureJsApi();
+			await captureRest();
+		},
+	},
+	[ACTION.setFlags]: { text: "set() して再取得", run: captureAfterSet },
+	[ACTION.setValue]: { text: "set() で値を変更", run: captureSetValue },
+	[ACTION.setRow]: { text: "set() で表を変更", run: captureSetRow },
+	[ACTION.addRow]: { text: "set() で行を追加", run: captureAddRow },
+	[ACTION.removeRow]: { text: "set() で行を削除", run: captureRemoveRow },
+	[ACTION.fillRequired]: { text: "必須を埋める", run: fillRequired },
+	[ACTION.coverage]: { text: "カバレッジ", run: renderCoverage },
+	[ACTION.export]: { text: "エクスポート", run: store.exportToFile },
+	[ACTION.clear]: {
+		text: "クリア",
+		// e2e は confirm を挟まない window API 側（__kintoneRecordProbe.clear）を使う。
+		// このボタンは手作業のときだけのもの
+		run: () => {
+			if (confirm("採取済みデータを全て削除します。よろしいですか?"))
+				store.clear();
+		},
+	},
+};
+
+/** `set()` を使う操作。**作成 / 編集画面でしか動かない** */
+const SET_ACTIONS = [
+	ACTION.setFlags,
+	ACTION.setValue,
+	ACTION.setRow,
+	ACTION.addRow,
+	ACTION.removeRow,
+	ACTION.fillRequired,
+] as const;
+
+/** どの画面でも出す操作。採取そのものではない */
+const COMMON_ACTIONS = [ACTION.coverage, ACTION.export, ACTION.clear] as const;
+
+/**
+ * 画面ごとに出すボタン。**「どれを出すか」だけを持つ。**
+ * 何をするかは `ACTIONS` が持つので、ここでずれようがない。
+ *
+ * 画面によって採れる経路が違うので、押せるボタンを画面ごとに変える。
+ * 押しても失敗するボタンを出すと、採取漏れなのか仕様なのか分からなくなる。
+ *
+ * `Record<Screen, ...>` なので、画面を足すとここが落ちる。
+ */
+const SCREEN_ACTIONS: Record<
+	Screen,
+	readonly (ActionId | { id: ActionId; text: string })[]
+> = {
+	// 一覧には「開いているレコード」が無い。getRecord の代わりに
+	// 画面と同じ絞り込みで getRecords し、event.records と突き合わせる。
+	// **同じ id で文言だけ変える。** 押したときの処理は同じで、
+	// 一覧では getRecords になるという違いを表示に出す
+	"screen.index": [{ id: ACTION.rest, text: "REST 一覧で採取" }],
+	// 作成画面のレコードはまだ保存されていないので REST からは取れない
+	"screen.create": [ACTION.jsApi, ...SET_ACTIONS],
+	"screen.edit": [ACTION.jsApi, ACTION.rest, ACTION.both, ...SET_ACTIONS],
+	// 詳細と印刷。set() はここでは動かない
+	"screen.detail": [ACTION.jsApi, ACTION.rest, ACTION.both],
+};
+
 const boot = (event: { type?: string }): unknown => {
 	currentScreen =
 		(event.type === undefined ? undefined : screenFromEvent(event.type)) ??
 		screenFromUrl();
 
-	// 画面によって採れる経路が違うので、押せるボタンを画面ごとに変える。
-	// 押しても失敗するボタンを出すと、採取漏れなのか仕様なのか分からなくなる。
-	const captureActions = (() => {
-		switch (screenName()) {
-			// 一覧には「開いているレコード」が無い。getRecord の代わりに
-			// 画面と同じ絞り込みで getRecords し、event.records と突き合わせる
-			case "screen.index":
-				return [{ id: ACTION.rest, text: "REST 一覧で採取", run: captureRest }];
-			// 作成画面のレコードはまだ保存されていないので REST からは取れない
-			case "screen.create":
-				return [
-					{ id: ACTION.jsApi, text: "JS API で採取", run: captureJsApi },
-					{
-						id: ACTION.setFlags,
-						text: "set() して再取得",
-						run: captureAfterSet,
-					},
-					{
-						id: ACTION.setValue,
-						text: "set() で値を変更",
-						run: captureSetValue,
-					},
-					{
-						id: ACTION.setRow,
-						text: "set() で表を変更",
-						run: captureSetRow,
-					},
-					{
-						id: ACTION.addRow,
-						text: "set() で行を追加",
-						run: captureAddRow,
-					},
-					{
-						id: ACTION.removeRow,
-						text: "set() で行を削除",
-						run: captureRemoveRow,
-					},
-					{
-						id: ACTION.fillRequired,
-						text: "必須を埋める",
-						run: fillRequired,
-					},
-				];
-			// set() は作成 / 編集画面でしか動かない
-			case "screen.edit":
-				return [
-					{ id: ACTION.jsApi, text: "JS API で採取", run: captureJsApi },
-					{ id: ACTION.rest, text: "REST で採取", run: captureRest },
-					{
-						id: ACTION.both,
-						text: "両方採取",
-						run: async () => {
-							captureJsApi();
-							await captureRest();
-						},
-					},
-					{
-						id: ACTION.setFlags,
-						text: "set() して再取得",
-						run: captureAfterSet,
-					},
-					{
-						id: ACTION.setValue,
-						text: "set() で値を変更",
-						run: captureSetValue,
-					},
-					{
-						id: ACTION.setRow,
-						text: "set() で表を変更",
-						run: captureSetRow,
-					},
-					{
-						id: ACTION.addRow,
-						text: "set() で行を追加",
-						run: captureAddRow,
-					},
-					{
-						id: ACTION.removeRow,
-						text: "set() で行を削除",
-						run: captureRemoveRow,
-					},
-					{
-						id: ACTION.fillRequired,
-						text: "必須を埋める",
-						run: fillRequired,
-					},
-				];
-			default:
-				return [
-					{ id: ACTION.jsApi, text: "JS API で採取", run: captureJsApi },
-					{ id: ACTION.rest, text: "REST で採取", run: captureRest },
-					{
-						id: ACTION.both,
-						text: "両方採取",
-						run: async () => {
-							captureJsApi();
-							await captureRest();
-						},
-					},
-				];
-		}
-	})();
-
 	renderPanel(
-		[
-			...captureActions,
-			{ id: ACTION.coverage, text: "カバレッジ", run: renderCoverage },
-			{ id: ACTION.export, text: "エクスポート", run: store.exportToFile },
-			{
-				// e2e は confirm を挟まない window API 側（__kintoneRecordProbe.clear）を使う。
-				// このボタンは手作業のときだけのもの
-				id: ACTION.clear,
-				text: "クリア",
-				run: () => {
-					if (confirm("採取済みデータを全て削除します。よろしいですか?"))
-						store.clear();
-				},
-			},
-		],
+		[...SCREEN_ACTIONS[screenName()], ...COMMON_ACTIONS].map((entry) => {
+			const id = typeof entry === "string" ? entry : entry.id;
+			const action = ACTIONS[id];
+			return {
+				id,
+				text: typeof entry === "string" ? action.text : entry.text,
+				run: action.run,
+			};
+		}),
 		screenName(),
 	);
 	void registerChangeEvents();
