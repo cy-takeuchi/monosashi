@@ -26,3 +26,6 @@ const normalized = normalize(store);
 writeFileSync(OUT, `${JSON.stringify(normalized, null, "\t")}\n`);
 
 log(`${IN} (${store.samples.length} サンプル) → ${OUT}`);
+if (normalized.setBehavior !== undefined) {
+	log(`set() の受け入れ: ${normalized.setBehavior.length} ケース`);
+}

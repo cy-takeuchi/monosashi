@@ -186,6 +186,26 @@ INSPECT=1 pnpm run e2e --grep "ラベル起点"
 
 答えの出た調査は消してよい。判明したことは `docs/DECISIONS.md` に残す。
 
+### set() の受け入れ挙動を測る
+
+`toSetRecord` の根拠になるもの（#14）。ケース定義は `src/probe/setCases.ts`。
+
+```sh
+pnpm run probe:build && pnpm run app:deploy-probe   # 貼り直し。システム管理権限が要る
+pnpm run e2e                                        # 採取。set() のケースも走る
+pnpm run fixture:build                              # 正規化
+pnpm run fixture:set-behavior                       # fixtures/set-behavior.md を生成
+```
+
+ケース定義だけなら実 kintone なしで検査できる。
+
+```sh
+pnpm exec vitest run src/probe/setCases.test.ts
+```
+
+**probe を変えたら貼り直しを忘れない。** `app:check-probe` が配信物の
+ハッシュを比べているので、貼り直すまで週次のライブ検証が失敗する。
+
 ## 検査する
 
 ```sh

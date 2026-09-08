@@ -71,9 +71,54 @@ export type Sample = {
 	};
 };
 
+/**
+ * `kintone.app.record.set()` に 1 ケース渡した結果（#14）。
+ *
+ * ## 例外と「変わらなかった」を別に持つ理由
+ *
+ * `set()` が失敗したときに JS の例外として捕まるかが**分かっていない**。
+ * 分かっているのは、`type` を省くと kintone が
+ * 「カスタマイズ用の JavaScript の実行時にエラーが発生しました」を出すこと
+ * （実測 2026-08-30）。あれは捕まえられなかったエラーの表示なので
+ * try/catch で捕まる見込みだが、確かめていない。
+ *
+ * 例外が出なくても値が変わらなければ「黙って無視された」と言える。
+ * この 2 つを分けて持つことで、どちらでも結論が出る。
+ *
+ * kintone のエラー表示を DOM から読むことはしない（内部セレクタは使用禁止）。
+ */
+export type SetCaseResult = {
+	id: string;
+	question: string;
+	/** この画面に対象が無くて飛ばした場合。理由も残す */
+	skipped?: string;
+	/** set() に実際に渡したもの。差し込み後の値 */
+	sent?: Probed;
+	/** 例外が出たか。出たならメッセージ */
+	threw: boolean;
+	message?: string;
+	/** set() の前後で get() から読んだ、監視対象フィールドの値 */
+	before?: Probed;
+	after?: Probed;
+	/** 採取時刻。正規化で伏せられる */
+	at: string;
+	isMobile: boolean;
+	/** どの画面で測ったか。set() は作成 / 編集画面でしか動かない */
+	screen: string;
+};
+
 export type ProbeStore = {
 	version: 1;
 	samples: Sample[];
+	/**
+	 * set() の受け入れ挙動（#14）。
+	 *
+	 * `samples` と別の配列にする。あちらは「レコードがどんな形で来るか」、
+	 * こちらは「何を渡すと弾かれるか」で、突き合わせる相手が違う。
+	 * 混ぜると `test/coverage.test.ts` の「全サンプルを走査」が
+	 * 意味の違うものまで拾ってしまう。
+	 */
+	setBehavior?: SetCaseResult[];
 };
 
 const emptyStore = (): ProbeStore => ({ version: 1, samples: [] });
@@ -105,6 +150,13 @@ const save = (store: ProbeStore): void => {
 export const add = (sample: Sample): void => {
 	const store = load();
 	store.samples.push(sample);
+	save(store);
+};
+
+/** set() のケース結果を 1 件追加する */
+export const addSetCase = (result: SetCaseResult): void => {
+	const store = load();
+	store.setBehavior = [...(store.setBehavior ?? []), result];
 	save(store);
 };
 

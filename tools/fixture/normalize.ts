@@ -1,5 +1,5 @@
 import type { Probed } from "../../src/probe/serialize";
-import type { ProbeStore, Sample } from "../../src/probe/store";
+import type { ProbeStore, Sample, SetCaseResult } from "../../src/probe/store";
 
 /**
  * 採取結果から、実行ごと・環境ごとに変わる値を伏せる。
@@ -257,7 +257,27 @@ const maskSample = (sample: Sample): Sample => ({
 		: { changes: maskProbed(sample.changes) }),
 });
 
+/**
+ * set() のケース結果を正規化する（#14）。
+ *
+ * `sent` / `before` / `after` は実データを含むので、
+ * サンプルと同じ規則で伏せる。
+ * ケースの `id` と `question`、`threw` は環境に依らないのでそのまま。
+ */
+const maskSetCase = (result: SetCaseResult): SetCaseResult => ({
+	...result,
+	at: PLACEHOLDER.at,
+	...(result.sent === undefined ? {} : { sent: maskProbed(result.sent) }),
+	...(result.before === undefined ? {} : { before: maskProbed(result.before) }),
+	...(result.after === undefined ? {} : { after: maskProbed(result.after) }),
+});
+
 export const normalize = (store: ProbeStore): ProbeStore => ({
 	version: store.version,
 	samples: store.samples.map(maskSample),
+	// 測っていなければキーごと出さない。空配列を書くと
+	// 「測ったが 0 件」と区別できない
+	...(store.setBehavior === undefined
+		? {}
+		: { setBehavior: store.setBehavior.map(maskSetCase) }),
 });
