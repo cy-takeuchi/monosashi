@@ -1,6 +1,8 @@
 import { toRestWrite } from "../../src/convert/toRestWrite";
-import { createClient, describeError, log } from "../shared/client";
+import { createClient, log } from "../shared/client";
+import { describeError } from "../shared/describeError";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 
 /**
  * 変換関数の出力が実際に kintone に通ることを確かめる。
@@ -89,7 +91,4 @@ const main = async (): Promise<void> => {
 	log("結論: 変換関数の出力は kintone に受け入れられる");
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${describeError(error)}\n`);
-	process.exit(1);
-});
+runScript(main);

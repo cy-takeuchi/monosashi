@@ -1,5 +1,7 @@
-import { createClient, describeError, log } from "../shared/client";
+import { createClient, log } from "../shared/client";
+import { describeError } from "../shared/describeError";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 
 /**
  * .env が指しているアプリの中身を読み取り専用で確認する。
@@ -59,7 +61,4 @@ const main = async (): Promise<void> => {
 	log("入れ違っている場合は .env を直してから app:build を実行します。");
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${describeError(error)}\n`);
-	process.exit(1);
-});
+runScript(main);

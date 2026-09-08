@@ -1,7 +1,9 @@
 import { writeFileSync } from "node:fs";
 import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
-import { createClient, describeError, log } from "../shared/client";
+import { createClient, log } from "../shared/client";
+import { describeError } from "../shared/describeError";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 import type { BuiltInCodes, RecordState } from "./cases";
 import { cases } from "./cases";
 
@@ -199,7 +201,4 @@ const main = async (): Promise<void> => {
 	log(`${OUT} を生成しました`);
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${describeError(error)}\n`);
-	process.exit(1);
-});
+runScript(main);

@@ -3,12 +3,12 @@ import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import {
 	appUrl,
 	createClient,
-	describeError,
 	log,
 	resolveSpace,
 	waitForDeploy,
 } from "../shared/client";
 import { env } from "../shared/env";
+import { runScript } from "../shared/run";
 import {
 	builtInFieldTypes,
 	fixtureAppBaseFields,
@@ -395,7 +395,4 @@ const main = async (): Promise<void> => {
 	log("  3. app:deploy-probe   (採取カスタマイズの適用)");
 };
 
-main().catch((error: unknown) => {
-	process.stderr.write(`${describeError(error)}\n`);
-	process.exit(1);
-});
+runScript(main);

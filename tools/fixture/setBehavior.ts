@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import type { Probed } from "../../src/probe/serialize";
 import type { ProbeStore, SetCaseResult } from "../../src/probe/store";
 import { log } from "../shared/client";
+import { runScript } from "../shared/run";
 
 /**
  * `set()` の受け入れ挙動を、読める表にする（#14）。
@@ -213,4 +214,4 @@ const main = (): void => {
 	log(`${OUT} を生成しました（${results.length} ケース）`);
 };
 
-main();
+runScript(main);
