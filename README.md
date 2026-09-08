@@ -390,8 +390,7 @@ if (got !== null) {
 import type { Rest, RestRecord } from "monosashi";
 ```
 
-**このパッケージは実行時の依存を持たない。** `pnpm add monosashi` で入るのは
-これだけで、他には何も付いてこない（`pack:check` が毎回確かめている）。
+**このパッケージは実行時の依存を持たない**（下の「実行時に載る量」）。
 
 以前は `Rest` を `@kintone/rest-api-client` の型に委ねていた。
 新しい正規形を作らなければ型の同一性が壊れない、という判断だった。
@@ -410,6 +409,108 @@ import type { Rest, RestRecord } from "monosashi";
 `@kintone/rest-api-client` は devDependency としてこのリポジトリには常に在るので、
 委譲をやめても突き合わせは続けられる。
 その更新は Dependabot が拾い、上の等価性テストが可否を判定する。
+
+## `kintone-typeguard` からの移行
+
+`kintone-typeguard` の後継として作っている。
+**レコードの値**についてはガードが揃っているが、**フォーム定義は守備範囲外**。
+1 対 1 で移せない箇所こそが移行の見積りを決めるので、そこを先に書く。
+
+### レコードの値のガード ── 移せる
+
+| `kintone-typeguard` | `monosashi` | |
+|---|---|---|
+| `guardRecord.isSingleLineText` ほか 28 種別 | `guard.*` の同名 | **抜けは無い**（機械的に突き合わせ済み） |
+| `guardRecord.isDatetime` | `guard.isDateTime` | **綴りが違う**（`T` が大文字） |
+| `guardRecord.isDropDown` | `guard.isDropdown` | **綴りが違う**（`d` が小文字） |
+| `guardRecord.isID` | `guard.isId` | **綴りが違う** |
+| （無い） | `guard.isLookup` | ルックアップのキーを判別する |
+| （無い） | `guard.hasValue` | 値が設定されたことがあるかを判別する |
+
+綴りの 3 つはコンパイルエラーになるので黙って壊れることはない。
+
+前置きの存在チェックは要らなくなる。
+
+```ts
+// kintone-typeguard
+if (f === undefined || !guardRecord.isSubtable(f)) return;
+// monosashi
+if (!guard.isSubtable(f)) return;
+```
+
+### レコードの型 ── **1 対 1 にならない**
+
+ここが移行の本体。`kintone-typeguard` は取得元を問わず 1 つの型だったが、
+monosashi は**実測で形が違うことを確かめた**ので分かれている。
+
+| `kintone-typeguard` | `monosashi` | |
+|---|---|---|
+| `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** | どれになるかは**取り方**で決まる（下記） |
+| `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など | イベント名から event の形を引く |
+| `kintoneRecordFieldSet.Record` | `SetRecord` | `disabled` / `error` を持てる |
+| `kintoneRecordFieldUnified.*` | `Rest.*` / `RestRecord` | 実体はどちらも REST の正規形 |
+
+**`Get` の 1 型が 3 つに割れるのが、移行の見積りを決める。**
+呼び出しごとに「どの文脈のレコードか」を判断する必要がある。
+判断の基準は上の「`undefined` が付くかは『どの画面か』ではなく『どう取ったか』で決まる」。
+
+3 つを 1 つに潰していたことが `kintone-typeguard` の緩さの正体で、
+分かれていること自体が monosashi の存在理由でもある。
+
+### フォーム定義 ── **守備範囲外。移行先は無い**
+
+| `kintone-typeguard` | `monosashi` |
+|---|---|
+| `guardFormField.*`（29 個） | **無い。作る予定も無い** |
+| `guardFormLayout.*`（29 個） | **無い。作る予定も無い** |
+
+`getFormFields` / `getFormLayout` が返す**フォームの設定**を判別するもので、
+レコードの値とは別物。フォーム定義には `value` が無いので、
+monosashi のガードは**引数の時点で受け取れない**。
+
+```
+error TS2345: Argument of type 'OneOf' is not assignable to parameter of
+type 'LooseField | null | undefined'.
+  Property 'value' is missing in type 'Calc' but required in type 'LooseField'.
+```
+
+種別も食い違う。monosashi は `GROUP` と `REFERENCE_TABLE` を
+**「レコードには現れない」と実測で確かめて除外**しているが、
+フォーム定義にはどちらも存在し、さらに `LABEL` / `SPACER` / `HR` という
+フィールドですらないレイアウト要素がある。
+
+`Api.FormField` はルートから出しているが、**共通部分だけの緩い型**で、
+種別ごとの絞り込みには使えない。
+
+### 変換 ── 1 つ足りない
+
+| `kintone-typeguard` | `monosashi` | |
+|---|---|---|
+| （無い） | `toRestWrite` / `toUpdateParams` / `toAddParams` | JS API → REST。**実測 20 ケースに基づく** |
+| `guardUtils.converterGetToSet` | **無い** | `get()` → `set()` の変換 |
+
+`converterGetToSet` に相当するものは**まだ無い**。
+何を落とすべきかを `set()` に対して実測していないため
+（REST については `fixtures/write-behavior.md` に 20 ケースある）。
+推測で書かない方針なので、測ってから足す。
+
+## 実行時に載る量
+
+**このパッケージは実行時の依存を持たない。** `pnpm add monosashi` で入るのは
+これだけで、他には何も付いてこない（`pack:check` が毎回確かめている）。
+
+公開フォームへ 1 ファイルで配るような、バイト数が判断材料になる場合のために実測した
+（Vite / esbuild minify / tree-shaking 有効）。
+
+| 使い方 | バンドルに載る量 | gzip |
+|---|--:|--:|
+| **型だけ**（`import type`） | **0 B** | **0 B** |
+| `guard.*` だけ | 2,006 B | 901 B |
+| 全部（`import * as`） | 8,916 B | 2,947 B |
+
+型だけの場合、出力に monosashi のコードは**一行も残らない**
+（生成物を目視で確認済み）。
+`guard` / `field` / `setValue` / `toRestWrite` は実装なので、使った分だけ載る。
 
 ## もっと詳しく
 

@@ -69,6 +69,16 @@ JS API を足すときは、どちらの根拠かを JSDoc に書く。
 ずれは `test/fieldTypes.ts` を軸に `test/coverage.test.ts` と
 `test/coverage.test-d.ts` が縛っている。種別を足すときは 4 箇所すべてに書く。
 
+## 守備範囲を広げない
+
+**フォーム定義（`getFormFields` / `getFormLayout`）は対象外。**
+`kintone-typeguard` の `guardFormField` / `guardFormLayout` は引き取らない
+（DECISIONS「フォーム定義は守備範囲に入れない」）。
+
+レコードの値とは判別する対象が違い、種別の集合も違う
+（`GROUP` / `REFERENCE_TABLE` / `LABEL` / `SPACER` / `HR`）。
+`Api.FormField` は共通部分だけの緩い型に留める。**種別ごとに書き下さない。**
+
 ## 実行時依存を増やさない
 
 このパッケージは実行時の依存を持たない。`pack:check` が毎回確かめている。
