@@ -1082,6 +1082,13 @@ on(
 	setCaseIds: (): string[] => SET_CASES.map(({ id }) => id),
 	runSetCase,
 	markSetCase: store.markSetCase,
+	/**
+	 * 測定中は自動採取（show イベントのサンプル）を止める。
+	 *
+	 * 1 ケースごとにリロードするので、止めないと同じ文脈のサンプルが
+	 * 20 件以上積み上がる。情報は増えないのに measured.json が膨らむ。
+	 */
+	suppressSamples: store.suppressSamples,
 
 	/**
 	 * UI 操作の前後で発火した change イベントを拾うための口。

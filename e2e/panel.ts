@@ -36,6 +36,7 @@ type ProbeApi = {
 	setCaseIds: () => string[];
 	runSetCase: (id: string) => boolean;
 	markSetCase: (id: string, errorShown: boolean) => void;
+	suppressSamples: (on: boolean) => void;
 };
 
 /**
@@ -757,13 +758,31 @@ export const measureSetBehavior = async (
 	};
 	page.on("dialog", acceptAll);
 
-	const open = async (): Promise<void> => {
-		await page.goto(`/k/${app}/show#record=${recordId}&mode=edit`);
+	// **`page.goto` では画面が作り直されない。**
+	// ハッシュだけが違う同じ URL への遷移はリロードにならないので、
+	// 前のケースで出た kintone のエラー表示が残り、次のケースに数えられる
+	// （2026-09-08 に開始時チェックが検出した）。
+	// 2 件目以降は `reload()` にする。
+	const open = async (first: boolean): Promise<void> => {
+		if (first) {
+			await page.goto(`/k/${app}/show#record=${recordId}&mode=edit`);
+		} else {
+			await page.reload();
+		}
 		await waitForPanel(page, "screen.edit");
 	};
 
 	try {
-		await open();
+		await open(true);
+
+		// **リロードのたびに show イベントが飛ぶ。**
+		// 止めないと同じ文脈のサンプルが 20 件以上積み上がり、
+		// 情報は増えないのに measured.json が膨らんで週次の差分が読めなくなる
+		await page.evaluate(() =>
+			(
+				window as unknown as { __kintoneRecordProbe: ProbeApi }
+			).__kintoneRecordProbe.suppressSamples(true),
+		);
 		const ids = await page.evaluate(() =>
 			(
 				window as unknown as { __kintoneRecordProbe: ProbeApi }
@@ -773,7 +792,7 @@ export const measureSetBehavior = async (
 		let measured = 0;
 		for (const id of ids) {
 			// 2 件目以降は読み直す。1 件目は open() 済み
-			if (measured > 0) await open();
+			if (measured > 0) await open(false);
 
 			// **開始時にエラー表示が消えていることを確かめる。**
 			// 消えていなければ前のケースの残りを次のケースに数えてしまい、
@@ -810,6 +829,13 @@ export const measureSetBehavior = async (
 		}
 		return measured;
 	} finally {
+		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。
+		// 例外で抜けた場合も含めて戻すために finally に置く
+		await page.evaluate(() =>
+			(
+				window as unknown as { __kintoneRecordProbe: ProbeApi }
+			).__kintoneRecordProbe.suppressSamples(false),
+		);
 		page.off("dialog", acceptAll);
 	}
 };

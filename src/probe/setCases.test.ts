@@ -228,6 +228,34 @@ describe("失敗の検出は probe 側では行わない", () => {
 	});
 });
 
+describe("ケースごとに画面を作り直す", () => {
+	// **`page.goto` では作り直されない。** ハッシュだけが違う同じ URL への
+	// 遷移はリロードにならないので、前のケースのエラー表示が残る
+	// （2026-09-08 に開始時チェックが検出した）。
+	//
+	// ここが落ちたら goto に戻りかけている
+	test("2 件目以降は reload している", () => {
+		const source = readFileSync("e2e/panel.ts", "utf8");
+		const driver = source.slice(
+			source.indexOf("export const measureSetBehavior"),
+		);
+		expect(driver).toContain("page.reload()");
+	});
+
+	// 止めたままにすると、このあとの採取が全部消える
+	test("自動採取の停止を必ず戻している", () => {
+		const source = readFileSync("e2e/panel.ts", "utf8");
+		const driver = source.slice(
+			source.indexOf("export const measureSetBehavior"),
+		);
+		expect(driver).toContain("suppressSamples(true)");
+		expect(driver).toContain("suppressSamples(false)");
+		// finally に置いていないと、例外で抜けたときに戻らない
+		const finallyBlock = driver.slice(driver.lastIndexOf("} finally {"));
+		expect(finallyBlock).toContain("suppressSamples(false)");
+	});
+});
+
 describe("測定用レコードの作り方", () => {
 	// **重複禁止フィールドをそのまま渡すと落ちる。**
 	// filledRecord は検証アプリの構築でも使っており、そこで作ったレコードが
