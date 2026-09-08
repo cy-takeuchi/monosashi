@@ -154,7 +154,7 @@ export type ProbeStore = {
 
 const emptyStore = (): ProbeStore => ({ version: 1, samples: [] });
 
-export const load = (): ProbeStore => {
+const load = (): ProbeStore => {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (raw === null) return emptyStore();
