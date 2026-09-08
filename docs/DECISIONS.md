@@ -1707,3 +1707,61 @@ export const isNumber = (f) => f.type === "NUMBER" || f.type === "CALC";
 
 4 通り壊して確認した（落とす処理を消す / 全部落とす / 行 id を捨てる /
 null の行にも id を付ける）。すべて落ちる。
+
+## biome の警告で check が落ちていなかった
+
+**2026-09-08。** `pnpm run check` は「これがすべて」なのに、
+`biome check .` は**警告を出しても exit 0** で返る。
+
+死んだ関数（前のリファクタで参照だけ消して定義を残したもの）が
+`noUnusedVariables` に引っかかっていたが、**CI も手元も緑のまま**だった。
+
+```
+Found 1 warning.
+exit=0
+```
+
+このルールは `recommended` に入っていて有効。既定の重大度が `warn` なだけ。
+**「有効になっている」と「落ちる」は別**だった。
+
+`--error-on-warnings` を足した。入れた直後に、
+別ファイルの未使用 import を 1 件すぐ捕まえた。
+
+## ガードの表を名前から導出しない
+
+**2026-09-08。** 全 28 種別を実測データで縛るテストで、
+`type` からガード名を文字列操作で導出していた。
+
+```ts
+const toGuardName = (type) => `is${camelCase(type)}`;
+const fn = (guards as { [key: string]: unknown })[toGuardName(type)];
+```
+
+**このリポジトリの方針に反している。** 型 / `VALUE_SHAPE` / ガード / 構築子は
+全 28 種別を書き下している（Q3）。テストだけ導出する理由が無い。
+
+実害もある。
+
+| | 導出 | 表（`Record<ObservedFieldType, ...>`） |
+|---|---|---|
+| ガードを 1 つ消す | 実行するまで気づけない | **tsc が落ちる** |
+| 種別を足して書き忘れる | 実行するまで気づけない | **tsc が落ちる** |
+| 例外の対応表 | 結局 4 件持っている | 表に吸収される |
+
+`guards[name]` はインデックスアクセスなので
+`{ [key: string]: unknown }` へのキャストが要り、**型検査が丸ごと消える**。
+`test/guards.ts` の `GUARD_OF` に置き換えた。両方とも tsc で落ちることを確認した。
+
+`test/coverage.test.ts` にあった同じ導出も消して、同じ表を使う。
+役割は分けたまま。
+
+| | |
+|---|---|
+| `test/coverage.test.ts` | 関数が在って `type` で判別すること（消したら落ちる） |
+| `src/guard/record.test.ts` | 実測データを取りこぼさず、他種別を混入させないこと |
+
+`isLookup` と `hasValue` は表に入れない。**`type` で判定していない**ため。
+ルックアップのキーフィールドの `type` は元フィールドの型そのもので、
+通常のフィールドと区別がつかない（`confirmed` / `recordId` の有無で見る）。
+`hasValue` は `value !== undefined` で、種別に紐づかない。
+種別ごとの検査の対象にならないので個別にテストする。

@@ -2,9 +2,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { OBSERVED_FIELD_TYPES } from "../../test/fieldTypes";
+import { GUARD_OF } from "../../test/guards";
 import type { Probed } from "../probe/serialize.js";
 import type { ProbeStore, Sample } from "../probe/store.js";
-import * as guards from "./record.js";
 import { hasValue, isFile, isLookup, isSubtable } from "./record.js";
 
 /** Probed を元の値に戻す */
@@ -116,49 +116,6 @@ describe("hasValue", () => {
 });
 
 /**
- * 実測レコードのフィールドを **`type` で** 集める。
- *
- * 以前はここで `record.subtable` とフィールドコードを直接書いていた。
- * `subtable` は `tools/fixture-app/fields.ts` で**我々が決めた**コードで、
- * kintone の仕様ではない。実アプリのサブテーブルがこの名前であることは、まず無い。
- *
- * ガードの主張は「`type` が一致するものに絞り込める」であって、
- * コードは一切関係がない。コードで引くと
- *
- *   - 主張と関係のないものを検査することになる
- *   - 1 件見つけた時点で緑になり、他が絞り込めなくても気づけない
- *   - 落ちたときの意味が「ガードが壊れた」ではなく「コードが変わった」になる
- *
- * `docs/DECISIONS.md` の「採取文脈の下限を固定する」では、
- * コードまで指定してよいのは**他に特定する手段が無いとき**だけ、としている。
- * ここは `type` で引けるので、その条件を満たしていなかった。
- */
-const fieldsOfType = (
-	type: string,
-): { label: string; code: string; field: AnyRecord[string] }[] => {
-	const out: { label: string; code: string; field: AnyRecord[string] }[] = [];
-	const walk = (label: string, node: unknown): void => {
-		if (Array.isArray(node)) {
-			for (const item of node) walk(label, item);
-			return;
-		}
-		if (typeof node !== "object" || node === null) return;
-		for (const [code, value] of Object.entries(node)) {
-			if (typeof value !== "object" || value === null) continue;
-			const field = value as { type?: unknown; value?: unknown };
-			if (typeof field.type !== "string") continue;
-			if (field.type === type) {
-				out.push({ label, code, field: field as AnyRecord[string] });
-			}
-			// サブテーブルの中にも FILE などが入る
-			if (field.type === "SUBTABLE") walk(label, field.value);
-		}
-	};
-	for (const { label, record } of records) walk(label, record);
-	return out;
-};
-
-/**
  * 実測レコードのフィールドを、`type` ごとにまとめて 1 回だけ集める。
  *
  * サブテーブルの中も歩く。`FILE` などは行の中にも入るため。
@@ -197,34 +154,6 @@ const byType = ((): Map<
 const allFields = [...byType.values()].flat();
 
 /**
- * `type` から機械的に決まるガードの名前。
- *
- * 例外は 4 つだけ（`DROP_DOWN` → `isDropdown` など）。
- * `test/coverage.test.ts` と同じ対応で、そちらは「関数が在ること」を、
- * ここは「実測データを正しく絞り込むこと」を見る。
- */
-const guardName: { [type: string]: string } = {
-	DROP_DOWN: "isDropdown",
-	DATETIME: "isDateTime",
-	__ID__: "isId",
-	__REVISION__: "isRevision",
-};
-
-const toGuardName = (type: string): string =>
-	guardName[type] ??
-	`is${type
-		.toLowerCase()
-		.replace(/_(.)/g, (_, c: string) => c.toUpperCase())
-		.replace(/^(.)/, (_, c: string) => c.toUpperCase())}`;
-
-const guardOf = (type: string): ((field: unknown) => boolean) => {
-	const name = toGuardName(type);
-	const fn = (guards as unknown as { [key: string]: unknown })[name];
-	if (typeof fn !== "function") throw new Error(`${name} が見つかりません`);
-	return fn as (field: unknown) => boolean;
-};
-
-/**
  * **全 28 種別**を、実測データで両方向から縛る。
  *
  * ## なぜ「他種別を通さない」側が要るのか
@@ -253,7 +182,7 @@ const guardOf = (type: string): ((field: unknown) => boolean) => {
  * ガードの主張は「`type` が一致するものに絞り込める」で、コードは関係が無い。
  */
 describe.each(OBSERVED_FIELD_TYPES)("%s のガード", (type) => {
-	const is = guardOf(type);
+	const is = GUARD_OF[type];
 
 	test("実測に現れるものをすべて絞り込める", () => {
 		const found = byType.get(type) ?? [];
