@@ -749,6 +749,13 @@ export const measureSetBehavior = async (
 	page: Page,
 	app: string,
 	recordId: string,
+	/**
+	 * 測定後に移動する先。
+	 *
+	 * **自動採取を止めたまま離れる**ため、ここで受け取る。
+	 * 呼び出し側で移動すると、その画面の show が採られて 1 件増える。
+	 */
+	options: { readonly leaveTo: string },
 ): Promise<number> => {
 	// **`page.once` は使えない。** 21 回遷移するので 1 回では足りず、
 	// 発火しなかった場合は武装したまま残って後続を横取りする。
@@ -772,17 +779,22 @@ export const measureSetBehavior = async (
 		await waitForPanel(page, "screen.edit");
 	};
 
+	// **最初の遷移より前に止める。**
+	// リロードのたびに show イベントが飛ぶので、止めないと同じ文脈の
+	// サンプルが 20 件以上積み上がり、情報は増えないのに measured.json が
+	// 膨らんで週次の差分が読めなくなる。
+	//
+	// フラグは localStorage なので、いま開いている画面で立てれば
+	// 遷移後も効く。**開いてから立てると 1 件目の show が採られてしまう**
+	// （2026-09-08 に 1 件だけ増えたのがこれ）
+	await page.evaluate(() =>
+		(
+			window as unknown as { __kintoneRecordProbe: ProbeApi }
+		).__kintoneRecordProbe.suppressSamples(true),
+	);
+
 	try {
 		await open(true);
-
-		// **リロードのたびに show イベントが飛ぶ。**
-		// 止めないと同じ文脈のサンプルが 20 件以上積み上がり、
-		// 情報は増えないのに measured.json が膨らんで週次の差分が読めなくなる
-		await page.evaluate(() =>
-			(
-				window as unknown as { __kintoneRecordProbe: ProbeApi }
-			).__kintoneRecordProbe.suppressSamples(true),
-		);
 		const ids = await page.evaluate(() =>
 			(
 				window as unknown as { __kintoneRecordProbe: ProbeApi }
@@ -827,6 +839,9 @@ export const measureSetBehavior = async (
 			);
 			measured += 1;
 		}
+		// **止めたまま離れる。** 汚れた編集画面から出るので離脱確認が出るが、
+		// この関数が張っている acceptAll がまだ効いている
+		await page.goto(options.leaveTo);
 		return measured;
 	} finally {
 		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。

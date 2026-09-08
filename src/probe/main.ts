@@ -309,7 +309,20 @@ const resolveCodes = (
 			}
 		}
 	}
-	return { byType, subtable, file };
+	// 飛ばしたときに理由を辿れるようにする。
+	// FILE と SUBTABLE は「あるが空」で飛ぶことがあるので要素数まで残す
+	const shapes = Object.entries(rec)
+		.filter(([, field]) => typeof field?.type === "string")
+		.filter(([, field]) => field.type === "FILE" || field.type === "SUBTABLE")
+		.map(([code, field]) => {
+			const n = Array.isArray(field.value) ? field.value.length : "配列でない";
+			return `${code}(${String(field.type)})=${n}`;
+		});
+	const found = [`種別 ${Object.keys(byType).length} 個`, ...shapes].join(
+		" / ",
+	);
+
+	return { byType, subtable, file, found };
 };
 
 /**
@@ -412,7 +425,7 @@ const runSetCase = (id: string): boolean => {
 	if (patch === undefined) {
 		store.addSetCase({
 			...base,
-			skipped: "この画面に対象のフィールドが無い",
+			skipped: `対象のフィールドが無い（${codes.found}）`,
 		});
 		return false;
 	}

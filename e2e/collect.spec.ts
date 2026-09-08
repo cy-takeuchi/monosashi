@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { type Dialog, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { FILE_SLOT_COUNT, filledRecord } from "../tools/fixture-app/records";
 import { createClient } from "../tools/shared/client";
@@ -460,24 +460,13 @@ test("実 kintone から採取する", async ({ page }) => {
 	});
 	createdRecordIds.push(setProbeRecord.id);
 
-	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id);
+	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id, {
+		// 汚れた編集画面から離れるところまで止めたままにする。
+		// 離脱先の一覧画面でも show が飛ぶので、先に解除すると 1 件増える
+		leaveTo: `/k/${app}/?view=${listView.id}`,
+	});
 	expect(measuredCases).toBeGreaterThan(0);
-
-	// 汚れた編集画面から離れる。離脱確認が出たら受け入れる。
-	//
-	// **`page.once` にしない。** 発火しなかった場合に武装したまま残り、
-	// あとのダイアログを横取りする（`deleteRecord` がそれで壊れた）。
-	// 使う範囲を挟んで必ず外す
-	const acceptLeave = (dialog: Dialog): void => {
-		void dialog.accept();
-	};
-	page.on("dialog", acceptLeave);
-	try {
-		await page.goto(`/k/${app}/?view=${listView.id}`);
-		await waitForPanel(page, "screen.index");
-	} finally {
-		page.off("dialog", acceptLeave);
-	}
+	await waitForPanel(page, "screen.index");
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

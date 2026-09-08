@@ -52,6 +52,15 @@ export type ResolvedCodes = {
 				readonly first: Readonly<Record<string, unknown>>;
 		  }
 		| undefined;
+	/**
+	 * 何が見つかったかの覚え書き。**飛ばした理由に添える。**
+	 *
+	 * 「この画面に対象のフィールドが無い」だけだと、
+	 * フィールドが無いのか、あるが中身が空なのかが分からない。
+	 * 2026-09-08 に FILE のケースが 2 回続けて飛び、
+	 * **もう 1 回走らせないと理由が分からない**状態になった。
+	 */
+	readonly found: string;
 };
 
 export type SetCase = {

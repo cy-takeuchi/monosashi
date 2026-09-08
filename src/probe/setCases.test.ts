@@ -28,6 +28,7 @@ const fullCodes: ResolvedCodes = {
 		code: "code_FILE",
 		first: { contentType: "text/plain", fileKey: "k", name: "n", size: "1" },
 	},
+	found: "テスト用",
 };
 
 /** 何も無い画面。飛ばす経路が動くか */
@@ -35,6 +36,7 @@ const emptyCodes: ResolvedCodes = {
 	byType: {},
 	subtable: undefined,
 	file: undefined,
+	found: "テスト用（空）",
 };
 
 describe("ケース定義", () => {
