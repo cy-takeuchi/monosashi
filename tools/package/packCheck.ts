@@ -75,9 +75,18 @@ import {
 	type LooseRecord,
 	type Rest,
 	type RestRecord,
+	convertFieldForSet,
+	isRejectedOnSet,
 	setValue,
+	toSetRecord,
 	toUpdateParams,
 } from "monosashi";
+
+// REST で取ったレコードを画面に反映する経路。set() は REST と落とす対象が違う
+declare const restRecord2: RestRecord;
+const forSet = toSetRecord(restRecord2);
+const forSetCell = convertFieldForSet({ type: "NUMBER", value: "1" });
+const catRejected: boolean = isRejectedOnSet("CATEGORY");
 
 const text = field.singleLineText("a");
 const record: LooseRecord = { text };
@@ -122,6 +131,7 @@ declare const loginUser: Api.LoginUser;
 console.log(appId, user, pluginConfig, form, answer, shown, state, loginUser);
 
 console.log(params, recordId, restRecord, restNumber);
+console.log(forSet, forSetCell, catRejected);
 `;
 
 /**

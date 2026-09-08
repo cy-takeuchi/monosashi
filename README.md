@@ -241,10 +241,43 @@ kintone.events.on("app.record.detial.show", (e) => e);    // タイポも通る
 | `Rest` / `RestRecord` | REST API の型。本体から出る（下記） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
 | `toUpdateParams` / `toAddParams` | REST に渡すパラメータを作る |
+| `toSetRecord` | `kintone.app.record.set()` に渡す形にする |
 | `toRestWrite` / `toRest` | 変換の下位 API |
 | `field.*` | フィールドの構築 |
 | `setValue` / `canSetValue` | 型安全な代入 |
 | `guard.*` | 型ガード |
+
+### REST で取ったレコードを画面に反映する
+
+```ts
+import { toSetRecord } from "monosashi";
+
+const { record } = await client.record.getRecord({ app, id });
+kintone.app.record.set({ record: toSetRecord(record) });
+```
+
+**`toRestWrite` と同じ実装は使えない。** どちらも「書き込み」だが、
+落とすべきものが違う（`fixtures/set-behavior.md`・実測 22 ケース）。
+
+| | REST `updateRecord` | `kintone.app.record.set()` |
+|---|---|---|
+| 読み取り専用 8 種別 | **全部拒否**（落とすのは必須） | **`CATEGORY` だけ拒否**。他は無視される |
+| サブテーブルの行 `id` を落とす | **行が置き換わりデータが壊れる** | id が保たれる |
+| `type` の省略 | REST は `{ value }` だけで通る | **拒否される** |
+
+`toSetRecord` の必須要件は 2 つだけ。**`CATEGORY` を落とすことと、`type` を付けること。**
+残りは整形で、落とし漏れがあっても黙って無視される。
+
+触らないものもある。
+
+| | 理由 |
+|---|---|
+| `FILE` の値 | 4 キーのままで通る。`{ fileKey }` に削らなくてよい |
+| `null` の値 | 受け入れられ、値が未入力になる |
+
+**`null` を渡せることが `REST` → `set()` の要点。**
+REST の未入力（`DROP_DOWN` が `null`）をそのまま渡すと、
+画面側の未入力（`undefined`）になる。意味が正しく対応するので、値の変換は要らない。
 
 ### `guard.*` の一覧
 

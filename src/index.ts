@@ -28,6 +28,14 @@ export {
 	REJECTED_ON_WRITE,
 	UI_ONLY_PROPERTIES,
 } from "./convert/fieldTypes.js";
+// `kintone.app.record.set()` 向け。**REST とは落とす対象が違う**
+// （`fixtures/set-behavior.md`）
+export {
+	IGNORED_ON_SET,
+	isDroppedOnSet,
+	isRejectedOnSet,
+	REJECTED_ON_SET,
+} from "./convert/setFieldTypes.js";
 export type {
 	RestWriteParams,
 	RestWriteRecord,
@@ -39,6 +47,10 @@ export {
 	toRestWrite,
 	toUpdateParams,
 } from "./convert/toRestWrite.js";
+export {
+	convertFieldForSet,
+	toSetRecord,
+} from "./convert/toSetRecord.js";
 // --- 型ガード ---
 export * as guard from "./guard/record.js";
 export type {
