@@ -461,12 +461,12 @@ test("実 kintone から採取する", async ({ page }) => {
 	createdRecordIds.push(setProbeRecord.id);
 
 	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id, {
-		// 汚れた編集画面から離れるところまで止めたままにする。
-		// 離脱先の一覧画面でも show が飛ぶので、先に解除すると 1 件増える
+		// 汚れた編集画面から離れ、着地するまで止めたままにする。
+		// show は読み込み完了より後に飛ぶので、待たずに解除すると 1 件増える
 		leaveTo: `/k/${app}/?view=${listView.id}`,
+		leaveScreen: "screen.index",
 	});
 	expect(measuredCases).toBeGreaterThan(0);
-	await waitForPanel(page, "screen.index");
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

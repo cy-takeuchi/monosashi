@@ -772,10 +772,11 @@ export const measureSetBehavior = async (
 	/**
 	 * 測定後に移動する先。
 	 *
-	 * **自動採取を止めたまま離れる**ため、ここで受け取る。
+	 * **自動採取を止めたまま離れ、着地まで待つ**ため、ここで受け取る。
 	 * 呼び出し側で移動すると、その画面の show が採られて 1 件増える。
+	 * show は読み込み完了より後に飛ぶので、着地の待機までここに含める。
 	 */
-	options: { readonly leaveTo: string },
+	options: { readonly leaveTo: string; readonly leaveScreen: string },
 ): Promise<number> => {
 	// **`page.once` は使えない。** 21 回遷移するので 1 回では足りず、
 	// 発火しなかった場合は武装したまま残って後続を横取りする。
@@ -859,9 +860,15 @@ export const measureSetBehavior = async (
 			);
 			measured += 1;
 		}
-		// **止めたまま離れる。** 汚れた編集画面から出るので離脱確認が出るが、
-		// この関数が張っている acceptAll がまだ効いている
+		// **止めたまま離れ、着地まで待つ。**
+		// 汚れた編集画面から出るので離脱確認が出るが、
+		// この関数が張っている acceptAll がまだ効いている。
+		//
+		// **`goto` の解決だけでは足りない。** kintone の show イベントは
+		// 読み込み完了より後に飛ぶので、待たずに停止を解除すると
+		// 着地先のサンプルが 1 件採られる（2026-09-08 に 1 件増えた）
 		await page.goto(options.leaveTo);
+		await waitForPanel(page, options.leaveScreen);
 		return measured;
 	} finally {
 		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。
