@@ -87,13 +87,23 @@ const cell = (text: string, limit = 60): string => {
 /**
  * 1 ケースの結論。
  *
- * **「例外が出なかった」だけでは受け入れとは言えない。**
- * 値が変わっていなければ黙って無視された可能性がある。
+ * ## 材料が 2 つ要る
+ *
+ * `set()` に不正な値を渡しても**例外は飛ばない**。
+ * kintone が画面にエラーを出すだけなので、
+ * **判定は e2e が見た `errorShown` に依る**。
+ *
+ * さらに、エラーが出なくても値が変わっていなければ
+ * 「黙って無視された」であって「受け入れ」ではない。
  * 2 つを組み合わせて初めて結論が出る。
  */
 const verdict = (result: SetCaseResult): string => {
 	if (result.skipped !== undefined) return "測っていない";
-	if (result.threw) return "**例外**";
+	// **判定を e2e から受け取れていないものは、結論を出さない。**
+	// 手でボタンを押して走らせた場合がこれ。
+	// 「エラーが出なかった」と取り違えると誤った結論が基準になる
+	if (result.errorShown === undefined) return "判定なし";
+	if (result.errorShown) return "**拒否**";
 	if (values(result.before) === values(result.after)) return "無視された";
 	return "受け入れ";
 };
@@ -103,6 +113,21 @@ const main = (): void => {
 	const results = store.setBehavior;
 	if (results === undefined || results.length === 0) {
 		log(`${IN} に setBehavior がありません。まだ測っていません（#14）`);
+		process.exitCode = 1;
+		return;
+	}
+
+	// **判定が 1 つも無ければ止める。** 「判定なし」だけの表を出すと
+	// 根拠として使われる危険がある
+	if (results.every(({ errorShown }) => errorShown === undefined)) {
+		log(
+			[
+				"どのケースにも判定（errorShown）がありません。",
+				"probe は set() の失敗を検出できないので、e2e を通す必要があります:",
+				"",
+				"  pnpm run e2e && pnpm run fixture:build",
+			].join("\n"),
+		);
 		process.exitCode = 1;
 		return;
 	}
@@ -135,27 +160,28 @@ const main = (): void => {
 	}
 
 	lines.push("");
-	lines.push("## 例外のメッセージ");
+	lines.push("## 判定の根拠");
 	lines.push("");
-	const threw = results.filter((r) => r.threw);
-	if (threw.length === 0) {
-		lines.push("例外が出たケースはない。");
-		lines.push("");
-		lines.push(
-			"**これは「すべて受け入れられた」という意味ではない。** " +
-				"`set()` の失敗が JS の例外として上がってこない可能性がある。" +
-				"上の表で「無視された」となっているものがそれに当たる。",
-		);
-	} else {
-		for (const result of threw) {
-			lines.push(`### ${result.id}`);
-			lines.push("");
-			lines.push("```");
-			lines.push(result.message ?? "（メッセージなし）");
-			lines.push("```");
-			lines.push("");
-		}
-	}
+	lines.push(
+		"`set()` は不正な値を渡しても**例外を投げない**。" +
+			"kintone が「カスタマイズ用の JavaScript の実行時にエラーが発生しました」を" +
+			"画面に出すだけで、呼び出し元には何も返らない。",
+	);
+	lines.push("");
+	lines.push(
+		"そのため判定は e2e が画面を見て行う。**エラー文言は汎用で、" +
+			"どのフィールドが原因かは出ない**ので、1 ケースずつ画面を読み直して走らせ、" +
+			"直後の表示を見て 1 対 1 で対応づけている。",
+	);
+	lines.push("");
+	lines.push("| 結論 | 判定 |");
+	lines.push("| --- | --- |");
+	lines.push("| **拒否** | kintone がエラーを表示した |");
+	lines.push("| 無視された | エラーは出ないが値も変わらない |");
+	lines.push("| 受け入れ | エラーも出ず、値が変わった |");
+	lines.push("| 判定なし | e2e を通していない（手動実行など） |");
+	lines.push("| 測っていない | その画面に対象のフィールドが無い |");
+	lines.push("");
 
 	lines.push("## 渡したもの");
 	lines.push("");

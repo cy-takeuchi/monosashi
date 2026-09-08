@@ -33,8 +33,6 @@ export const ACTION = {
 	removeRow: "remove-row",
 	/** 未入力の必須フィールドを set() で埋める。保存できる状態にするため */
 	fillRequired: "fill-required",
-	/** set() に何を渡すと弾かれるかを 1 ケースずつ測る（#14） */
-	setBehavior: "set-behavior",
 	coverage: "coverage",
 	export: "export",
 	clear: "clear",

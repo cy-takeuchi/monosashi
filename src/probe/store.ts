@@ -74,18 +74,25 @@ export type Sample = {
 /**
  * `kintone.app.record.set()` に 1 ケース渡した結果（#14）。
  *
- * ## 例外と「変わらなかった」を別に持つ理由
+ * ## 失敗は probe 側では検出できない
  *
- * `set()` が失敗したときに JS の例外として捕まるかが**分かっていない**。
- * 分かっているのは、`type` を省くと kintone が
- * 「カスタマイズ用の JavaScript の実行時にエラーが発生しました」を出すこと
- * （実測 2026-08-30）。あれは捕まえられなかったエラーの表示なので
- * try/catch で捕まる見込みだが、確かめていない。
+ * **`set()` に不正な値を渡しても例外は飛ばない。**
+ * kintone が「カスタマイズ用の JavaScript の実行時にエラーが発生しました」を
+ * 画面に出すだけで、呼び出し元には何も返らない（`e2e/panel.ts` に既に記録がある）。
  *
- * 例外が出なくても値が変わらなければ「黙って無視された」と言える。
- * この 2 つを分けて持つことで、どちらでも結論が出る。
+ * 最初は try/catch で捕まえる設計にしていたが、**それでは何も測れない**。
+ * 実際に走らせて分かった（2026-09-08）。
  *
- * kintone のエラー表示を DOM から読むことはしない（内部セレクタは使用禁止）。
+ * だから判定は e2e 側が行う。probe は「渡したもの」と「前後の値」だけを残し、
+ * kintone がエラーを表示したかは Playwright が見て `errorShown` に書き戻す。
+ *
+ * ## 1 ケースずつ、間にリロードを挟む
+ *
+ * **一度エラー表示が出ると後続の `set()` も失敗する。**
+ * 21 ケースを 1 回のクリックで回す設計だと、最初の失敗が残り全部を汚染して
+ * 「どのケースが原因か」が分からなくなる。実際そうなった。
+ *
+ * e2e が 1 ケースごとに編集画面を読み直してから走らせる。
  */
 export type SetCaseResult = {
 	id: string;
@@ -94,12 +101,17 @@ export type SetCaseResult = {
 	skipped?: string;
 	/** set() に実際に渡したもの。差し込み後の値 */
 	sent?: Probed;
-	/** 例外が出たか。出たならメッセージ */
-	threw: boolean;
-	message?: string;
 	/** set() の前後で get() から読んだ、監視対象フィールドの値 */
 	before?: Probed;
 	after?: Probed;
+	/**
+	 * kintone がカスタマイズのエラーを表示したか。**e2e が書き戻す。**
+	 *
+	 * `undefined` は「まだ判定していない」。
+	 * 手でボタンを押して走らせたときはこれが埋まらないので、
+	 * 結論を出す前に `fixture:set-behavior` が弾く。
+	 */
+	errorShown?: boolean;
 	/** 採取時刻。正規化で伏せられる */
 	at: string;
 	isMobile: boolean;
@@ -153,10 +165,34 @@ export const add = (sample: Sample): void => {
 	save(store);
 };
 
-/** set() のケース結果を 1 件追加する */
+/**
+ * set() のケース結果を 1 件追加する。
+ *
+ * 同じ id が既にあれば置き換える。1 ケースずつリロードして走らせるので、
+ * やり直したときに古い結果が残らないようにする。
+ */
 export const addSetCase = (result: SetCaseResult): void => {
 	const store = load();
-	store.setBehavior = [...(store.setBehavior ?? []), result];
+	const rest = (store.setBehavior ?? []).filter(({ id }) => id !== result.id);
+	store.setBehavior = [...rest, result];
+	save(store);
+};
+
+/**
+ * kintone がエラーを表示したかを書き戻す（e2e から呼ぶ）。
+ *
+ * probe 側では `set()` の失敗を検出できないので、これが唯一の判定材料。
+ * 対象が見つからなければ何もしない（飛ばしたケースには結果が無い）。
+ */
+export const markSetCase = (id: string, errorShown: boolean): void => {
+	const store = load();
+	const results = store.setBehavior ?? [];
+	const at = results.findIndex((result) => result.id === id);
+	if (at === -1) return;
+	const target = results[at];
+	if (target === undefined) return;
+	results[at] = { ...target, errorShown };
+	store.setBehavior = results;
 	save(store);
 };
 

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { OBSERVED_FIELD_TYPES } from "../../test/fieldTypes";
 import { canSetValue } from "../build/setValue.js";
@@ -163,6 +164,50 @@ describe("何を測ろうとしているか", () => {
 		);
 		const field = Object.values(patch ?? {})[0] as object;
 		expect("type" in field).toBe(false);
+	});
+});
+
+describe("失敗の検出は probe 側では行わない", () => {
+	// **set() に不正な値を渡しても例外は飛ばない。**
+	// kintone が画面にエラーを出すだけで、呼び出し元には何も返らない
+	// （e2e/panel.ts に既に記録がある。2026-09-08 に実際に踏んだ）。
+	//
+	// try/catch を置くと「捕まえられる」という誤解が残るので置かない。
+	// ここが落ちたら、その誤解に戻りかけている
+	test("probe に try/catch を置いていない", () => {
+		const source = readFileSync("src/probe/main.ts", "utf8");
+		const runSetCase = source.slice(
+			source.indexOf("const runSetCase = "),
+			source.indexOf("let changeEventCount"),
+		);
+		expect(runSetCase).not.toContain("try {");
+		expect(runSetCase).not.toContain("catch");
+	});
+
+	test("判定は errorShown で受け取る形になっている", () => {
+		const source = readFileSync("src/probe/store.ts", "utf8");
+		expect(source).toContain("errorShown");
+		expect(source).toContain("markSetCase");
+	});
+});
+
+describe("dialog リスナーを漏らさない", () => {
+	// **`page.once("dialog", ...)` は発火しなかったら武装したまま残る。**
+	// `deleteRecord` がそれで壊れた（2026-09-08）。DOM のダイアログで済んだ画面では
+	// window.confirm が出ないので発火せず、あとで別の目的で出したダイアログを
+	// 横取りして `Cannot accept dialog which is already handled!` になる。
+	//
+	// 登録したら必ず外す。ソースを読んで、登録の数だけ解除があることを見る
+	test("dialog を登録した数だけ page.off がある", () => {
+		for (const file of ["e2e/panel.ts", "e2e/collect.spec.ts"]) {
+			const source = readFileSync(file, "utf8");
+			const registered = [...source.matchAll(/page\.(?:on|once)\("dialog"/g)]
+				.length;
+			const removed = [...source.matchAll(/page\.off\("dialog"/g)].length;
+			expect(removed, `${file}: 登録 ${registered} / 解除 ${removed}`).toBe(
+				registered,
+			);
+		}
 	});
 });
 
