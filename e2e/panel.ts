@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { type Dialog, expect, type Locator, type Page } from "@playwright/test";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
 import {
 	CUSTOMIZE_ERROR,
@@ -555,31 +555,44 @@ export const deleteRecord = async (
 	// PC 詳細は DOM のダイアログ、モバイルは `window.confirm`。
 	// Playwright は既定で `window.confirm` を**キャンセルで閉じる**ので、
 	// 構えずに押すと削除されず、メニューが開いたまま止まる。
-	// 押す前に承認する側に倒しておく
-	page.once("dialog", (dialog) => {
+	// 押す前に承認する側に倒しておく。
+	//
+	// **終わったら必ず外す。** `page.once` は「1 回発火したら外れる」ので、
+	// **発火しなかった場合は武装したまま残る**。
+	// DOM のダイアログで済んだ画面（`window.confirm` が出ない）ではまさにそれが起き、
+	// あとで別の目的で出したダイアログを横取りして
+	// `Cannot accept dialog which is already handled!` になる
+	// （2026-09-08 に踏んだ。set() の測定で編集画面から離れるときの離脱確認）。
+	const acceptOnce = (dialog: Dialog): void => {
 		void dialog.accept();
-	});
-	await trigger.click();
-
-	// DOM のダイアログが出る画面ではこちらを押す。
-	// `window.confirm` で済んだ画面には出てこないので、上限付きで待って進む。
-	// 本当に消えたかは呼び出し側が採取で確かめるので、ここで見逃しても嘘にはならない。
-	//
-	// **役割で掴めない。** PC 詳細の確認は `href` を持たない `<a>` で、
-	// ARIA 上は `generic` になる（実測 2026-09-05）。
-	// `getByRole("link")` では見つからないので、タグと文字で掴む。
-	//
-	// **`<button>` を候補に入れてはいけない。** 一覧では行ごとに
-	// `button "Delete"` があり、ページ全体から探すと確認ではなく
-	// 1 行目の削除ボタンを掴んでしまう（実測でそうなった。詳細画面には
-	// 行のボタンが無いので、そちらだけ見ていると気づけない）。
-	// 確認は `<a>`、削除の起点は `<button>` で、タグが分かれている
+	};
+	page.once("dialog", acceptOnce);
 	try {
-		await page
-			.locator("a", { hasText: DELETE_CONFIRM })
-			.click({ timeout: UI_EVENT_TIMEOUT_MS });
-	} catch {
-		// window.confirm で確定済み
+		await trigger.click();
+
+		// DOM のダイアログが出る画面ではこちらを押す。
+		// `window.confirm` で済んだ画面には出てこないので、上限付きで待って進む。
+		// 本当に消えたかは呼び出し側が採取で確かめるので、ここで見逃しても嘘にはならない。
+		//
+		// **役割で掴めない。** PC 詳細の確認は `href` を持たない `<a>` で、
+		// ARIA 上は `generic` になる（実測 2026-09-05）。
+		// `getByRole("link")` では見つからないので、タグと文字で掴む。
+		//
+		// **`<button>` を候補に入れてはいけない。** 一覧では行ごとに
+		// `button "Delete"` があり、ページ全体から探すと確認ではなく
+		// 1 行目の削除ボタンを掴んでしまう（実測でそうなった。詳細画面には
+		// 行のボタンが無いので、そちらだけ見ていると気づけない）。
+		// 確認は `<a>`、削除の起点は `<button>` で、タグが分かれている
+		try {
+			await page
+				.locator("a", { hasText: DELETE_CONFIRM })
+				.click({ timeout: UI_EVENT_TIMEOUT_MS });
+		} catch {
+			// window.confirm で確定済み
+		}
+	} finally {
+		// 発火していれば既に外れているので、二重に外しても無害
+		page.off("dialog", acceptOnce);
 	}
 };
 
@@ -736,45 +749,57 @@ export const measureSetBehavior = async (
 	app: string,
 	recordId: string,
 ): Promise<number> => {
+	// **`page.once` は使えない。** 21 回遷移するので 1 回では足りず、
+	// 発火しなかった場合は武装したまま残って後続を横取りする。
+	// 期間中ずっと承認し、最後に必ず外す
+	const acceptAll = (dialog: Dialog): void => {
+		void dialog.accept();
+	};
+	page.on("dialog", acceptAll);
+
 	const open = async (): Promise<void> => {
 		await page.goto(`/k/${app}/show#record=${recordId}&mode=edit`);
 		await waitForPanel(page, "screen.edit");
 	};
 
-	await open();
-	const ids = await page.evaluate(() =>
-		(
-			window as unknown as { __kintoneRecordProbe: ProbeApi }
-		).__kintoneRecordProbe.setCaseIds(),
-	);
-
-	let measured = 0;
-	for (const id of ids) {
-		// 2 件目以降は読み直す。1 件目は open() 済み
-		if (measured > 0) await open();
-
-		const ran = await page.evaluate(
-			(caseId) =>
-				(
-					window as unknown as { __kintoneRecordProbe: ProbeApi }
-				).__kintoneRecordProbe.runSetCase(caseId),
-			id,
+	try {
+		await open();
+		const ids = await page.evaluate(() =>
+			(
+				window as unknown as { __kintoneRecordProbe: ProbeApi }
+			).__kintoneRecordProbe.setCaseIds(),
 		);
-		if (!ran) continue; // この画面に対象が無い。skipped として記録済み
 
-		// **エラー表示の有無を数える。** count が 0 かどうかだけを見る。
-		// 文言は汎用（どのフィールドが原因かは出ない）なので、
-		// 1 ケースずつ走らせていることが対応づけの根拠になる
-		const shown = (await page.getByText(CUSTOMIZE_ERROR).count()) > 0;
+		let measured = 0;
+		for (const id of ids) {
+			// 2 件目以降は読み直す。1 件目は open() 済み
+			if (measured > 0) await open();
 
-		await page.evaluate(
-			({ caseId, errorShown }) =>
-				(
-					window as unknown as { __kintoneRecordProbe: ProbeApi }
-				).__kintoneRecordProbe.markSetCase(caseId, errorShown),
-			{ caseId: id, errorShown: shown },
-		);
-		measured += 1;
+			const ran = await page.evaluate(
+				(caseId) =>
+					(
+						window as unknown as { __kintoneRecordProbe: ProbeApi }
+					).__kintoneRecordProbe.runSetCase(caseId),
+				id,
+			);
+			if (!ran) continue; // この画面に対象が無い。skipped として記録済み
+
+			// **エラー表示の有無を数える。** count が 0 かどうかだけを見る。
+			// 文言は汎用（どのフィールドが原因かは出ない）なので、
+			// 1 ケースずつ走らせていることが対応づけの根拠になる
+			const shown = (await page.getByText(CUSTOMIZE_ERROR).count()) > 0;
+
+			await page.evaluate(
+				({ caseId, errorShown }) =>
+					(
+						window as unknown as { __kintoneRecordProbe: ProbeApi }
+					).__kintoneRecordProbe.markSetCase(caseId, errorShown),
+				{ caseId: id, errorShown: shown },
+			);
+			measured += 1;
+		}
+		return measured;
+	} finally {
+		page.off("dialog", acceptAll);
 	}
-	return measured;
 };

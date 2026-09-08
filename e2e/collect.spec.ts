@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { type Dialog, expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { createClient } from "../tools/shared/client";
 import { env } from "../tools/shared/env";
@@ -436,12 +436,20 @@ test("実 kintone から採取する", async ({ page }) => {
 	expect(measuredCases).toBeGreaterThan(0);
 
 	// 汚れた編集画面から離れる。離脱確認が出たら受け入れる。
-	// Playwright は既定で window.confirm をキャンセルするので明示的に accept する
-	page.once("dialog", (dialog) => {
+	//
+	// **`page.once` にしない。** 発火しなかった場合に武装したまま残り、
+	// あとのダイアログを横取りする（`deleteRecord` がそれで壊れた）。
+	// 使う範囲を挟んで必ず外す
+	const acceptLeave = (dialog: Dialog): void => {
 		void dialog.accept();
-	});
-	await page.goto(`/k/${app}/?view=${listView.id}`);
-	await waitForPanel(page, "screen.index");
+	};
+	page.on("dialog", acceptLeave);
+	try {
+		await page.goto(`/k/${app}/?view=${listView.id}`);
+		await waitForPanel(page, "screen.index");
+	} finally {
+		page.off("dialog", acceptLeave);
+	}
 
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);

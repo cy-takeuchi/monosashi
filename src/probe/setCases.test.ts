@@ -191,6 +191,26 @@ describe("失敗の検出は probe 側では行わない", () => {
 	});
 });
 
+describe("dialog リスナーを漏らさない", () => {
+	// **`page.once("dialog", ...)` は発火しなかったら武装したまま残る。**
+	// `deleteRecord` がそれで壊れた（2026-09-08）。DOM のダイアログで済んだ画面では
+	// window.confirm が出ないので発火せず、あとで別の目的で出したダイアログを
+	// 横取りして `Cannot accept dialog which is already handled!` になる。
+	//
+	// 登録したら必ず外す。ソースを読んで、登録の数だけ解除があることを見る
+	test("dialog を登録した数だけ page.off がある", () => {
+		for (const file of ["e2e/panel.ts", "e2e/collect.spec.ts"]) {
+			const source = readFileSync(file, "utf8");
+			const registered = [...source.matchAll(/page\.(?:on|once)\("dialog"/g)]
+				.length;
+			const removed = [...source.matchAll(/page\.off\("dialog"/g)].length;
+			expect(removed, `${file}: 登録 ${registered} / 解除 ${removed}`).toBe(
+				registered,
+			);
+		}
+	});
+});
+
 describe("目印は値として区別できる", () => {
 	// materialize（main.ts）が `=== CURRENT_VALUE` で判定するので、
 	// 実データと衝突しないことが前提になる。Symbol なら衝突しない
