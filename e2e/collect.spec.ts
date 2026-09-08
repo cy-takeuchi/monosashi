@@ -418,10 +418,41 @@ test("実 kintone から採取する", async ({ page }) => {
 	await waitForSample(page, "app.record.index.delete.submit", "event.record");
 	forget(extra.id);
 
+	// --- set() の受け入れ挙動（#14）-------------------------------------------
+	// **必ず最後に、専用のレコードで測る。**
+	// 読み取り専用フィールドや不正な値を渡すので、フォームが汚れる。
+	// 途中に混ぜると、そのあとの保存が失敗して採取全体が壊れる。
+	//
+	// 保存しない。測るのは「set() が何を受け付けるか」で、
+	// 保存できるかどうかは別の話（REST 側は write-behavior.md で測ってある）。
+	const setProbeRecord = await createClient().record.addRecord({
+		app,
+		record: { singleLineTextRequired: { value: "set() の受け入れ測定用" } },
+	});
+	createdRecordIds.push(setProbeRecord.id);
+
+	await page.goto(`/k/${app}/show#record=${setProbeRecord.id}&mode=edit`);
+	await waitForPanel(page, "screen.edit");
+	await click(page, ACTION.setBehavior);
+
+	// 汚れたフォームから離れるので、離脱確認が出たら受け入れる。
+	// Playwright は既定で window.confirm をキャンセルするため、明示的に accept する
+	page.once("dialog", (dialog) => {
+		void dialog.accept();
+	});
+	await page.goto(`/k/${app}/?view=${listView.id}`);
+	await waitForPanel(page, "screen.index");
+
 	// --- 取り出し -----------------------------------------------------------
 	const json = await exportSamples(page);
-	const store = JSON.parse(json) as { samples: unknown[] };
+	const store = JSON.parse(json) as {
+		samples: unknown[];
+		setBehavior?: unknown[];
+	};
 	expect(store.samples.length).toBeGreaterThan(0);
+	// 0 件だと「測ったが全部飛ばされた」と「ボタンを押していない」の
+	// 区別がつかない。押した以上は何か記録されているはず
+	expect(store.setBehavior?.length ?? 0).toBeGreaterThan(0);
 
 	mkdirSync(OUT_DIR, { recursive: true });
 	writeFileSync(`${OUT_DIR}/raw.json`, json);

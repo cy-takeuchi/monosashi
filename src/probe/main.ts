@@ -33,6 +33,12 @@ import {
 	setRecordViaJsApi,
 } from "./kintoneApi.js";
 import { inspectStructure, probe } from "./serialize.js";
+import {
+	CURRENT_VALUE,
+	type ResolvedCodes,
+	SET_CASES,
+	STRIP_ROW_IDS,
+} from "./setCases.js";
 import * as store from "./store.js";
 import { ACTION } from "./testIds.js";
 import {
@@ -262,6 +268,162 @@ const captureAfterSet = (): void => {
 	record(`${sampleScreen()}.afterSet`, "kintone.app.record.get", after, {
 		structure: inspectStructure(after),
 	});
+};
+
+// ---------------------------------------------------------------------------
+// set() の受け入れ挙動（#14）
+// ---------------------------------------------------------------------------
+
+/** レコードを走査して、種別ごとの代表フィールドコードを解決する */
+const resolveCodes = (
+	rec: Record<string, { type?: unknown; value?: unknown }>,
+): ResolvedCodes => {
+	const byType: { [type: string]: string | undefined } = {};
+	let subtable: ResolvedCodes["subtable"];
+	let file: ResolvedCodes["file"];
+
+	for (const [code, field] of Object.entries(rec)) {
+		if (typeof field?.type !== "string") continue;
+		// 最初に見つかったものを代表にする。フィールドコードは我々が決めたものなので
+		// 特定のコードを当てにしない（DECISIONS「ガードのテストをフィールドコードで書かない」）
+		byType[field.type] ??= code;
+
+		if (field.type === "SUBTABLE" && subtable === undefined) {
+			const rows = Array.isArray(field.value) ? field.value : [];
+			subtable = {
+				code,
+				rowIds: rows.map((row) => {
+					const id = (row as { id?: unknown }).id;
+					return typeof id === "string" ? id : null;
+				}),
+			};
+		}
+
+		if (field.type === "FILE" && file === undefined) {
+			const first = Array.isArray(field.value) ? field.value[0] : undefined;
+			// 中身のある FILE でないと 4 キーを渡すケースが作れない
+			if (typeof first === "object" && first !== null) {
+				file = { code, first: first as Record<string, unknown> };
+			}
+		}
+	}
+	return { byType, subtable, file };
+};
+
+/**
+ * ケース定義の目印を、いまのレコードの値に差し替える。
+ *
+ * `CURRENT_VALUE` は「get() で読んだ値をそのまま」、
+ * `STRIP_ROW_IDS` は「サブテーブルの行から id を外す」。
+ * ケース定義を純粋に保つため、差し込みはここで行う。
+ */
+const materialize = (
+	patch: Record<string, unknown>,
+	rec: Record<string, { type?: unknown; value?: unknown }>,
+): Record<string, unknown> => {
+	const out: Record<string, unknown> = {};
+	for (const [code, field] of Object.entries(patch)) {
+		if (typeof field !== "object" || field === null) {
+			out[code] = field;
+			continue;
+		}
+		const copy: Record<string, unknown> = { ...field };
+		const current = rec[code]?.value;
+
+		if (copy.value === CURRENT_VALUE) copy.value = current;
+
+		if (copy.value === STRIP_ROW_IDS) {
+			const rows = Array.isArray(current) ? current : [];
+			copy.value = rows.map((row) => {
+				const { id: _dropped, ...rest } = row as { id?: unknown };
+				return rest;
+			});
+		}
+		out[code] = copy;
+	}
+	return out;
+};
+
+/**
+ * `SET_CASES` を順に `set()` へ渡して、結果を記録する。
+ *
+ * ## 1 ケースずつ前を読み直す
+ *
+ * 前のケースの `set()` が画面を書き換えているので、
+ * `before` はケースごとに `get()` し直す。
+ * 最初に 1 回だけ読むと、2 件目以降の `before` が実態とずれる。
+ *
+ * ## 例外で止めない
+ *
+ * 途中のケースで落ちても残りを続ける。
+ * 「どのケースで落ちたか」を知るために測っているので、
+ * 1 件目で止まると何も分からない。
+ */
+const captureSetBehavior = (): void => {
+	for (const setCase of SET_CASES) {
+		const screen = sampleScreen();
+		const base = {
+			id: setCase.id,
+			question: setCase.question,
+			at: new Date().toISOString(),
+			isMobile: isMobile(),
+			screen,
+		};
+
+		const before = getRecordViaJsApi() as
+			| Record<string, { type?: unknown; value?: unknown }>
+			| undefined;
+		if (before === undefined) {
+			store.addSetCase({
+				...base,
+				threw: false,
+				skipped: "レコードを取得できません",
+			});
+			continue;
+		}
+
+		const codes = resolveCodes(before);
+		const patch = setCase.build(codes);
+		if (patch === undefined) {
+			store.addSetCase({
+				...base,
+				threw: false,
+				skipped: "この画面に対象のフィールドが無い",
+			});
+			continue;
+		}
+
+		const sent = materialize(patch, before);
+		const watched = setCase.watch?.(codes) ?? Object.keys(sent);
+		const pick = (
+			rec: Record<string, { type?: unknown; value?: unknown }> | undefined,
+		): unknown =>
+			Object.fromEntries(watched.map((code) => [code, rec?.[code]]));
+
+		const beforeWatched = pick(before);
+		let threw = false;
+		let message: string | undefined;
+		try {
+			setRecordViaJsApi(sent);
+		} catch (error) {
+			threw = true;
+			message = error instanceof Error ? error.message : String(error);
+		}
+
+		// 例外が出ても読み直す。「投げたが値は変わっていた」を見逃さないため
+		const after = getRecordViaJsApi() as
+			| Record<string, { type?: unknown; value?: unknown }>
+			| undefined;
+
+		store.addSetCase({
+			...base,
+			sent: probe(sent),
+			threw,
+			...(message === undefined ? {} : { message }),
+			before: probe(beforeWatched),
+			after: probe(pick(after)),
+		});
+	}
 };
 
 /**
@@ -755,6 +917,13 @@ const boot = (event: { type?: string }): unknown => {
 						text: "必須を埋める",
 						run: fillRequired,
 					},
+					{
+						// **最後に置く。** 読み取り専用フィールドや不正な値を渡すので、
+						// 画面が汚れる。ほかの採取を先に済ませてから押す
+						id: ACTION.setBehavior,
+						text: "set() の受け入れを測る",
+						run: captureSetBehavior,
+					},
 				];
 			// set() は作成 / 編集画面でしか動かない
 			case "screen.edit":
@@ -798,6 +967,13 @@ const boot = (event: { type?: string }): unknown => {
 						id: ACTION.fillRequired,
 						text: "必須を埋める",
 						run: fillRequired,
+					},
+					{
+						// **最後に置く。** 読み取り専用フィールドや不正な値を渡すので、
+						// 画面が汚れる。ほかの採取を先に済ませてから押す
+						id: ACTION.setBehavior,
+						text: "set() の受け入れを測る",
+						run: captureSetBehavior,
 					},
 				];
 			default:

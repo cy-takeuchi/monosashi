@@ -62,6 +62,7 @@
 		"test": "vitest run --typecheck",
 		"e2e": "playwright test",
 		"fixture:build": "tsx tools/fixture/build.ts",
+		"fixture:set-behavior": "tsx tools/fixture/setBehavior.ts",
 		"e2e:install": "playwright install --with-deps chromium"
 	},
 	"devDependencies": {
