@@ -871,7 +871,9 @@ on(
  * ファイルの落ちる先や名前が環境に依存するため。
  */
 // **`satisfies` で縛る。** e2e が `ProbeApi` を import しているので、
-// 片方だけ直すと tsc が落ちる（`api.ts`）
+// 片方だけ直すと tsc が落ちる（`api.ts`）。
+// e2e 側が実際に検査されるのは `tsconfig.json` の `include` に `e2e` が
+// 入っているからで、そこは `test/tsconfig.test.ts` が縛っている
 const api = {
 	export: store.exportToString,
 	clear: store.clear,
