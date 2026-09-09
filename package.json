@@ -1,6 +1,6 @@
 {
 	"name": "monosashi",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"type": "module",
 	"packageManager": "pnpm@12.3.4",
 	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
