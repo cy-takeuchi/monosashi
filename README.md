@@ -210,19 +210,11 @@ const { record } = await client.record.getRecord({ app, id });
 kintone.app.record.set({ record: toSetRecord(record) });
 ```
 
-**`toRestWrite` と同じ実装は使えない。** どちらも「書き込み」だが、
-落とすべきものが違う（`fixtures/set-behavior.md`・実測 22 ケース）。
+**`toRestWrite` を代わりに使えない。** どちらも「書き込み」だが、
+kintone が受け付けるものが違うので、落とすものも変わる
+（実測 22 ケース: [`fixtures/set-behavior.md`](fixtures/set-behavior.md)）。
 
-この表は**落とすと何が起きるか**の実測で、monosashi の挙動ではない。
-
-| 落としたとき | REST `updateRecord` | `kintone.app.record.set()` |
-|---|---|---|
-| 読み取り専用 8 種別 | **全部拒否**（落とすのは必須） | **`CATEGORY` だけ拒否**。他は無視される |
-| サブテーブルの行 `id` | **その行が新規行になり、元の行は消える** | 元の行の id が保たれる |
-| `type` | `{ value }` だけで通る | **拒否される** |
-
-**行 `id` は落とさない。** どちらの変換も、入力に `id` があればそのまま渡す
-（作成画面の新規行のように `null` のときだけ渡さない）。
+サブテーブルの行 `id` はどちらも落とさない。
 既存の行は `id` 付きで更新され、`id` の無い行だけが追加される。
 
 ## `kintone-typeguard` からの移行

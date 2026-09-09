@@ -32,7 +32,8 @@ export namespace Api {
 	 * `TS2304: Cannot find name 'Element'` になる。
 	 *
 	 * `skipLibCheck: true`（TypeScript の既定）では出ないが、
-	 * **既定に頼らないのがこのリポジトリの方針**（README「検出できない any」）。
+	 * **既定に頼らないのがこのリポジトリの方針**
+	 * （DECISIONS「ルートは DOM に依存しない」）。
 	 *
 	 * `globalThis` に `Element` が在るかで分岐する。
 	 * ブラウザでは本物の `Element` に、Node では最小形に落ちる。
