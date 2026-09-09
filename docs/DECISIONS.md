@@ -425,6 +425,38 @@ portal / space / report は公式ドキュメント準拠で書き、
 （共通クライアントが現に REST に `Set.Record` を当てていた）。
 どちらに向かうかは呼び出し先を見ないと決まらない。
 
+### 名前の対応表は README ではなくここに置く
+
+**2026-09-09。** README に「`kintone-typeguard` からの移行」の節を置いていたが、
+**利用者向けの文書には要らない**という判断で落とした。
+表そのものは捨てないので移す。
+
+綴りが違うのは 3 つだけで、**コンパイルエラーになるので黙って壊れない**。
+
+| kintone-typeguard | monosashi |
+|---|---|
+| `guardRecord.isDatetime` | `guard.isDateTime` |
+| `guardRecord.isDropDown` | `guard.isDropdown` |
+| `guardRecord.isID` | `guard.isId` |
+
+28 種別すべてに対応があり、抜けは無い（機械的に突き合わせ済み）。
+`guard.isLookup` と `guard.hasValue` が増えている。
+
+型は 1 対 1 にならない。**ここが移行の見積りを決める。**
+
+| kintone-typeguard | monosashi |
+|---|---|
+| `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** |
+| `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など |
+| `kintoneRecordFieldSet.Record` | `SetRecord` |
+| `kintoneRecordFieldUnified.*` | `Rest.*` / `RestRecord` |
+| `guardUtils.converterGetToSet` | `toSetRecord`（落とす対象は実測で決めたので中身は違う） |
+| `guardFormField` / `guardFormLayout` | **無い。** 守備範囲外（[フォーム定義は守備範囲に入れない](#フォーム定義は守備範囲に入れない)） |
+
+`Get` の 1 型が 3 つに割れるので、**呼び出しごとに「どの文脈のレコードか」を
+判断する必要がある**。3 つを 1 つに潰していたことが kintone-typeguard の
+緩さの正体で、分かれていること自体が monosashi の存在理由でもある。
+
 ---
 
 ## 実測で判明した事実
@@ -2965,22 +2997,40 @@ DOM の無い Node レーンでも通る。
 今度はテスト側ではなく変異ハーネス側で踏んだ。
 glob を値に持つ設定ファイルでは、行頭がコメントの行だけを落とす。
 
-## README のバイト数を pack:check で突き合わせる
+## バンドルに載る量は pack:check で突き合わせる
 
-README の「実行時に載る量」は手で測って書いたもので、
+当時 README にあった「実行時に載る量」は手で測って書いたもので、
 **測り方がどこにも残っていなかった**。0.2.0 の準備で測り直したら
 3 行とも古かった。
 
-| | 書いてあった値 | 実測 |
+| 使い方 | 書いてあった値 | 測り直した値 |
 |---|--:|--:|
-| `guard.*` だけ | 2,006 B / 901 B | **2,194 B / 935 B** |
+| ガードだけ | 2,006 B / 901 B | **2,194 B / 935 B** |
 | 全部 | 8,916 B / 2,947 B | **9,630 B / 3,103 B** |
 
-`toSetRecord` と 28 個のガードが入った分。公開フォームへ 1 ファイルで
-配る利用者はこの数字で判断するので、**古い数字は無い方がまし**。
+`toSetRecord` と 28 個のガードが入った分。
+**古い数字は無い方がまし**なので、`tools/package/bundleSize.ts` が測り、
+書いてある表と突き合わせる。`pack:check` から呼ぶので、ずれたら落ちる。
+`check` は 4.6 → 6.7 秒。
 
-`tools/package/bundleSize.ts` が測り、README の表と突き合わせる。
-`pack:check` から呼ぶので、ずれたら落ちる。`check` は 4.6 → 6.7 秒。
+### 数字の置き場を README から移す
+
+**2026-09-09。** バイト数は README から落とした
+（利用者が読む文書には要らない、という判断）。
+数字ごと消すと**測り方がまた残らなくなる**ので、表はここに置く。
+
+突き合わせる先は次の見出しの下だけ。DECISIONS のどこかに
+同じ行が現れても拾わないように、見出しを目印にしている。
+
+### 現在の値
+
+Vite / esbuild minify / tree-shaking 有効。
+
+| 使い方 | バンドルに載る量 | gzip |
+|---|--:|--:|
+| **型だけ**（`import type`） | **0 B** | **0 B** |
+| `guard.*` だけ | 2,194 B | 935 B |
+| 全部（`import * as`） | 9,632 B | 3,105 B |
 
 ### 入口を再輸出だけにする
 
@@ -2994,7 +3044,7 @@ README の「実行時に載る量」は手で測って書いたもので、
 
 ### `**0 B**` の解析でずれた
 
-README の値は `**0 B**` のように強調が付く。
+表の値は `**0 B**` のように強調が付く。
 `/\*\*|\s*B$/g` の 1 つの正規表現でまとめて落とそうとしたら、
 **末尾が `**` なので `B$` に一致せず** `0 B` が残り、
 正しい README に対して「ずれている」と報告した。
@@ -3021,3 +3071,38 @@ GitHub 上は成功して見える。
 
 `git log main..<ブランチ>` が空であることを、マージ後に確かめる。
 積むときは**上から先にマージする**か、`main` に向けて 1 本ずつ出す。
+
+## 「落とす」をやめて「除く」に統一する
+
+**2026-09-09。** README の「落とすものも変わる」が読み手に伝わらない、
+という指摘から。「落とす」をこのリポジトリは **3 つの意味**に使っていた。
+
+| 意味 | 例 |
+|---|---|
+| 送るデータから取り除く | 「`CATEGORY` を落とす」 |
+| 検査が失敗する | 「ずれたら落とす」「undefined を渡しても落ちない」 |
+| 別の値に寄せる | 「`event.record` で見えた値に落とす」 |
+
+**1 つ目だけを「除く」に変える。** 残り 2 つは日本語として自然で、
+言い換えると逆に読みにくい。**一括置換はできない**ので意味で分けて直した。
+
+**公開 API の名前も変える。** 文章だけ変えると名前と食い違う。
+
+| 変更前 | 変更後 |
+|---|---|
+| `isDroppedOnWrite` | `isExcludedOnWrite` |
+| `isDroppedOnSet` | `isExcludedOnSet` |
+
+`REJECTED_ON_*` / `IGNORED_ON_*` / `isRejectedOn*` は変えない。
+**kintone の反応**を表す名前で、こちら側の動作ではない。
+
+**deprecated エイリアスは作らない**（[10. 移行](#10-移行) と同じ方針）。
+破壊的変更なので次のリリースは **0.3.0**。
+
+`fixtures/*-behavior.md` の文言は `tools/fixture/setBehavior.ts` と
+`tools/probe-write/writeProbe.ts` が書き出す**生成物**なので、生成側だけ直した
+（次の採取で反映される）。この文書の過去の記述は当時の言葉のまま残す。
+
+**バイト数が 2 B 増えた**（9,630 → 9,632 B）。export 名がバンドルに残るため。
+[pack:check が拾って落ちた](#バンドルに載る量は-packcheck-で突き合わせる)ので表を更新した。
+**名前を変えると出荷物のサイズが変わる**という当たり前のことが、測っていると見える。

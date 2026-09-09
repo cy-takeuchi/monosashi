@@ -3,7 +3,7 @@ import type {
 	LooseRecord,
 	LooseSubtableRow,
 } from "../types/loose.js";
-import { isDroppedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes.js";
+import { isExcludedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes.js";
 
 /**
  * JS API / event.record / REST のレコードを、
@@ -20,13 +20,13 @@ import { isDroppedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes.js";
  *
  * ## 何をするか
  *
- * 1. 書き込みが拒否される type を落とす（落とさないと必ずエラーになる）
+ * 1. 書き込みが拒否される type を除く（除かないと必ずエラーになる）
  * 2. `$id` / `$revision` を分離して id / revision として返す
- * 3. UI 専用プロパティ（disabled / error / confirmed / recordId）を落とす
+ * 3. UI 専用プロパティ（disabled / error / confirmed / recordId）を除く
  * 4. サブテーブルは**行の id を保持したまま**再帰処理する
  *
  * 3 と 4 のうち 3 は整形であって必須ではない（渡しても無視される）。
- * **4 は必須**。id を落とすと既存の行が置き換わり、新しい id が振られてデータが壊れる。
+ * **4 は必須**。id を除くと既存の行が置き換わり、新しい id が振られてデータが壊れる。
  */
 
 export type RestWriteRecord = {
@@ -61,7 +61,7 @@ const convertValue = (field: LooseField): unknown => {
 			const converted = convertField(cell);
 			if (converted !== undefined) inner[code] = converted;
 		}
-		// id は保持する。落とすと行が置き換わってデータが壊れる（実測）。
+		// id は保持する。除くと行が置き換わってデータが壊れる（実測）。
 		// ただし null（作成画面の新規行）のときは渡さない。
 		return row.id === undefined || row.id === null
 			? { value: inner }
@@ -70,7 +70,7 @@ const convertValue = (field: LooseField): unknown => {
 };
 
 /**
- * フィールド 1 つを変換する。落とすべきものは undefined を返す。
+ * フィールド 1 つを変換する。除くべきものは undefined を返す。
  *
  * サブテーブルの行だけを変換したいときのために公開する。
  * 一括変換しか無いと、テーブル 1 行だけを扱うコードが書けない。
@@ -78,7 +78,7 @@ const convertValue = (field: LooseField): unknown => {
 export const convertField = (
 	field: LooseField,
 ): { value: unknown } | undefined => {
-	if (isDroppedOnWrite(field.type)) return undefined;
+	if (isExcludedOnWrite(field.type)) return undefined;
 	return { value: convertValue(field) };
 };
 
@@ -126,7 +126,7 @@ export const toRestWrite = (record: LooseRecord): RestWriteParams => {
 /**
  * 読み取り方向の正規化。UI のレコードを REST 相当の形にする。
  *
- * UI 専用プロパティを落とし、値が未設定のフィールドを落とす。
+ * UI 専用プロパティと、値が未設定のフィールドを除く。
  * REST の型（Canonical）として扱えるようにするのが目的で、
  * 書き込みには toRestWrite を使う。
  */

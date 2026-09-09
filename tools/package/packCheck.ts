@@ -83,7 +83,7 @@ import {
 	toUpdateParams,
 } from "monosashi";
 
-// REST で取ったレコードを画面に反映する経路。set() は REST と落とす対象が違う
+// REST で取ったレコードを画面に反映する経路。set() は REST と除く対象が違う
 declare const restRecord2: RestRecord;
 const forSet = toSetRecord(restRecord2);
 const forSetCell = convertFieldForSet({ type: "NUMBER", value: "1" });

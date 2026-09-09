@@ -65,7 +65,7 @@ export type CreateRecord = {
  *
  * `monosashi/kintone` を使わず、自前の `kintone.d.ts` を持つプロジェクトが
  * `set()` の引数だけを差し替えられるように、ルートから出している
- * （README の「自前の `kintone.d.ts` と併用する」）。
+ * （README の「`kintone` グローバル」）。
  */
 export type SetRecord = {
 	[fieldCode: string]: {

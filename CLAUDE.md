@@ -75,12 +75,12 @@ CI のワークフローにステップを並べない。定義は `package.json
 ## 書き込みは REST と `set()` で要件が違う
 
 `toRestWrite` と `toSetRecord` は**同じ実装を使い回さない**。
-落とすべきものが実測で違う（`fixtures/write-behavior.md` / `fixtures/set-behavior.md`）。
+除くべきものが実測で違う（`fixtures/write-behavior.md` / `fixtures/set-behavior.md`）。
 
 | | REST | `set()` |
 |---|---|---|
-| 落とすのが必須 | 読み取り専用 8 種別 | **`CATEGORY` だけ** |
-| 行 `id` | 落とすと行が置き換わる | 落としても保たれる |
+| 除くのが必須 | 読み取り専用 8 種別 | **`CATEGORY` だけ** |
+| 行 `id` | 除くと行が置き換わる | 除いても保たれる |
 | `type` | 付けない | **必ず付ける** |
 
 `REJECTED_ON_WRITE` を流用すると `set()` では厳しすぎ、逆は緩すぎる。
@@ -142,7 +142,7 @@ CI のワークフローにステップを並べない。定義は `package.json
 | `src/types/` | 型の定義。`field` / `record` / `event` / `rest` / `loose` |
 | `src/guard/` | 型ガード |
 | `src/build/` | `field.*` の構築子と `setValue` |
-| `src/convert/` | REST / `set()` への変換。**落とす対象が違う** |
+| `src/convert/` | REST / `set()` への変換。**除く対象が違う** |
 | `src/probe/` | 実測の採取カスタマイズ（ブラウザで動く） |
 | `src/kintone.ts` | `kintone` グローバルの宣言。公式 166 API |
 | `src/types/jsApi.ts` | JS API の値の型。**根拠はドキュメント**。DOM を直接参照しない |

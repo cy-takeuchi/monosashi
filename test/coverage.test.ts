@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { field } from "../src/build/field";
 import { canSetValue } from "../src/build/setValue";
-import { isDroppedOnWrite, isRejectedOnWrite } from "../src/convert/fieldTypes";
+import {
+	isExcludedOnWrite,
+	isRejectedOnWrite,
+} from "../src/convert/fieldTypes";
 import { toRestWrite } from "../src/convert/toRestWrite";
 import { matchesContext, REQUIRED_CONTEXTS } from "./contexts";
 import { OBSERVED_FIELD_TYPES } from "./fieldTypes";
@@ -30,7 +33,9 @@ const observedInFixtures = new Set(
 const declared = new Set<string>(OBSERVED_FIELD_TYPES);
 
 /** REST に書き込める種別。構築子が必要なのはここだけ */
-const writable = OBSERVED_FIELD_TYPES.filter((type) => !isDroppedOnWrite(type));
+const writable = OBSERVED_FIELD_TYPES.filter(
+	(type) => !isExcludedOnWrite(type),
+);
 
 describe("一覧がフィクスチャと一致している", () => {
 	test("フィクスチャに現れた種別はすべて一覧にある", () => {
@@ -136,12 +141,12 @@ describe("構築子が書き込める全種別にある", () => {
 	test("構築子が作る種別はすべて書き込める", () => {
 		const notWritable = built
 			.map(({ type }) => type)
-			.filter((type) => isDroppedOnWrite(type));
+			.filter((type) => isExcludedOnWrite(type));
 		expect(notWritable).toEqual([]);
 	});
 });
 
-describe("書き込みで落とすべき種別が実際に落ちる", () => {
+describe("書き込みで除くべき種別が実際に除かれる", () => {
 	test("拒否される種別を含むレコードから、それらが消える", () => {
 		const record = Object.fromEntries(
 			OBSERVED_FIELD_TYPES.map((type) => [type, { type, value: "x" }]),
@@ -153,10 +158,10 @@ describe("書き込みで落とすべき種別が実際に落ちる", () => {
 		);
 		expect(survived).toEqual([]);
 
-		const dropped = OBSERVED_FIELD_TYPES.filter(
-			(type) => !isDroppedOnWrite(type) && !(type in converted),
+		const missing = OBSERVED_FIELD_TYPES.filter(
+			(type) => !isExcludedOnWrite(type) && !(type in converted),
 		);
-		expect(dropped).toEqual([]);
+		expect(missing).toEqual([]);
 	});
 
 	test("$id と $revision は record ではなく id / revision になる", () => {
@@ -171,7 +176,7 @@ describe("書き込みで落とすべき種別が実際に落ちる", () => {
 	});
 
 	test("undefined を渡しても落ちない", () => {
-		expect(isDroppedOnWrite(undefined)).toBe(false);
+		expect(isExcludedOnWrite(undefined)).toBe(false);
 		expect(isRejectedOnWrite(undefined)).toBe(false);
 	});
 });

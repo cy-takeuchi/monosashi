@@ -185,7 +185,7 @@ describe("setRowValue: サブテーブルの行のセルへの代入", () => {
 		expect(row.value.t_text.value).toBe("書き換え");
 	});
 
-	test("行の id は触らない（落とすと行が置き換わるため）", () => {
+	test("行の id は触らない（除くと行が置き換わるため）", () => {
 		const row = sampleRow();
 		setRowValue(row, "t_number", "2");
 		expect(row.id).toBe("1");

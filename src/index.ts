@@ -23,16 +23,16 @@ export {
 // --- 変換 ---
 export {
 	IGNORED_ON_WRITE,
-	isDroppedOnWrite,
+	isExcludedOnWrite,
 	isRejectedOnWrite,
 	REJECTED_ON_WRITE,
 	UI_ONLY_PROPERTIES,
 } from "./convert/fieldTypes.js";
-// `kintone.app.record.set()` 向け。**REST とは落とす対象が違う**
+// `kintone.app.record.set()` 向け。**REST とは除く対象が違う**
 // （`fixtures/set-behavior.md`）
 export {
 	IGNORED_ON_SET,
-	isDroppedOnSet,
+	isExcludedOnSet,
 	isRejectedOnSet,
 	REJECTED_ON_SET,
 } from "./convert/setFieldTypes.js";
