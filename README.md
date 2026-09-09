@@ -89,13 +89,6 @@ AWS Lambda などサーバサイドで本体だけを使える。
 import { field, toUpdateParams } from "monosashi";
 ```
 
-`pnpm pack` した tarball がこの条件で使えることは `pack:check` が毎回検査している
-（`skipLibCheck: false` や DOM 無しの構成も含む）。
-
-公開物には [provenance](https://docs.npmjs.com/generating-provenance-statements)
-が付いている。どのリポジトリのどのワークフローがこの tarball を作ったかを
-npm のページから辿れる。
-
 ## API
 
 | | 用途 |
