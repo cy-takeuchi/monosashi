@@ -5,7 +5,7 @@ import type { ProbeStore } from "../probe/store.js";
 import { REJECTED_ON_WRITE } from "./fieldTypes.js";
 import {
 	IGNORED_ON_SET,
-	isDroppedOnSet,
+	isExcludedOnSet,
 	isRejectedOnSet,
 	REJECTED_ON_SET,
 } from "./setFieldTypes.js";
@@ -15,7 +15,7 @@ import { convertFieldForSet, toSetRecord } from "./toSetRecord.js";
  * `toSetRecord` を**実測結果に対して**検証する。
  *
  * `fixtures/set-behavior.md` の元データ（`measured.json` の `setBehavior`）を読み、
- * 「拒否された種別を落としているか」を実測から引く。
+ * 「拒否された種別を除いているか」を実測から引く。
  * 表を手で写すと、実測を採り直したときに静かにずれる。
  */
 
@@ -68,29 +68,29 @@ describe("実測が根拠になっている", () => {
 
 	// **実測で拒否された種別を、実測から引いて突き合わせる。**
 	// 表を手で写すと、採り直したときに静かにずれる
-	test("拒否された種別をすべて落としている", () => {
+	test("拒否された種別をすべて除いている", () => {
 		expect(rejectedTypes.size).toBeGreaterThan(0);
-		const notDropped = [...rejectedTypes].filter(
-			(type) => !isDroppedOnSet(type),
+		const notExcluded = [...rejectedTypes].filter(
+			(type) => !isExcludedOnSet(type),
 		);
-		expect(notDropped).toEqual([]);
+		expect(notExcluded).toEqual([]);
 	});
 
 	test("REJECTED_ON_SET が実測と一致している", () => {
 		expect([...REJECTED_ON_SET].sort()).toEqual([...rejectedTypes].sort());
 	});
 
-	// **拒否されていない種別を落としてはいけない。**
-	// 落とすと画面に反映されなくなる。整形として落としてよいのは
+	// **拒否されていない種別を除いてはいけない。**
+	// 除くと画面に反映されなくなる。整形として除いてよいのは
 	// 「無視される」と実測で分かっているものだけ
-	test("受け入れられる種別を落としていない", () => {
-		const wronglyDropped = [...ignoredTypes].filter(
+	test("受け入れられる種別を除いていない", () => {
+		const wronglyExcluded = [...ignoredTypes].filter(
 			(type) =>
-				isDroppedOnSet(type) &&
+				isExcludedOnSet(type) &&
 				!new Set<string>(IGNORED_ON_SET).has(type) &&
 				!new Set<string>(REJECTED_ON_SET).has(type),
 		);
-		expect(wronglyDropped).toEqual([]);
+		expect(wronglyExcluded).toEqual([]);
 	});
 });
 
@@ -150,7 +150,7 @@ describe("触らないもの", () => {
 		expect(out.f?.value).toEqual([first]);
 	});
 
-	// 落としても保たれるが、REST から来た行をそのまま扱えるように渡す
+	// 除いても保たれるが、REST から来た行をそのまま扱えるように渡す
 	test("サブテーブルの行 id を渡す", () => {
 		const out = toSetRecord({
 			table: {
@@ -182,8 +182,8 @@ describe("触らないもの", () => {
 	});
 });
 
-describe("落とすもの", () => {
-	test("CATEGORY を落とす（唯一の必須要件）", () => {
+describe("除くもの", () => {
+	test("CATEGORY を除く（唯一の必須要件）", () => {
 		const out = toSetRecord({
 			c: { type: "CATEGORY", value: ["x"] },
 			text: { type: "SINGLE_LINE_TEXT", value: "a" },
@@ -191,7 +191,7 @@ describe("落とすもの", () => {
 		expect(Object.keys(out)).toEqual(["text"]);
 	});
 
-	test("読み取り専用と $id / $revision / CALC を落とす（整形）", () => {
+	test("読み取り専用と $id / $revision / CALC を除く（整形）", () => {
 		const record = Object.fromEntries(
 			IGNORED_ON_SET.map((type) => [`f_${type}`, { type, value: "x" }]),
 		);
@@ -202,7 +202,7 @@ describe("落とすもの", () => {
 		expect(Object.keys(out)).toEqual(["text"]);
 	});
 
-	test("サブテーブルの中でも落とす", () => {
+	test("サブテーブルの中でも除く", () => {
 		const out = toSetRecord({
 			table: {
 				type: "SUBTABLE",
@@ -224,9 +224,9 @@ describe("落とすもの", () => {
 	});
 });
 
-describe("convertFieldForSet は落とす判定を含まない", () => {
+describe("convertFieldForSet は除く判定を含まない", () => {
 	// 1 行だけ変換する用途で使えるようにするため。
-	// 判定を混ぜると「落とすべきもの」を渡せなくなる
+	// 判定を混ぜると「除くべきもの」を渡せなくなる
 	test("CATEGORY を渡しても undefined にならない", () => {
 		expect(convertFieldForSet({ type: "CATEGORY", value: ["x"] })).toEqual({
 			type: "CATEGORY",

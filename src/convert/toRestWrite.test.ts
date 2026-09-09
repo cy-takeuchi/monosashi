@@ -79,7 +79,7 @@ describe("実測レコードを変換できる", () => {
 	});
 });
 
-describe("書き込みが拒否される type を落とす", () => {
+describe("書き込みが拒否される type を除く", () => {
 	test("変換後に 1 つも残らない", () => {
 		const rejected = new Set<string>(REJECTED_ON_WRITE);
 		const offenders: string[] = [];
@@ -189,7 +189,7 @@ describe("サブテーブルの行 id を保持する", () => {
 		expect(after.every((row) => !("id" in row))).toBe(true);
 	});
 
-	test("テーブル内の CALC は落とされる", () => {
+	test("テーブル内の CALC は除かれる", () => {
 		// 行の中に CALC が在ることを type で確かめ、変換後にその**コードが**消えたかを見る。
 		// コードは実測データから取り出すので、こちらでは決め打たない
 		const target = (():
@@ -224,7 +224,7 @@ describe("サブテーブルの行 id を保持する", () => {
 
 	test("行の中に CALC 以外の値は残る", () => {
 		// 上のテストが「全部消す」実装でも通ってしまわないように、
-		// 落とすべきでないものが残っていることを確かめる
+		// 除くべきでないものが残っていることを確かめる
 		const target = findWithRow((row) =>
 			Object.values(row.value ?? {}).some((cell) => cell.type !== "CALC"),
 		);
@@ -238,7 +238,7 @@ describe("サブテーブルの行 id を保持する", () => {
 	});
 });
 
-describe("UI 専用プロパティを落とす", () => {
+describe("UI 専用プロパティを除く", () => {
 	test("ルックアップの confirmed / recordId が残らない", () => {
 		const target = records.find(({ record }) =>
 			Object.values(record).some(
@@ -273,7 +273,7 @@ describe("未設定のフィールドは送らない", () => {
 });
 
 describe("toRest（読み取り方向の正規化）", () => {
-	test("UI 専用プロパティを落とす", () => {
+	test("UI 専用プロパティを除く", () => {
 		const target = records.find(({ record }) =>
 			Object.values(record).some((field) => "confirmed" in field),
 		);
@@ -344,12 +344,12 @@ describe("convertField: フィールド 1 つの変換", () => {
 });
 
 describe("UI 専用プロパティ", () => {
-	test("toRest が UI_ONLY_PROPERTIES を全て落とす", () => {
+	test("toRest が UI_ONLY_PROPERTIES を全て除く", () => {
 		const field: Record<string, unknown> = {
 			type: "SINGLE_LINE_TEXT",
 			value: "a",
 		};
-		for (const key of UI_ONLY_PROPERTIES) field[key] = "落とされるはず";
+		for (const key of UI_ONLY_PROPERTIES) field[key] = "除かれるはず";
 
 		const converted = toRest({ text: field as never }) as {
 			text: Record<string, unknown>;

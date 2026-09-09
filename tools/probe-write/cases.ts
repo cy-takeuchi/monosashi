@@ -1,8 +1,8 @@
 /**
  * REST の updateRecord に「何を渡すと弾かれるか」を測るケース定義。
  *
- * 変換関数 (forRestWrite) が何を落とすべきかは、この結果が根拠になる。
- * 推測で「CALC は落とすべき」と決めるのではなく、実際に投げて確かめる。
+ * 変換関数 (forRestWrite) が何を除くべきかは、この結果が根拠になる。
+ * 推測で「CALC は除くべき」と決めるのではなく、実際に投げて確かめる。
  */
 
 type Case = {
@@ -46,7 +46,7 @@ export const cases: Case[] = [
 	},
 	{
 		id: "lookup-key-and-copy",
-		question: "キーとコピー先を両方渡す（変換で落とすべきか判定する本命）",
+		question: "キーとコピー先を両方渡す（変換で除くべきか判定する本命）",
 		build: () => ({
 			lookupKey: { value: "K-001" },
 			lookupCopyName: { value: "手で入れた値" },
@@ -205,7 +205,7 @@ export const cases: Case[] = [
 	{
 		id: "subtable-drop-id",
 		question:
-			"サブテーブルを id なしで渡す（落とすと全行が新規行になるという想定の検証）",
+			"サブテーブルを id なしで渡す（除くと全行が新規行になるという想定の検証）",
 		build: () => ({
 			subtable: {
 				type: "SUBTABLE",
