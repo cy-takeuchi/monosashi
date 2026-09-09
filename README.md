@@ -2,10 +2,6 @@
 
 実測に基づく kintone レコードの型・変換関数・型ガード。
 
-> **物差し**。自分のコードを当てて確かめるための基準、という意味で名付けた。
-> このパッケージはサイボウズ株式会社の公式なものではない。
-> kintone はサイボウズ株式会社の登録商標。
-
 `@kintone/dts-gen` の `kintone.d.ts` は `kintone.app.record.get()` も
 `kintone.events.on()` のハンドラ引数も `any` で、レコード周りの型を提供していない。
 `@kintone/rest-api-client` は REST API の型しか持たない。
