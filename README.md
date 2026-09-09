@@ -153,6 +153,8 @@ import { guard } from "monosashi";
 if (!guard.isSubtable(record[code])) return;
 ```
 
+| ガード | フィールド種別 |
+|---|---|
 | `isRecordNumber` | `RECORD_NUMBER` |
 | `isId` | `__ID__` |
 | `isRevision` | `__REVISION__` |
