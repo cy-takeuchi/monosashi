@@ -197,10 +197,10 @@ kintone.app.record.set({ record: toSetRecord(record) });
 ```
 
 **`toRestWrite` を代わりに使えない。** どちらも「書き込み」だが、
-kintone が受け付けるものが違うので、落とすものも変わる
+kintone が受け付けないフィールドが違うので、**変換で除くものも違う**
 （実測 22 ケース: [`fixtures/set-behavior.md`](fixtures/set-behavior.md)）。
 
-サブテーブルの行 `id` はどちらも落とさない。
+サブテーブルの行 `id` はどちらも除かず、そのまま渡す。
 既存の行は `id` 付きで更新され、`id` の無い行だけが追加される。
 
 ## もっと詳しく
