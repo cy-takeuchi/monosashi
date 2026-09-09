@@ -217,55 +217,6 @@ kintone が受け付けるものが違うので、落とすものも変わる
 サブテーブルの行 `id` はどちらも落とさない。
 既存の行は `id` 付きで更新され、`id` の無い行だけが追加される。
 
-## `kintone-typeguard` からの移行
-
-`kintone-typeguard` の後継として作っている。
-**レコードの値**についてはガードが揃っているが、**フォーム定義は守備範囲外**。
-
-### レコードの値のガード ── 移せる
-
-**28 種別すべてに対応があり、抜けは無い**（機械的に突き合わせ済み）。
-綴りが違うものが 3 つあるが、コンパイルエラーになるので黙って壊れることはない。
-
-| `kintone-typeguard` | `monosashi` |
-|---|---|
-| `guardRecord.isDatetime` | `guard.isDateTime` |
-| `guardRecord.isDropDown` | `guard.isDropdown` |
-| `guardRecord.isID` | `guard.isId` |
-
-`guard.isLookup` と `guard.hasValue` が増えている。
-前置きの存在チェックも要らなくなる。
-
-### レコードの型 ── **1 対 1 にならない**
-
-ここが移行の見積りを決める。
-
-| `kintone-typeguard` | `monosashi` |
-|---|---|
-| `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** |
-| `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など |
-| `kintoneRecordFieldSet.Record` | `SetRecord` |
-| `kintoneRecordFieldUnified.*` | `Rest.*` / `RestRecord` |
-
-`Get` の 1 型が 3 つに割れるので、**呼び出しごとに「どの文脈のレコードか」を
-判断する必要がある**。3 つを 1 つに潰していたことが `kintone-typeguard` の
-緩さの正体で、分かれていること自体が monosashi の存在理由でもある。
-
-### フォーム定義 ── **守備範囲外。移行先は無い**
-
-`guardFormField` / `guardFormLayout`（各 29 個）に相当するものは**無く、作る予定も無い**。
-`getFormFields` / `getFormLayout` が返すフォームの設定を判別するもので、
-レコードの値とは別物。フォーム定義には `value` が無いので、
-monosashi のガードは引数の時点で受け取れない。
-
-種別も食い違う。monosashi が「レコードには現れない」と実測で除外した
-`GROUP` / `REFERENCE_TABLE` が、フォーム定義には存在する。
-
-### 変換 ── `converterGetToSet` は `toSetRecord`
-
-`guardUtils.converterGetToSet` に相当するものは `toSetRecord`。
-ただし落とす対象は実測で決めており、`kintone-typeguard` とは中身が違う（上記）。
-
 ## もっと詳しく
 
 - [`fixtures/measured.json`](fixtures/measured.json) — 型の唯一の根拠。実測データそのもの

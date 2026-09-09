@@ -425,6 +425,38 @@ portal / space / report は公式ドキュメント準拠で書き、
 （共通クライアントが現に REST に `Set.Record` を当てていた）。
 どちらに向かうかは呼び出し先を見ないと決まらない。
 
+### 名前の対応表は README ではなくここに置く
+
+**2026-09-09。** README に「`kintone-typeguard` からの移行」の節を置いていたが、
+**利用者向けの文書には要らない**という判断で落とした。
+表そのものは捨てないので移す。
+
+綴りが違うのは 3 つだけで、**コンパイルエラーになるので黙って壊れない**。
+
+| kintone-typeguard | monosashi |
+|---|---|
+| `guardRecord.isDatetime` | `guard.isDateTime` |
+| `guardRecord.isDropDown` | `guard.isDropdown` |
+| `guardRecord.isID` | `guard.isId` |
+
+28 種別すべてに対応があり、抜けは無い（機械的に突き合わせ済み）。
+`guard.isLookup` と `guard.hasValue` が増えている。
+
+型は 1 対 1 にならない。**ここが移行の見積りを決める。**
+
+| kintone-typeguard | monosashi |
+|---|---|
+| `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** |
+| `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など |
+| `kintoneRecordFieldSet.Record` | `SetRecord` |
+| `kintoneRecordFieldUnified.*` | `Rest.*` / `RestRecord` |
+| `guardUtils.converterGetToSet` | `toSetRecord`（落とす対象は実測で決めたので中身は違う） |
+| `guardFormField` / `guardFormLayout` | **無い。** 守備範囲外（[フォーム定義は守備範囲に入れない](#フォーム定義は守備範囲に入れない)） |
+
+`Get` の 1 型が 3 つに割れるので、**呼び出しごとに「どの文脈のレコードか」を
+判断する必要がある**。3 つを 1 つに潰していたことが kintone-typeguard の
+緩さの正体で、分かれていること自体が monosashi の存在理由でもある。
+
 ---
 
 ## 実測で判明した事実
