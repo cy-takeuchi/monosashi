@@ -40,30 +40,31 @@ e2e が実 kintone を操作して採り直せる。
 | 削除は `record` を持たない | **持つ**（37 フィールドの `Saved` レコード） |
 | `change` は画面によらず同形 | `create` は `recordId` 無し / `edit` は number / `index.edit` は string |
 
-一方で、印刷画面が詳細画面と一致することや、
-モバイルの `submit` / `change` / `process` が PC と同形であることも実測で確かめた。
-**同形だと思えることも、違うはずだということも、根拠にならない。**
-
-同じレコードでも**取り方**で形が変わる。たとえば編集画面で
-`value` が `undefined` のフィールド数は、`edit.show` の `event.record` では 0 件、
-`kintone.app.record.get()` では 21 件（54 フィールド中）。
-**「編集画面だから」では決まらない**（[設計判断の記録](docs/DECISIONS.md)）。
-
-## 使う
+## 使い方
 
 ```sh
 pnpm add monosashi
 ```
 
 ```ts
-// kintone グローバルの型はこの副作用 import で有効になる。プロジェクトに 1 回だけ書く
+// kintone が用意しているグローバル変数 `kintone` に型を付けるための import。
+// 値は何も入ってこない（型だけ）。プロジェクトのどこかに 1 回書けば全体に効く
 import "monosashi/kintone";
 
-import { field, guard, setValue, toUpdateParams } from "monosashi";
+import { guard, setValue, toUpdateParams } from "monosashi";
 
+// 同じ「数値」フィールドでも、どの画面のイベントかで value の型が違う
 kintone.events.on("app.record.detail.show", (event) => {
   event.recordId;  // number
-  event.record;    // SavedRecord
+  const num = event.record.数値;
+  if (guard.isNumber(num)) num.value.length;  // value は string
+  return event;
+});
+
+kintone.events.on("app.record.create.show", (event) => {
+  // 作成画面には recordId が無い
+  const num = event.record.数値;
+  if (guard.isNumber(num)) num.value?.length;  // value は string | undefined。? が要る
   return event;
 });
 
@@ -75,15 +76,14 @@ if (got !== null) {
 }
 ```
 
-> [!NOTE]
-> **0.x のあいだは破壊的変更があり得る。** API を実プロジェクトで検証している最中で
-> （[#5](../../issues/5)）、そこで判明したことは以降のリリースに反映する。
+**0.x のあいだは破壊的変更があり得る。** API を実プロジェクトで検証している最中で
+（[#5](../../issues/5)）、そこで判明したことは以降のリリースに反映する。
 
 ### 動作条件
 
 | | |
 |---|---|
-| **TypeScript** | **5.9 以上**。7 系でも同じ結果になることを毎回確かめている |
+| **TypeScript** | **5.9 以上** |
 | `moduleResolution` | `bundler` / `nodenext`（`node10` は TS 7 で削除されたため対象外） |
 | 実行環境 | ブラウザと Node の両方 |
 | 実行時依存 | **ゼロ** |
@@ -96,29 +96,12 @@ AWS Lambda などサーバサイドで本体だけを使える。
 import { field, toUpdateParams } from "monosashi";
 ```
 
-`pack:check` が **TypeScript 5.9 と 7 の両方**で、`bundler` と `nodenext` の
-両方の解決方式で、`skipLibCheck: false` と DOM 無しの条件まで含めて、
-`pnpm pack` した tarball を検査している。
+`pnpm pack` した tarball がこの条件で使えることは `pack:check` が毎回検査している
+（`skipLibCheck: false` や DOM 無しの構成も含む）。
 
 公開物には [provenance](https://docs.npmjs.com/generating-provenance-statements)
 が付いている。どのリポジトリのどのワークフローがこの tarball を作ったかを
 npm のページから辿れる。
-
-### 実行時に載る量
-
-公開フォームへ 1 ファイルで配るなど、バイト数が判断材料になる場合のために実測した
-（Vite / esbuild minify / tree-shaking 有効）。
-
-| 使い方 | バンドルに載る量 | gzip |
-|---|--:|--:|
-| **型だけ**（`import type`） | **0 B** | **0 B** |
-| `guard.*` だけ | 2,194 B | 935 B |
-| 全部（`import * as`） | 9,630 B | 3,103 B |
-
-この表は `pack:check` が毎回測り直して突き合わせている。ずれたら落ちる。
-
-`pnpm add monosashi` で入るのはこれだけで、他には何も付いてこない
-（`pack:check` が毎回確かめている）。
 
 ## API
 
