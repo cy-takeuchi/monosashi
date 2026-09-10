@@ -131,6 +131,39 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.12
         version: 2.5.12
+
+  packages/kisekae:
+    devDependencies:
+      '@kintone-type/rig':
+        specifier: workspace:*
+        version: link:../rig
+      '@kintone/rest-api-client':
+        specifier: ^6.2.1
+        version: 6.2.1(debug@4.4.3)
+      '@types/node':
+        specifier: ^26.4.1
+        version: 26.4.1
+      tsx:
+        specifier: ^4.23.13
+        version: 4.23.13
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      typescript-5.9:
+        specifier: npm:typescript@5.9.3
+        version: typescript@5.9.3
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13)
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.4.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13))
+
+  packages/monosashi:
+    devDependencies:
+      '@kintone-type/rig':
+        specifier: workspace:*
+        version: link:../rig
       '@kintone/rest-api-client':
         specifier: ^6.2.1
         version: 6.2.1(debug@4.4.3)
@@ -155,6 +188,24 @@ importers:
       vite:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13)
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.4.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13))
+
+  packages/rig:
+    devDependencies:
+      '@kintone/rest-api-client':
+        specifier: ^6.2.1
+        version: 6.2.1(debug@4.4.3)
+      '@types/node':
+        specifier: ^26.4.1
+        version: 26.4.1
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
       vitest:
         specifier: ^5.0.0
         version: 5.0.0(@types/node@26.4.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13))

@@ -1,209 +1,48 @@
-# monosashi
+# kintone の型を実測する
 
-実測に基づく kintone レコードの型・変換関数・型ガード。
-
-`@kintone/dts-gen` の `kintone.d.ts` は `kintone.app.record.get()` も
-`kintone.events.on()` のハンドラ引数も `any` で、レコード周りの型を提供していない。
-`@kintone/rest-api-client` は REST API の型しか持たない。
-そのため実務では JS API・`event.record`・REST API の3経路が混ざり、
-境界のたびに `as` が必要になる。
-
-このリポジトリはその3経路の実際の値を**測定した上で**型を書き、
-境界の変換を関数として提供することを目的とする。
-
-## 型の裏づけ
-
-型は推測ではなく**実測**に基づく。
-`fixtures/measured.json` に **82 サンプル / 67 文脈**あり、
-e2e が実 kintone を操作して採り直せる。
-
-- **フィールド種別 28 種**すべてに裏づけがある
-  （`GROUP` と `REFERENCE_TABLE` は「レコードには現れない」ことを確かめた上で除外）
-- **レコード系イベント 30 種すべて**に裏づけがある
-- 書き込みの受け入れ挙動も実測（REST 20 ケース / `set()` 22 ケース）
-- 2 回続けて採ると**バイト単位で同じ結果**になる。
-  だから差分が出たら「kintone が変わった」と言える。週次で自動的に確かめている
-
-### なぜ実測が要るのか
-
-「PC と同形だろう」で書いていた型は、実際に測ると 5 つ外れた。
-
-| 書いてあったこと | 実測 |
-| --- | --- |
-| モバイルの編集画面も `Saved` | **`Editing`**。値の無いフィールドが `undefined` |
-| 一覧のインライン編集は編集画面と同形 | `recordId` が**文字列**。`submit` と `change` は `appId` まで文字列 |
-| `process.proceed` は `appId` / `recordId` を持つ | **持たない**。`action` / `status` / `nextStatus` は `{ value: string }` |
-| 削除は `record` を持たない | **持つ**（37 フィールドの `Saved` レコード） |
-| `change` は画面によらず同形 | `create` は `recordId` 無し / `edit` は number / `index.edit` は string |
-
-## 使い方
-
-```sh
-pnpm add monosashi
-```
-
-```ts
-// kintone が用意しているグローバル変数 `kintone` に型を付けるための import。
-// 値は何も入ってこない（型だけ）。プロジェクトのどこかに 1 回書けば全体に効く
-import "monosashi/kintone";
-
-import { guard, setValue, toUpdateParams } from "monosashi";
-
-// 同じ「数値」フィールドでも、どの画面のイベントかで value の型が違う
-kintone.events.on("app.record.detail.show", (event) => {
-  event.recordId;  // number
-  const num = event.record.数値;
-  if (guard.isNumber(num)) num.value.length;  // value は string
-  return event;
-});
-
-kintone.events.on("app.record.create.show", (event) => {
-  // 作成画面には recordId が無い
-  const num = event.record.数値;
-  if (guard.isNumber(num)) num.value?.length;  // value は string | undefined。? が要る
-  return event;
-});
-
-// JS API で取得したレコードを REST API に渡す
-const got = kintone.app.record.get();
-if (got !== null) {
-  setValue(got.record, "数値", "42");
-  await client.record.updateRecord(toUpdateParams(app, got.record));
-}
-```
-
-### 動作条件
+kintone が実際に返す形を測り、それを根拠に型を書く。
 
 | | |
 |---|---|
-| **TypeScript** | **5.9 以上** |
-| `moduleResolution` | `bundler` / `nodenext`（`node10` は TS 7 で削除されたため対象外） |
-| 実行環境 | ブラウザと Node の両方 |
-| 実行時依存 | **ゼロ** |
+| [monosashi](packages/monosashi) | レコードの値の型・変換関数・型ガード |
+| [kisekae](packages/kisekae) | フォーム定義を整形して返す |
 
-`monosashi/kintone` を import しなければ、`kintone` グローバルも DOM も要らない。
-AWS Lambda などサーバサイドで本体だけを使える。
+どちらも**実行時依存を持たない**。`@kintone/rest-api-client` は
+型の突き合わせにだけ使う devDependency で、公開する `.d.ts` からは参照しない。
+それを `pack:check` が毎回、依存の実体で確かめている。
 
-```ts
-// lib に DOM を入れていなくても通る
-import { field, toUpdateParams } from "monosashi";
+## なぜ実測が要るのか
+
+推測で書いた型は外れる。同じフィールドでも、どこから取得したかで
+`value` の型が違う。
+
+| type | JS API（保存済み） | JS API（編集中） | REST |
+|---|---|---|---|
+| `SINGLE_LINE_TEXT` | `string` | `string \| undefined` | `string` |
+| `DROP_DOWN` | `string` | `string \| undefined` | `string \| null` |
+
+フォーム定義でも、公式の型が外れている箇所が実測で見つかっている
+（`LABEL` / `HR` は `elementId` を返すが、型には宣言が無い）。
+
+## 構成
+
+| | |
+|---|---|
+| `packages/monosashi` | 公開。レコード |
+| `packages/kisekae` | 公開。フォーム定義 |
+| `packages/rig` | 非公開。認証・クライアント・実行の入口を 2 つで共有する |
+
+検証アプリは 1 つで、2 つのパッケージが同じアプリを測る。
+
+## 検査
+
+```sh
+pnpm run check
 ```
 
-## API
-
-| | 用途 |
-|---|---|
-| `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
-| `SetRecord` | `kintone.app.record.set()` に渡す型。`disabled` / `error` を持てる |
-| `Rest` / `RestRecord` | REST API の型 |
-| `Saved` / `Editing` | フィールド型の名前空間 |
-| `Api.*` | JS API が受け渡す値の型。**根拠は公式ドキュメント**（実測ではない） |
-| `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |
-| `guard.*` | 型ガード |
-| `field.*` | フィールドの構築 |
-| `setValue` / `canSetValue` | 型安全な代入 |
-| `toUpdateParams` / `toAddParams` | REST に渡すパラメータを作る |
-| `toSetRecord` | `kintone.app.record.set()` に渡す形にする |
-| `toRestWrite` / `toRest` | 変換の下位 API |
-
-### `kintone` グローバル
-
-`monosashi` を import しても `kintone` グローバルは型付けされない。
-有効にするには `monosashi/kintone` を明示的に import する
-（ライブラリが利用者のグローバルスコープを勝手に書き換えないため）。
-
-[公式ドキュメントの JS API 一覧](https://cybozu.dev/ja/kintone/docs/js-api/)
-に載っている **166 個すべて**を宣言する。`@kintone/dts-gen` は 51 個で、
-それは公式一覧の真部分集合なので **dts-gen は要らない**。
-
-根拠は 2 種類あり、混ぜていない。
-
-| 根拠 | 対象 |
-|---|---|
-| **実測** | `events.on` の event、`record.get()` / `set()` のレコード |
-| **公式ドキュメント** | それ以外すべて（`Api` 名前空間）。返る値の形は確かめていない |
-
-**自前の `kintone.d.ts` を持っているなら、置き換えればよい。**
-残したい場合は `monosashi/kintone` を import せず、自分の `declare global` の中で
-`EditingRecord` / `SetRecord` / `EventOf` を参照する
-（理由と手順は [DECISIONS](docs/DECISIONS.md)）。
-
-### `guard.*`
-
-**28 種別すべてにある。** 判定は `field.type === "その種別"` の一点で、構造は見ない。
-
-```ts
-import { guard } from "monosashi";
-
-// undefined と null を受ける。前もって存在チェックを書かなくてよい
-if (!guard.isSubtable(record[code])) return;
-```
-
-| ガード | フィールド種別 |
-|---|---|
-| `isRecordNumber` | `RECORD_NUMBER` |
-| `isId` | `__ID__` |
-| `isRevision` | `__REVISION__` |
-| `isCreator` | `CREATOR` |
-| `isModifier` | `MODIFIER` |
-| `isCreatedTime` | `CREATED_TIME` |
-| `isUpdatedTime` | `UPDATED_TIME` |
-| `isStatus` | `STATUS` |
-| `isStatusAssignee` | `STATUS_ASSIGNEE` |
-| `isCategory` | `CATEGORY` |
-| `isSingleLineText` | `SINGLE_LINE_TEXT` |
-| `isMultiLineText` | `MULTI_LINE_TEXT` |
-| `isRichText` | `RICH_TEXT` |
-| `isNumber` | `NUMBER` |
-| `isCalc` | `CALC` |
-| `isLink` | `LINK` |
-| `isCheckBox` | `CHECK_BOX` |
-| `isRadioButton` | `RADIO_BUTTON` |
-| `isMultiSelect` | `MULTI_SELECT` |
-| `isDropdown` | `DROP_DOWN` |
-| `isDate` | `DATE` |
-| `isTime` | `TIME` |
-| `isDateTime` | `DATETIME` |
-| `isFile` | `FILE` |
-| `isUserSelect` | `USER_SELECT` |
-| `isOrganizationSelect` | `ORGANIZATION_SELECT` |
-| `isGroupSelect` | `GROUP_SELECT` |
-| `isSubtable` | `SUBTABLE` |
-
-`type` を見ないものが 2 つある。
-
-| ガード | 判定の根拠 |
-|---|---|
-| `isLookup` | **`confirmed` と `recordId` のキーの有無。** ルックアップのキーフィールドの `type` は元フィールドの型そのもので、`type` では区別できない。REST から取ったレコードでは常に `false` |
-| `hasValue` | **`value !== undefined`。** `Editing` では一度も値が設定されていないフィールドの `value` が `undefined` になる。`""` や `[]` や `null` は通す |
-
-絞り込み先は入力の型で決まる。`SavedRecord` から引けば `Saved` の型に、
-`LooseRecord` から引けば 3 文脈の union になる。
-
-```ts
-const text = record[code];
-if (guard.isSingleLineText(text) && guard.hasValue(text)) {
-  text.value.trim();   // string
-}
-```
-
-### REST で取ったレコードを画面に反映する
-
-```ts
-import { toSetRecord } from "monosashi";
-
-const { record } = await client.record.getRecord({ app, id });
-kintone.app.record.set({ record: toSetRecord(record) });
-```
-
-## もっと詳しく
-
-- [`fixtures/measured.json`](fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
-- [`fixtures/write-behavior.md`](fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
-- [`fixtures/set-behavior.md`](fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
-- [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
-  実測で判明した kintone / API の制約と、**測り方を間違えた記録**も入っている
-- [開発する](CONTRIBUTING.md) — このリポジトリに手を入れるときの手順
+実 kintone に接続しない。凍結したフィクスチャに対してだけ走るので数秒で終わる。
+実物との乖離は週次のライブ検証（`.github/workflows/live.yml`）が検出し、
+差分が出たらフィクスチャ更新 PR を立てる。
 
 ## ライセンス
 

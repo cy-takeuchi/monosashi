@@ -1,0 +1,1295 @@
+{
+	"version": 1,
+	"at": "<at>",
+	"apps": [
+		{
+			"role": "fixture",
+			"fields": {
+				"revision": "<revision>",
+				"properties": {
+					"calc": {
+						"type": "CALC",
+						"code": "calc",
+						"label": "計算",
+						"noLabel": false,
+						"required": false,
+						"expression": "number * 2",
+						"format": "NUMBER",
+						"displayScale": "",
+						"hideExpression": false,
+						"unit": "",
+						"unitPosition": "BEFORE"
+					},
+					"calcDateTime": {
+						"type": "CALC",
+						"code": "calcDateTime",
+						"label": "計算(日時)",
+						"noLabel": false,
+						"required": false,
+						"expression": "dateTime",
+						"format": "DATETIME",
+						"displayScale": "",
+						"hideExpression": false,
+						"unit": "",
+						"unitPosition": "BEFORE"
+					},
+					"checkBox": {
+						"type": "CHECK_BOX",
+						"code": "checkBox",
+						"label": "チェックボックス",
+						"noLabel": false,
+						"required": false,
+						"options": {
+							"sample1": {
+								"label": "sample1",
+								"index": "0"
+							},
+							"sample3": {
+								"label": "sample3",
+								"index": "2"
+							},
+							"sample2": {
+								"label": "sample2",
+								"index": "1"
+							}
+						},
+						"defaultValue": [],
+						"align": "HORIZONTAL"
+					},
+					"date": {
+						"type": "DATE",
+						"code": "date",
+						"label": "日付",
+						"noLabel": false,
+						"required": false,
+						"unique": false,
+						"defaultValue": "",
+						"defaultNowValue": false
+					},
+					"dateTime": {
+						"type": "DATETIME",
+						"code": "dateTime",
+						"label": "日時",
+						"noLabel": false,
+						"required": false,
+						"unique": false,
+						"defaultValue": "",
+						"defaultNowValue": false
+					},
+					"dropDown": {
+						"type": "DROP_DOWN",
+						"code": "dropDown",
+						"label": "ドロップダウン",
+						"noLabel": false,
+						"required": false,
+						"options": {
+							"alpha": {
+								"label": "alpha",
+								"index": "0"
+							},
+							"beta": {
+								"label": "beta",
+								"index": "1"
+							}
+						},
+						"defaultValue": ""
+					},
+					"dropDownWithDefault": {
+						"type": "DROP_DOWN",
+						"code": "dropDownWithDefault",
+						"label": "ドロップダウン(初期値あり)",
+						"noLabel": false,
+						"required": false,
+						"options": {
+							"alpha": {
+								"label": "alpha",
+								"index": "0"
+							},
+							"beta": {
+								"label": "beta",
+								"index": "1"
+							}
+						},
+						"defaultValue": "alpha"
+					},
+					"file": {
+						"type": "FILE",
+						"code": "file",
+						"label": "添付ファイル",
+						"noLabel": false,
+						"required": false,
+						"thumbnailSize": "50"
+					},
+					"group": {
+						"type": "GROUP",
+						"code": "group",
+						"label": "グループ",
+						"noLabel": false,
+						"openGroup": true
+					},
+					"groupSelect": {
+						"type": "GROUP_SELECT",
+						"code": "groupSelect",
+						"label": "グループ選択",
+						"noLabel": false,
+						"required": false,
+						"entities": [],
+						"defaultValue": []
+					},
+					"inGroupText": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "inGroupText",
+						"label": "グループ内文字列",
+						"noLabel": false,
+						"required": false,
+						"minLength": "",
+						"maxLength": "",
+						"expression": "",
+						"hideExpression": false,
+						"unique": false,
+						"defaultValue": ""
+					},
+					"link": {
+						"type": "LINK",
+						"code": "link",
+						"label": "リンク",
+						"noLabel": false,
+						"required": false,
+						"protocol": "WEB",
+						"minLength": "",
+						"maxLength": "",
+						"unique": false,
+						"defaultValue": ""
+					},
+					"linkMail": {
+						"type": "LINK",
+						"code": "linkMail",
+						"label": "リンク(メール)",
+						"noLabel": false,
+						"required": false,
+						"protocol": "MAIL",
+						"minLength": "",
+						"maxLength": "",
+						"unique": false,
+						"defaultValue": ""
+					},
+					"lookupCopyAmount": {
+						"type": "NUMBER",
+						"code": "lookupCopyAmount",
+						"label": "ルックアップコピー(金額)",
+						"noLabel": false,
+						"required": false,
+						"minValue": "",
+						"maxValue": "",
+						"digit": false,
+						"unique": false,
+						"defaultValue": "",
+						"displayScale": "",
+						"unit": "",
+						"unitPosition": "BEFORE"
+					},
+					"lookupCopyName": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "lookupCopyName",
+						"label": "ルックアップコピー(名称)",
+						"noLabel": false,
+						"required": false,
+						"minLength": "",
+						"maxLength": "",
+						"expression": "",
+						"hideExpression": false,
+						"unique": false,
+						"defaultValue": ""
+					},
+					"lookupKey": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "lookupKey",
+						"label": "ルックアップ",
+						"noLabel": false,
+						"required": false,
+						"lookup": {
+							"relatedApp": {
+								"app": "<app-id>",
+								"code": ""
+							},
+							"relatedKeyField": "key",
+							"fieldMappings": [
+								{
+									"field": "lookupCopyName",
+									"relatedField": "name"
+								},
+								{
+									"field": "lookupCopyAmount",
+									"relatedField": "amount"
+								}
+							],
+							"lookupPickerFields": ["key", "name"],
+							"filterCond": "",
+							"sort": "レコード番号 desc"
+						}
+					},
+					"multiLineText": {
+						"type": "MULTI_LINE_TEXT",
+						"code": "multiLineText",
+						"label": "文字列複数行",
+						"noLabel": false,
+						"required": false,
+						"defaultValue": ""
+					},
+					"multiSelect": {
+						"type": "MULTI_SELECT",
+						"code": "multiSelect",
+						"label": "複数選択",
+						"noLabel": false,
+						"required": false,
+						"options": {
+							"red": {
+								"label": "red",
+								"index": "0"
+							},
+							"blue": {
+								"label": "blue",
+								"index": "1"
+							}
+						},
+						"defaultValue": []
+					},
+					"number": {
+						"type": "NUMBER",
+						"code": "number",
+						"label": "数値",
+						"noLabel": false,
+						"required": false,
+						"minValue": "",
+						"maxValue": "",
+						"digit": false,
+						"unique": false,
+						"defaultValue": "",
+						"displayScale": "",
+						"unit": "",
+						"unitPosition": "BEFORE"
+					},
+					"organizationSelect": {
+						"type": "ORGANIZATION_SELECT",
+						"code": "organizationSelect",
+						"label": "組織選択",
+						"noLabel": false,
+						"required": false,
+						"entities": [],
+						"defaultValue": []
+					},
+					"radioButton": {
+						"type": "RADIO_BUTTON",
+						"code": "radioButton",
+						"label": "ラジオボタン",
+						"noLabel": false,
+						"required": true,
+						"options": {
+							"one": {
+								"label": "one",
+								"index": "0"
+							},
+							"two": {
+								"label": "two",
+								"index": "1"
+							}
+						},
+						"defaultValue": "one",
+						"align": "HORIZONTAL"
+					},
+					"referenceTable": {
+						"type": "REFERENCE_TABLE",
+						"code": "referenceTable",
+						"label": "関連レコード一覧",
+						"noLabel": false,
+						"referenceTable": {
+							"relatedApp": {
+								"app": "<app-id>",
+								"code": ""
+							},
+							"condition": {
+								"field": "singleLineText",
+								"relatedField": "name"
+							},
+							"filterCond": "",
+							"displayFields": ["key", "name"],
+							"sort": "key asc",
+							"size": "5"
+						}
+					},
+					"richText": {
+						"type": "RICH_TEXT",
+						"code": "richText",
+						"label": "リッチエディター",
+						"noLabel": false,
+						"required": false,
+						"defaultValue": ""
+					},
+					"singleLineText": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "singleLineText",
+						"label": "文字列1行",
+						"noLabel": false,
+						"required": false,
+						"minLength": "",
+						"maxLength": "",
+						"expression": "",
+						"hideExpression": false,
+						"unique": false,
+						"defaultValue": ""
+					},
+					"singleLineTextRequired": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "singleLineTextRequired",
+						"label": "文字列1行(必須)",
+						"noLabel": false,
+						"required": true,
+						"minLength": "",
+						"maxLength": "",
+						"expression": "",
+						"hideExpression": false,
+						"unique": false,
+						"defaultValue": ""
+					},
+					"singleLineTextUnique": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "singleLineTextUnique",
+						"label": "文字列1行(重複禁止)",
+						"noLabel": false,
+						"required": false,
+						"minLength": "",
+						"maxLength": "64",
+						"expression": "",
+						"hideExpression": false,
+						"unique": true,
+						"defaultValue": ""
+					},
+					"subtable": {
+						"type": "SUBTABLE",
+						"code": "subtable",
+						"noLabel": false,
+						"label": "テーブル",
+						"fields": {
+							"t_calc": {
+								"type": "CALC",
+								"code": "t_calc",
+								"label": "計算(表)",
+								"noLabel": false,
+								"required": false,
+								"expression": "t_number * 2",
+								"format": "NUMBER",
+								"displayScale": "",
+								"hideExpression": false,
+								"unit": "",
+								"unitPosition": "BEFORE"
+							},
+							"t_checkBox": {
+								"type": "CHECK_BOX",
+								"code": "t_checkBox",
+								"label": "チェック(表)",
+								"noLabel": false,
+								"required": false,
+								"options": {
+									"a": {
+										"label": "a",
+										"index": "0"
+									},
+									"b": {
+										"label": "b",
+										"index": "1"
+									}
+								},
+								"defaultValue": [],
+								"align": "HORIZONTAL"
+							},
+							"t_date": {
+								"type": "DATE",
+								"code": "t_date",
+								"label": "日付(表)",
+								"noLabel": false,
+								"required": false,
+								"unique": false,
+								"defaultValue": "",
+								"defaultNowValue": false
+							},
+							"t_dateTime": {
+								"type": "DATETIME",
+								"code": "t_dateTime",
+								"label": "日時(表)",
+								"noLabel": false,
+								"required": false,
+								"unique": false,
+								"defaultValue": "",
+								"defaultNowValue": false
+							},
+							"t_dropDown": {
+								"type": "DROP_DOWN",
+								"code": "t_dropDown",
+								"label": "ドロップダウン(表)",
+								"noLabel": false,
+								"required": false,
+								"options": {
+									"p": {
+										"label": "p",
+										"index": "0"
+									},
+									"q": {
+										"label": "q",
+										"index": "1"
+									}
+								},
+								"defaultValue": ""
+							},
+							"t_file": {
+								"type": "FILE",
+								"code": "t_file",
+								"label": "添付(表)",
+								"noLabel": false,
+								"required": false,
+								"thumbnailSize": "50"
+							},
+							"t_groupSelect": {
+								"type": "GROUP_SELECT",
+								"code": "t_groupSelect",
+								"label": "グループ(表)",
+								"noLabel": false,
+								"required": false,
+								"entities": [],
+								"defaultValue": []
+							},
+							"t_link": {
+								"type": "LINK",
+								"code": "t_link",
+								"label": "リンク(表)",
+								"noLabel": false,
+								"required": false,
+								"protocol": "WEB",
+								"minLength": "",
+								"maxLength": "",
+								"unique": false,
+								"defaultValue": ""
+							},
+							"t_multiLineText": {
+								"type": "MULTI_LINE_TEXT",
+								"code": "t_multiLineText",
+								"label": "文字列複数行(表)",
+								"noLabel": false,
+								"required": false,
+								"defaultValue": ""
+							},
+							"t_multiSelect": {
+								"type": "MULTI_SELECT",
+								"code": "t_multiSelect",
+								"label": "複数選択(表)",
+								"noLabel": false,
+								"required": false,
+								"options": {
+									"m": {
+										"label": "m",
+										"index": "0"
+									},
+									"n": {
+										"label": "n",
+										"index": "1"
+									}
+								},
+								"defaultValue": []
+							},
+							"t_number": {
+								"type": "NUMBER",
+								"code": "t_number",
+								"label": "数値(表)",
+								"noLabel": false,
+								"required": false,
+								"minValue": "",
+								"maxValue": "",
+								"digit": false,
+								"unique": false,
+								"defaultValue": "",
+								"displayScale": "",
+								"unit": "",
+								"unitPosition": "BEFORE"
+							},
+							"t_organizationSelect": {
+								"type": "ORGANIZATION_SELECT",
+								"code": "t_organizationSelect",
+								"label": "組織(表)",
+								"noLabel": false,
+								"required": false,
+								"entities": [],
+								"defaultValue": []
+							},
+							"t_radioButton": {
+								"type": "RADIO_BUTTON",
+								"code": "t_radioButton",
+								"label": "ラジオ(表)",
+								"noLabel": false,
+								"required": true,
+								"options": {
+									"x": {
+										"label": "x",
+										"index": "0"
+									},
+									"y": {
+										"label": "y",
+										"index": "1"
+									}
+								},
+								"defaultValue": "x",
+								"align": "HORIZONTAL"
+							},
+							"t_richText": {
+								"type": "RICH_TEXT",
+								"code": "t_richText",
+								"label": "リッチ(表)",
+								"noLabel": false,
+								"required": false,
+								"defaultValue": ""
+							},
+							"t_singleLineText": {
+								"type": "SINGLE_LINE_TEXT",
+								"code": "t_singleLineText",
+								"label": "文字列1行(表)",
+								"noLabel": false,
+								"required": false,
+								"minLength": "",
+								"maxLength": "",
+								"expression": "",
+								"hideExpression": false,
+								"unique": false,
+								"defaultValue": ""
+							},
+							"t_time": {
+								"type": "TIME",
+								"code": "t_time",
+								"label": "時刻(表)",
+								"noLabel": false,
+								"required": false,
+								"defaultValue": "",
+								"defaultNowValue": false
+							},
+							"t_userSelect": {
+								"type": "USER_SELECT",
+								"code": "t_userSelect",
+								"label": "ユーザー(表)",
+								"noLabel": false,
+								"required": false,
+								"entities": [],
+								"defaultValue": []
+							}
+						}
+					},
+					"time": {
+						"type": "TIME",
+						"code": "time",
+						"label": "時刻",
+						"noLabel": false,
+						"required": false,
+						"defaultValue": "",
+						"defaultNowValue": false
+					},
+					"userSelect": {
+						"type": "USER_SELECT",
+						"code": "userSelect",
+						"label": "ユーザー選択",
+						"noLabel": false,
+						"required": false,
+						"entities": [],
+						"defaultValue": []
+					},
+					"カテゴリー": {
+						"type": "CATEGORY",
+						"code": "カテゴリー",
+						"label": "カテゴリー",
+						"enabled": true
+					},
+					"ステータス": {
+						"type": "STATUS",
+						"code": "ステータス",
+						"label": "ステータス",
+						"enabled": true
+					},
+					"レコード番号": {
+						"type": "RECORD_NUMBER",
+						"code": "レコード番号",
+						"label": "レコード番号",
+						"noLabel": false
+					},
+					"作成日時": {
+						"type": "CREATED_TIME",
+						"code": "作成日時",
+						"label": "作成日時",
+						"noLabel": false
+					},
+					"作成者": {
+						"type": "CREATOR",
+						"code": "作成者",
+						"label": "作成者",
+						"noLabel": false
+					},
+					"作業者": {
+						"type": "STATUS_ASSIGNEE",
+						"code": "作業者",
+						"label": "作業者",
+						"enabled": true
+					},
+					"更新日時": {
+						"type": "UPDATED_TIME",
+						"code": "更新日時",
+						"label": "更新日時",
+						"noLabel": false
+					},
+					"更新者": {
+						"type": "MODIFIER",
+						"code": "更新者",
+						"label": "更新者",
+						"noLabel": false
+					}
+				}
+			},
+			"layout": {
+				"revision": "<revision>",
+				"layout": [
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "RECORD_NUMBER",
+								"code": "レコード番号",
+								"size": {
+									"width": "120"
+								}
+							},
+							{
+								"type": "CREATOR",
+								"code": "作成者",
+								"size": {
+									"width": "136"
+								}
+							},
+							{
+								"type": "CREATED_TIME",
+								"code": "作成日時",
+								"size": {
+									"width": "120"
+								}
+							},
+							{
+								"type": "MODIFIER",
+								"code": "更新者",
+								"size": {
+									"width": "136"
+								}
+							},
+							{
+								"type": "UPDATED_TIME",
+								"code": "更新日時",
+								"size": {
+									"width": "120"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "singleLineText",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "singleLineTextRequired",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "singleLineTextUnique",
+								"size": {
+									"width": "193"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "MULTI_LINE_TEXT",
+								"code": "multiLineText",
+								"size": {
+									"width": "315",
+									"innerHeight": "125"
+								}
+							},
+							{
+								"type": "RICH_TEXT",
+								"code": "richText",
+								"size": {
+									"width": "315",
+									"innerHeight": "125"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "NUMBER",
+								"code": "number",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "CALC",
+								"code": "calc",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "CALC",
+								"code": "calcDateTime",
+								"size": {
+									"width": "193"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "CHECK_BOX",
+								"code": "checkBox",
+								"size": {
+									"width": "168"
+								}
+							},
+							{
+								"type": "RADIO_BUTTON",
+								"code": "radioButton",
+								"size": {
+									"width": "168"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "DROP_DOWN",
+								"code": "dropDown",
+								"size": {
+									"width": "196"
+								}
+							},
+							{
+								"type": "DROP_DOWN",
+								"code": "dropDownWithDefault",
+								"size": {
+									"width": "196"
+								}
+							},
+							{
+								"type": "MULTI_SELECT",
+								"code": "multiSelect",
+								"size": {
+									"width": "197"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "DATE",
+								"code": "date",
+								"size": {
+									"width": "117"
+								}
+							},
+							{
+								"type": "TIME",
+								"code": "time",
+								"size": {
+									"width": "101"
+								}
+							},
+							{
+								"type": "DATETIME",
+								"code": "dateTime",
+								"size": {
+									"width": "185"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "LINK",
+								"code": "link",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "LINK",
+								"code": "linkMail",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "FILE",
+								"code": "file",
+								"size": {
+									"width": "207"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "USER_SELECT",
+								"code": "userSelect",
+								"size": {
+									"width": "222"
+								}
+							},
+							{
+								"type": "ORGANIZATION_SELECT",
+								"code": "organizationSelect",
+								"size": {
+									"width": "222"
+								}
+							},
+							{
+								"type": "GROUP_SELECT",
+								"code": "groupSelect",
+								"size": {
+									"width": "222"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "lookupKey",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "lookupCopyName",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "NUMBER",
+								"code": "lookupCopyAmount",
+								"size": {
+									"width": "193"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "REFERENCE_TABLE",
+								"code": "referenceTable"
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "SPACER",
+								"elementId": "spacerNamed",
+								"size": {
+									"width": "100",
+									"height": "50"
+								}
+							},
+							{
+								"type": "SPACER",
+								"elementId": "",
+								"size": {
+									"width": "100",
+									"height": "50"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "LABEL",
+								"label": "labelElement",
+								"elementId": "",
+								"size": {
+									"width": "200"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "HR",
+								"elementId": "",
+								"size": {
+									"width": "200"
+								}
+							}
+						]
+					},
+					{
+						"type": "GROUP",
+						"code": "group",
+						"layout": [
+							{
+								"type": "ROW",
+								"fields": [
+									{
+										"type": "SINGLE_LINE_TEXT",
+										"code": "inGroupText",
+										"size": {
+											"width": "193"
+										}
+									}
+								]
+							},
+							{
+								"type": "ROW",
+								"fields": [
+									{
+										"type": "SPACER",
+										"elementId": "spacerInGroup",
+										"size": {
+											"width": "100",
+											"height": "50"
+										}
+									}
+								]
+							},
+							{
+								"type": "ROW",
+								"fields": [
+									{
+										"type": "LABEL",
+										"label": "labelInGroup",
+										"elementId": "",
+										"size": {
+											"width": "200"
+										}
+									}
+								]
+							},
+							{
+								"type": "ROW",
+								"fields": [
+									{
+										"type": "HR",
+										"elementId": "",
+										"size": {
+											"width": "200"
+										}
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "SUBTABLE",
+						"code": "subtable",
+						"fields": [
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "t_singleLineText",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "MULTI_LINE_TEXT",
+								"code": "t_multiLineText",
+								"size": {
+									"width": "315",
+									"innerHeight": "125"
+								}
+							},
+							{
+								"type": "RICH_TEXT",
+								"code": "t_richText",
+								"size": {
+									"width": "315",
+									"innerHeight": "125"
+								}
+							},
+							{
+								"type": "NUMBER",
+								"code": "t_number",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "CALC",
+								"code": "t_calc",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "CHECK_BOX",
+								"code": "t_checkBox",
+								"size": {
+									"width": "168"
+								}
+							},
+							{
+								"type": "RADIO_BUTTON",
+								"code": "t_radioButton",
+								"size": {
+									"width": "168"
+								}
+							},
+							{
+								"type": "DROP_DOWN",
+								"code": "t_dropDown",
+								"size": {
+									"width": "196"
+								}
+							},
+							{
+								"type": "MULTI_SELECT",
+								"code": "t_multiSelect",
+								"size": {
+									"width": "197"
+								}
+							},
+							{
+								"type": "DATE",
+								"code": "t_date",
+								"size": {
+									"width": "117"
+								}
+							},
+							{
+								"type": "TIME",
+								"code": "t_time",
+								"size": {
+									"width": "101"
+								}
+							},
+							{
+								"type": "DATETIME",
+								"code": "t_dateTime",
+								"size": {
+									"width": "185"
+								}
+							},
+							{
+								"type": "LINK",
+								"code": "t_link",
+								"size": {
+									"width": "193"
+								}
+							},
+							{
+								"type": "FILE",
+								"code": "t_file",
+								"size": {
+									"width": "207"
+								}
+							},
+							{
+								"type": "USER_SELECT",
+								"code": "t_userSelect",
+								"size": {
+									"width": "222"
+								}
+							},
+							{
+								"type": "ORGANIZATION_SELECT",
+								"code": "t_organizationSelect",
+								"size": {
+									"width": "222"
+								}
+							},
+							{
+								"type": "GROUP_SELECT",
+								"code": "t_groupSelect",
+								"size": {
+									"width": "222"
+								}
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"role": "lookupSource",
+			"fields": {
+				"revision": "<revision>",
+				"properties": {
+					"amount": {
+						"type": "NUMBER",
+						"code": "amount",
+						"label": "金額",
+						"noLabel": false,
+						"required": false,
+						"minValue": "",
+						"maxValue": "",
+						"digit": false,
+						"unique": false,
+						"defaultValue": "",
+						"displayScale": "",
+						"unit": "",
+						"unitPosition": "BEFORE"
+					},
+					"key": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "key",
+						"label": "キー",
+						"noLabel": false,
+						"required": true,
+						"minLength": "",
+						"maxLength": "64",
+						"expression": "",
+						"hideExpression": false,
+						"unique": true,
+						"defaultValue": ""
+					},
+					"name": {
+						"type": "SINGLE_LINE_TEXT",
+						"code": "name",
+						"label": "名称",
+						"noLabel": false,
+						"required": false,
+						"minLength": "",
+						"maxLength": "",
+						"expression": "",
+						"hideExpression": false,
+						"unique": false,
+						"defaultValue": ""
+					},
+					"カテゴリー": {
+						"type": "CATEGORY",
+						"code": "カテゴリー",
+						"label": "カテゴリー",
+						"enabled": false
+					},
+					"ステータス": {
+						"type": "STATUS",
+						"code": "ステータス",
+						"label": "ステータス",
+						"enabled": false
+					},
+					"レコード番号": {
+						"type": "RECORD_NUMBER",
+						"code": "レコード番号",
+						"label": "レコード番号",
+						"noLabel": false
+					},
+					"作成日時": {
+						"type": "CREATED_TIME",
+						"code": "作成日時",
+						"label": "作成日時",
+						"noLabel": false
+					},
+					"作成者": {
+						"type": "CREATOR",
+						"code": "作成者",
+						"label": "作成者",
+						"noLabel": false
+					},
+					"作業者": {
+						"type": "STATUS_ASSIGNEE",
+						"code": "作業者",
+						"label": "作業者",
+						"enabled": false
+					},
+					"更新日時": {
+						"type": "UPDATED_TIME",
+						"code": "更新日時",
+						"label": "更新日時",
+						"noLabel": false
+					},
+					"更新者": {
+						"type": "MODIFIER",
+						"code": "更新者",
+						"label": "更新者",
+						"noLabel": false
+					}
+				}
+			},
+			"layout": {
+				"revision": "<revision>",
+				"layout": [
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "key",
+								"size": {
+									"width": "193"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "SINGLE_LINE_TEXT",
+								"code": "name",
+								"size": {
+									"width": "193"
+								}
+							}
+						]
+					},
+					{
+						"type": "ROW",
+						"fields": [
+							{
+								"type": "NUMBER",
+								"code": "amount",
+								"size": {
+									"width": "193"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	]
+}

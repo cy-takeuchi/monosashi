@@ -1,0 +1,71 @@
+name: Release kisekae
+
+# `kisekae-v*` タグを打つと npm に置く（公開はしない）。
+#
+# **monosashi とワークフローを分ける。** npm の Trusted Publishing は
+# owner / repository / **workflow filename** の 3 つに紐づき、
+# 接続は作ったあと編集できない（削除して作り直すしかない）。
+# 1 つのワークフローで両方を publish すると、片方の接続を触るために
+# もう片方も貼り直すことになる。
+#
+# タグの前置も分ける。`v*` は monosashi のもの（既存の接続がそれに紐づいている）。
+on:
+  push:
+    tags: ["kisekae-v*"]
+
+permissions:
+  contents: read
+  id-token: write # provenance の署名に要る
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          # **registry-url は書かない。** 書くと setup-node が .npmrc に
+          # `_authToken=${NODE_AUTH_TOKEN}` を仕込む。OIDC が失敗したときに
+          # そのプレースホルダで publish しようとして 401 になり、
+          # 本当の失敗理由が隠れる。公開先は publishConfig.registry が決める
+      - run: pnpm install --frozen-lockfile
+
+      # タグだけ進めて version を上げ忘れる事故を止める。
+      # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い
+      - name: タグと package.json の version が一致するか
+        run: |
+          TAG="${GITHUB_REF_NAME#kisekae-v}"
+          PKG="$(node -p "require('./packages/kisekae/package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::タグ kisekae-v$TAG と package.json の version $PKG が食い違っている"
+            exit 1
+          fi
+          echo "version $PKG を公開する"
+
+      # **ここでステップを並べない。** 定義はリポジトリの check ひとつに置く。
+      # kisekae の pack:check が「利用者の立場で読めるか」と
+      # 「実行時依存がゼロか」まで確かめるので、これ以上足すものがない
+      - name: すべての検査
+        run: pnpm run check
+
+      # **CI は公開しない。npm に置くだけ。**
+      # publish ではなく stage publish なので、この時点では誰からも見えない。
+      # 人間が npmjs.com で 2FA を通して承認して初めて公開される。
+      #
+      # 認証はトークンではなく OIDC Trusted Publishing。
+      # --no-git-checks: タグの checkout は detached HEAD なので、
+      #   pnpm の「publish ブランチにいるか」の確認が必ず落ちる
+      - name: npm に置く（公開はしない）
+        working-directory: packages/kisekae
+        run: pnpm stage publish --provenance --no-git-checks
+
+      - name: 承認の案内
+        run: |
+          echo "::notice::kisekae@${GITHUB_REF_NAME#kisekae-v} を stage した。npmjs.com で 2FA を通して承認すると公開される"

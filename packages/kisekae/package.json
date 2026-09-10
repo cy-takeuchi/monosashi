@@ -1,0 +1,59 @@
+{
+	"name": "kisekae",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Reshape kintone form definitions into a layout-ordered, membership-annotated form.",
+	"license": "MIT",
+	"author": "Yoshihiko Takeuchi",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/cy-takeuchi/monosashi.git",
+		"directory": "packages/kisekae"
+	},
+	"keywords": [
+		"kintone",
+		"cybozu"
+	],
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"check": "pnpm run tsc && pnpm run test && pnpm run pack:check",
+		"build": "pnpm run build:clean && pnpm run build:types && pnpm run build:js && pnpm run build:check",
+		"build:clean": "rm -rf dist",
+		"build:types": "tsc -p tsconfig.build.json",
+		"build:js": "vite build",
+		"build:check": "tsc -p tsconfig.dist.json",
+		"pack:check": "pnpm run build && tsx tools/packCheck.ts",
+		"prepublishOnly": "pnpm run build",
+		"tsc": "tsc --noEmit",
+		"test": "vitest run",
+		"app:collect-form": "tsx tools/collectForm.ts",
+		"fixture:form": "tsx tools/formDefinition.ts"
+	},
+	"devDependencies": {
+		"@kintone-type/rig": "workspace:*",
+		"@kintone/rest-api-client": "^6.2.1",
+		"@types/node": "^26.4.1",
+		"tsx": "^4.23.13",
+		"typescript": "^7.0.2",
+		"typescript-5.9": "npm:typescript@5.9.3",
+		"vite": "^8.2.2",
+		"vitest": "^5.0.0"
+	},
+	"sideEffects": false
+}

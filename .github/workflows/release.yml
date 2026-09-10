@@ -42,7 +42,7 @@ jobs:
       - name: タグと package.json の version が一致するか
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          PKG="$(node -p "require('./package.json').version")"
+          PKG="$(node -p "require('./packages/monosashi/package.json').version")"
           if [ "$TAG" != "$PKG" ]; then
             echo "::error::タグ v$TAG と package.json の version $PKG が食い違っている"
             exit 1
@@ -73,6 +73,7 @@ jobs:
       #   pnpm の「publish ブランチにいるか」の確認が必ず落ちる
       # --provenance: pnpm 12 以降のフラグ。id-token: write と対で効く
       - name: npm に置く（公開はしない）
+        working-directory: packages/monosashi
         run: pnpm stage publish --provenance --no-git-checks
 
       - name: 承認の案内

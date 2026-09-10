@@ -6,7 +6,12 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!dist", "!probe-dist", "!fixtures"]
+		"includes": [
+			"**",
+			"!packages/*/dist",
+			"!packages/*/probe-dist",
+			"!packages/*/fixtures"
+		]
 	},
 	"formatter": {
 		"enabled": true,
