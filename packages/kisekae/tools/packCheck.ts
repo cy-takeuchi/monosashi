@@ -34,7 +34,7 @@ import { runScript } from "@kintone-type/rig/run";
  * kisekae には `declare global` も `/kintone` サブパスも無い。
  *
  * 共通部分を先に抽象化しない。2 つ書いてみて初めて境界が正確に引ける
- * （`docs/DECISIONS.md`「11. モノレポ」の「引数化して完全に一般化はしない」）。
+ * （リポジトリの `docs/TOOLCHAIN.md`「pack:check も共有しない」）。
  */
 
 const MODES = [

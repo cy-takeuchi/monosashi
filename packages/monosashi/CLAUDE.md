@@ -1,21 +1,24 @@
 # CLAUDE.md
 
-kintone レコードの型・変換関数・型ガードを提供する npm パッケージ `monosashi`。
+kintone **レコード**の型・変換関数・型ガードを提供する npm パッケージ `monosashi`。
 
-**日本語で書く。** コード内のコメント、ドキュメント、コミットメッセージ、
-PR の説明、そして応答のすべて。
+**共通のルールはリポジトリのルートの `CLAUDE.md`**（日本語で書く / 型に書く前に測る /
+実行してはいけないこと / コミット規約）。ここには monosashi 固有のことだけを書く。
 
-## 最優先の原則: 型に書く前に測る
+| | |
+|---|---|
+| kintone 自体の挙動 | `../../docs/KINTONE.md` |
+| 環境とツールチェーン | `../../docs/TOOLCHAIN.md` |
+| monosashi の設計判断 | `docs/DECISIONS.md` |
 
-このリポジトリの型は推測ではなく**実測**に基づく。
-「PC と同形だろう」で書いた型は実際に 5 つ外れている（README の「なぜ実測が要るのか」）。
+## 実測の根拠
 
-**根拠のない型を書いてはいけない。** 新しい型・新しいフィールド種別・
-新しいイベントを足すときは、先に `fixtures/measured.json` に該当する実測があるかを確認する。
-無ければ、採取を足して測ってから型を書く（手順は CONTRIBUTING.md の「実測の手順」）。
-
-`fixtures/measured.json` が型の唯一の根拠。ここを手で編集しない。
+**`fixtures/measured.json` が型の唯一の根拠。** ここを手で編集しない。
 `pnpm run e2e` → `pnpm run fixture:build` で生成する。
+
+「PC と同形だろう」で書いた型は実際に 5 つ外れている（README の「なぜ実測が要るのか」）。
+新しい型・種別・イベントを足すときは、先にここに該当する実測があるかを確認する。
+無ければ採取を足して測ってから書く（手順は CONTRIBUTING.md の「実測の手順」）。
 
 ## 検査
 
@@ -23,11 +26,9 @@ PR の説明、そして応答のすべて。
 pnpm run check
 ```
 
-**これがすべて。** CI（`.github/workflows/check.yml`）が走らせるのもこれだけ。
-中身は Biome / `tsc --noEmit` / vitest（`--typecheck` 込み）/ `probe:build` / `pack:check`。
+中身は `tsc --noEmit` / vitest（`--typecheck` 込み）/ `probe:build` / `pack:check`。
+biome はリポジトリのルートで 1 回だけ回すので、ここには入っていない。
 実 kintone に接続しないので数秒で終わる。
-
-CI のワークフローにステップを並べない。定義は `package.json` の `check` 1 箇所に置く。
 
 `biome:check` は `--error-on-warnings` 付き。**警告でも落ちる**
 （付ける前は死んだコードが緑のまま通っていた）。
@@ -40,11 +41,12 @@ CI のワークフローにステップを並べない。定義は `package.json
 
 | | 理由 |
 |---|---|
-| `pnpm publish`（`--dry-run` 込み） | 既定レジストリが社内プロキシに向いており、出力ゼロのまま固まる。npm に置くのは `v*` タグで `release.yml` だけ（`pnpm stage publish`）。公開は人間が 2FA で承認する |
 | `fixtures/measured.json` を手で編集 | 実測の根拠が実測でなくなる |
 | `pnpm run app:deploy-probe` を勝手に実行 | kintone のシステム管理権限が要り、組織全体に効く |
-| `ncu -u` 後に `packageManager` を確認せず放置 | pnpm 本体が入れ替わる。`.ncurc.json` で除外済みだが確認はする |
 | `typescript` だけ上げて `typescript-5.9` を放置 | `pack:check` が両版で `dist` を検査している。片方だけ上げるとずれる |
+
+`pnpm publish` と `ncu -u` の注意はルートの `CLAUDE.md` と
+`../../docs/TOOLCHAIN.md` にある。
 
 実 kintone に接続するコマンド（`e2e` / `app:*` / `probe:write` / `probe:converter`）は
 認証情報が要り、実際のアプリを操作する。**依頼されていなければ実行しない。**
@@ -129,8 +131,10 @@ CI のワークフローにステップを並べない。定義は `package.json
 
 ## 判断を記録する
 
-設計判断・実測で判明した制約・**測り方を間違えた記録**は
-[`docs/DECISIONS.md`](docs/DECISIONS.md) に残す（2500 行超）。
+monosashi の設計判断と**測り方を間違えた記録**は
+[`docs/DECISIONS.md`](docs/DECISIONS.md) に残す。
+kintone 自体の挙動は [`../../docs/KINTONE.md`](../../docs/KINTONE.md)、
+環境とツールチェーンは [`../../docs/TOOLCHAIN.md`](../../docs/TOOLCHAIN.md)。
 
 新しい判断をしたら、実装だけでなくここに追記する。
 特に「試したが捨てた」ものは、同じ道を再び通らないために書く。

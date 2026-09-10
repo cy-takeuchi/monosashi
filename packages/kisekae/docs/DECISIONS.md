@@ -518,7 +518,7 @@ setRowValue(newRow, tableField.code, await getInitialValue(tableField));
    `!isStatus(f) && !isStatusAssignee(f)` で除外し、`hideFields` は
    全フィールドに `setFieldShown(code, false)` を呼ぶ（`CATEGORY` に呼ぶと失敗する）
 3. `enabled` を返してしまえば、`enabled` の値が信頼できるかという
-   [実測待ちの問題](../../../docs/DECISIONS.md#enabled-は使える判定できないは測っていないことを書いていた)が
+   [実測待ちの問題](../../monosashi/docs/DECISIONS.md#enabled-は使える判定できないは測っていないことを書いていた)が
    どちらに転んでも kisekae は正しい。pretty-fields は絞っていたが、
    それは `enabled` が信頼できる場合にのみ正しい挙動
 
@@ -618,72 +618,23 @@ export type { Field, Form, Raw } from "./types.js";
 
 ## 11. モノレポ
 
-**決定**: 既存の monosashi のリポジトリをモノレポ化する。
-`packages/monosashi` / `packages/kisekae` / 非公開の共有パッケージ。
+**リポジトリ全体の判断なので [`docs/TOOLCHAIN.md`](../../../docs/TOOLCHAIN.md) に移した**
+（2026-09-10）。パッケージの構成・共有する足場の範囲・ドキュメントの割り方・
+CI とリリースの配線はそちらにある。
 
-**理由**
+kisekae 固有なのは 1 点だけ。**`pack:check` のシナリオは自前に持つ。**
+土台（pack → 空プロジェクトへ install → 依存の実体を確かめる →
+2 モード × 2 バージョンで型検査）は monosashi と共通だが、
+kisekae には `declare global` も `/kintone` サブパスも無いのでシナリオが別物になる。
 
-1. **実測の根拠が 2 リポジトリに割れると静かに腐る。**
-   kisekae の実測は monosashi 側の `fields.ts` / `layout.ts` が定義したアプリを
-   測ったもの。別リポジトリだと、フィールドを 1 つ変えた瞬間に kisekae の実測が
-   古いアプリの記録になり、それを検出する仕組みがどこにも作れない
-2. **リリースのコストが最小。** monosashi の `v*` タグと
-   `.github/workflows/release.yml` というパスをそのまま残せば、
-   npm の OIDC Trusted Publishing の紐づけが生きる。
-   kisekae は新規パッケージなのでどうせ登録が要る（増える手作業がゼロ）。
-   リポジトリ名を変えると貼り直しが必要なので**改名は急がない**
-3. **共有面が小さい。** kisekae は Playwright を必要としない
-   （フォーム定義は REST だけで測れる）。`e2e/` の 1,884 行は monosashi に留まる
+代わりに kisekae のシナリオが確かめるのは、この設計の中心そのもの。
 
-**共有するもの**（引用は monosashi 固有の記述の数）
-
-| | 行数 | monosashi 固有 |
-|---|--:|--:|
-| `tools/shared/`（認証・実行・エラー整形） | 249 | 0 |
-| `tools/fixture-app/`（検証アプリの構築・検証） | 1,406 | 0（probe の配備が 3 箇所） |
-| `tools/package/bundleSize.ts` | 145 | 6 |
-| `tools/package/packCheck.ts` | 507 | **25** |
-
-`packCheck` は**土台だけ共有し、シナリオは各パッケージが持つ**。
-507 行の大半は利用者側の TypeScript ソースを文字列で埋め込んだ検査シナリオで、
-kisekae には `declare global` も `/kintone` サブパスも無いので中身が別物になる。
-土台（tarball を作る / 空のプロジェクトに入れる / `node_modules` に他が入らないことを
-確かめる / `bundler` と `nodenext` × TS 2 版で型検査する /
-`dist/*.d.ts` を `skipLibCheck: false` で直接検査する）は完全に共通。
-
-**引数化して完全に一般化はしない。** シナリオを書くための DSL を作ることになる。
-境界は 2 つ書いてみて初めて正確に引けるので、まず kisekae のシナリオを
-素直に書いてから共通部分を抜く。
-
-### ドキュメント
-
-ルートに共通（`CLAUDE.md` / `docs/KINTONE.md` / `docs/TOOLCHAIN.md`）、
-各パッケージに固有の `CLAUDE.md` と `docs/DECISIONS.md`。
-
-`CLAUDE.md` は作業ディレクトリとその祖先から読まれるので、
-`packages/kisekae` で作業すればルートと kisekae の両方が効く。
-共通ルールを 2 箇所に書かずに済み、kisekae 側で monosashi の 2,000 行を読まされない。
-
-monosashi の `docs/DECISIONS.md` 2,500 行は 3 つの塊に分かれている。
-kintone 自体の事実（約 235 行）と環境・ツールチェーンの判断（約 250 行）が共通で、
-残り約 2,000 行が monosashi 固有。
-**ただし分割は実測のあと**（[12](#12-作業順序)）。
-
-### CI
-
-ルートの `check` が biome（ルート 1 回）→ `pnpm -r check`。
-`check.yml` は今と同じく `pnpm run check` の 1 ステップだけ
-（CLAUDE.md の「CI のワークフローにステップを並べない」）。
-
-**ライブ検証は 1 つのワークフローに両方の採取を入れ、
-`concurrency: group: live-verification` を共有する。**
-同じ検証アプリを見るので、グループを分けると
-`app:build` が monosashi の採取中に走る事故が「たまに落ちる不安定なジョブ」として現れる。
-
-変更されたパッケージだけ検査する（`pnpm --filter "...[origin/main]"`）は**まだ入れない**。
-2 パッケージなら常に検査しても数十秒の規模で、
-先に入れると「浅い clone で base ref が取れず全部スキップされて緑になる」という
-いちばん見つけにくい失敗を抱える。速度が実際に痛くなってから移る。
+| | |
+|---|---|
+| `@kintone/rest-api-client` を入れていない利用者が使えること | 型を自前で持つと決めた目的（[4](#4-型の出どころ)） |
+| **ルックアップの分割が出荷物でも効いていること** | 判別ユニオンが `.d.ts` の出力で崩れないこと（[7](#7-ルックアップは判別ユニオンを壊す)） |
+| `lib` から DOM を外しても通ること | kisekae は DOM を参照しない |
+| `dist/*.d.ts` を `skipLibCheck: false` で直接検査 | 型が黙って any に落ちるのを見逃さない |
 
 ## 12. 作業順序
 

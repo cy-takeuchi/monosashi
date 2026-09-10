@@ -7,8 +7,12 @@
 	"author": "Yoshihiko Takeuchi",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/cy-takeuchi/monosashi.git",
+		"url": "git+https://github.com/cy-takeuchi/jissoku.git",
 		"directory": "packages/kisekae"
+	},
+	"homepage": "https://github.com/cy-takeuchi/jissoku/tree/main/packages/kisekae#readme",
+	"bugs": {
+		"url": "https://github.com/cy-takeuchi/jissoku/issues"
 	},
 	"keywords": [
 		"kintone",

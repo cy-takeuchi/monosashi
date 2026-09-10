@@ -207,4 +207,4 @@ kintone.app.record.set({ record: toSetRecord(record) });
 
 ## ライセンス
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

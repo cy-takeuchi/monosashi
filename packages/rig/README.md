@@ -22,4 +22,4 @@ monosashi と kisekae が共有するのは、認証と kintone クライアン�
   アプリの定義はレコードの実測が主な用途で、まだ monosashi にある。
   kisekae は建ったアプリを読むだけ
 - **`pack:check`**。土台は共通だがシナリオが別物なので、
-  各パッケージが自前に持つ（`docs/DECISIONS.md`「11. モノレポ」）
+  各パッケージが自前に持つ（[`docs/TOOLCHAIN.md`](../../docs/TOOLCHAIN.md)）

@@ -38,7 +38,7 @@ import { runScript } from "@kintone-type/rig/run";
  *  2. **ルックアップのコピー先を、対象アプリのフォーム定義だけで判別できるか。**
  *     `lookupCopyName` / `lookupCopyAmount` に印が付くのかどうか
  *  3. **`CATEGORY` / `STATUS` / `STATUS_ASSIGNEE` の `enabled` は設定を反映するか。**
- *     DECISIONS「調査済みの kintone / API の制約」は「有効・無効を判定できない」と
+ *     `docs/KINTONE.md`「調査済みの kintone / API の制約」は「判定できない」と
  *     書いているが、確かめたのは**返ってくること**で、`enabled` の値は測っていない
  *  4. **`SPACER` の `elementId` / `LABEL` / `HR` / グループ内のレイアウト要素**
  *     （`tools/fixture-app/layout.ts` の「レイアウト要素を測れる状態にする」）

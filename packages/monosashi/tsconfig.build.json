@@ -4,7 +4,7 @@
 		// **nodenext で出す。** bundler のままだと、相対 import に拡張子が無くても
 		// 通ってしまい、出来上がった dist/*.d.ts が nodenext の利用者で解決できない。
 		// しかも skipLibCheck: true（TS の既定）ではエラーにならず、
-		// 型が黙って any に落ちる（DECISIONS の「拡張子の無い相対 import」）。
+		// 型が黙って any に落ちる。
 		// ここで出す側を厳しくして、書いた時点で落とす
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
