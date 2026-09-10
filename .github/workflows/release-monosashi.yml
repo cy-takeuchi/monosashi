@@ -1,6 +1,12 @@
-name: Release
+name: Release monosashi
 
-# タグを打つと npm に公開する。
+# `monosashi-v*` タグを打つと npm に置く（公開はしない）。
+#
+# **kisekae とワークフローを分ける。** npm の Trusted Publishing は
+# owner / repository / **workflow filename** の 3 つに紐づき、
+# 接続は作ったあと編集できない（削除して作り直すしかない）。
+# 1 つのワークフローで両方を publish すると、片方の接続を触るために
+# もう片方も貼り直すことになる。
 #
 # **手元から publish しない。** この環境の `~/.npmrc` は既定レジストリが
 # 社内プロキシを向いており、`pnpm publish` は `--dry-run` を付けても
@@ -8,7 +14,7 @@ name: Release
 # 手元から実行しない」）。CI から公開すれば、その事故が構造的に起きない。
 on:
   push:
-    tags: ["v*"]
+    tags: ["monosashi-v*"]
 
 permissions:
   contents: read
@@ -41,10 +47,10 @@ jobs:
       # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い
       - name: タグと package.json の version が一致するか
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${GITHUB_REF_NAME#monosashi-v}"
           PKG="$(node -p "require('./packages/monosashi/package.json').version")"
           if [ "$TAG" != "$PKG" ]; then
-            echo "::error::タグ v$TAG と package.json の version $PKG が食い違っている"
+            echo "::error::タグ monosashi-v$TAG と package.json の version $PKG が食い違っている"
             exit 1
           fi
           echo "version $PKG を公開する"
@@ -78,4 +84,4 @@ jobs:
 
       - name: 承認の案内
         run: |
-          echo "::notice::monosashi@${GITHUB_REF_NAME#v} を stage した。npmjs.com で 2FA を通して承認すると公開される"
+          echo "::notice::monosashi@${GITHUB_REF_NAME#monosashi-v} を stage した。npmjs.com で 2FA を通して承認すると公開される"

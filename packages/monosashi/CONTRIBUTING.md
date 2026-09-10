@@ -276,7 +276,7 @@ pnpm 12 から lockfile にも pnpm 自身が入るようになったので、�
 
 ## 公開する
 
-publish は **`.github/workflows/release.yml`** だけが行う。手元からは実行しない
+publish は **`.github/workflows/release-monosashi.yml`** だけが行う。手元からは実行しない
 （理由は「[`pnpm publish` は手元で実行しない](#pnpm-publish-は手元で実行しない)」）。
 
 ```sh
@@ -308,7 +308,7 @@ npmjs への認証が要る。ブラウザで承認するほうが速い。
 
 ### 認証にトークンを使っていない
 
-publish の認証は **OIDC Trusted Publishing**。`release.yml` に
+publish の認証は **OIDC Trusted Publishing**。`release-monosashi.yml` に
 `NODE_AUTH_TOKEN` は無く、GitHub Secrets にも npm のトークンは置いていない。
 pnpm が GitHub の id-token から npm 向けのトークンを自分で交換する
 （`permissions: id-token: write` がそのために要る）。0.1.1 で動作を確認済み。
@@ -322,16 +322,16 @@ npmjs.com 側は次の状態にしてある。**この 3 つが揃って初め�
 
 | 設定 | 値 |
 | --- | --- |
-| Trusted Publisher | GitHub Actions / `cy-takeuchi` / `monosashi` / `release.yml` |
+| Trusted Publisher | GitHub Actions / `cy-takeuchi` / `jissoku` / `release-monosashi.yml` |
 | Allowed actions | **未チェック**（staged publish のみ。直接公開は禁止） |
 | Publishing access | Require two-factor authentication and disallow bypass 2fa tokens |
 
-つまり **`release.yml` 以外から npm に何かを置く経路は無く、置かれたものも
+つまり **`release-monosashi.yml` 以外から npm に何かを置く経路は無く、置かれたものも
 人間が 2FA を通すまで公開されない。** リポジトリが破られても、そこで一段止まる。
 
 ワークフローのファイル名を変えると stage が落ちるので、
 改名するときは npmjs.com 側の Trusted Publisher も直すこと。
-`release.yml` を `pnpm publish` に戻した場合も、Allowed actions が禁じているので落ちる。
+`release-monosashi.yml` を `pnpm publish` に戻した場合も、Allowed actions が禁じているので落ちる。
 
 ## 設計上の要点
 

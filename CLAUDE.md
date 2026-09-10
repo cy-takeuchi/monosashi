@@ -88,7 +88,7 @@ kisekae が必要としてレイアウトに足したもの（`SPACER` / `LABEL`
 
 | パッケージ | タグ | ワークフロー |
 |---|---|---|
-| monosashi | `v*` | `release.yml` |
+| monosashi | `monosashi-v*` | `release-monosashi.yml` |
 | kisekae | `kisekae-v*` | `release-kisekae.yml` |
 
 **ワークフローのファイル名を変えない。** npm の Trusted Publishing は
