@@ -7,7 +7,7 @@ kintone のフォーム定義（`getFormFields` / `getFormLayout`）を、
 対象バージョン: kintone-pretty-fields 0.11.0 / kintone-typeguard 0.18.3 /
 @kintone/rest-api-client 6.2.1 / TypeScript 7.0.2
 
-**まだ 1 行も実装していない。** これは実装前に決めたことの記録で、
+**実装は `Raw`（生のフォーム定義の型）まで。** これは実装前に決めたことの記録で、
 [12. 作業順序](#12-作業順序)のとおり**実測が先**。
 実測は 2026-09-10 に 1 回目を採り終えた
 （`fixtures/form/definition.json` / monosashi の DECISIONS
@@ -318,6 +318,32 @@ expectTypeOf<Raw.Label>().toEqualTypeOf<
 - **一方向の代入可能性にする**（公式 ⊆ kisekae） ──
   「公式が狭い」ことしか言えず、**どこが狭いのかを型が記録しない**。
   公式が別の場所で狭くなっても落ちない
+
+### 3 点の縛りを機械にした
+
+型は実行時に消えるので、**実測データと型を直接突き合わせられない。**
+キーの表を挟んで 3 点を縛る。
+
+```
+Raw の型  ←→  キーの表  ←→  fixtures/form/definition.json
+   src/types/raw.ts   test/rawKeys.ts   （採取したもの）
+        ↑ test/rawKeys.test-d.ts ↑   ↑ test/rawFixture.test.ts ↑
+```
+
+| ファイル | 縛るもの |
+|---|---|
+| `src/types/raw.test-d.ts` | 型 ↔ 公式（③ 乖離の検出。既知の乖離は交差型で式に書く） |
+| `test/rawKeys.test-d.ts` | 型 ↔ 表（`keyof T` と表の要素の union が一致） |
+| `test/rawFixture.test.ts` | 表 ↔ 実測（キーの集合が全件一致） |
+
+**3 つのうち 2 つが一致していても通らない**ので、写し間違いが残らない。
+表と型の両方に実測に無いキーを足して確かめた ──
+`[fixture] file (FILE): 型にだけある bogus` と、場所まで名指しで落ちる。
+
+比べるのは**キーの集合**だけ。値の型は比べない
+（JSON からは `string` と `"BEFORE" | "AFTER"` の区別が付かない）。
+機械で確かめられるのはキーの有無までで、実際に外れていた箇所
+（`LABEL` / `HR` の `elementId`）もそこだった。
 
 ## 6. ガードを 3 個に絞る
 
@@ -637,7 +663,7 @@ kintone 自体の事実（約 235 行）と環境・ツールチェーンの判�
 2. `getFormFields` / `getFormLayout` の採取と正規化を作る（**済**）
 3. `pnpm run app:build` → `app:collect-form` → `fixture:form` で測る（**済**）
 4. [7](#7-ルックアップは判別ユニオンを壊す)と `enabled` を確定させる（**済**）
-5. `Raw` / `Field` の型を書く
+5. `Raw` の型を書く（**済**）／ `Field` の型を書く
 6. `toForm` とガードを書く
 7. モノレポ化（`packages/` への移動、ドキュメント分割、リリース配線）
 8. 6 本のプラグインを移行する

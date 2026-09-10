@@ -10,7 +10,11 @@ export default defineConfig({
 		// 「型が意図した区別をしているか」は実行時のテストでは確かめられない。
 		typecheck: {
 			enabled: true,
-			include: ["src/**/*.test-d.ts", "test/**/*.test-d.ts"],
+			include: [
+				"src/**/*.test-d.ts",
+				"test/**/*.test-d.ts",
+				"packages/**/*.test-d.ts",
+			],
 			tsconfig: "tsconfig.json",
 		},
 	},

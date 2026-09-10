@@ -23,6 +23,7 @@
 		"src/**/*",
 		"test/**/*",
 		"tools/**/*",
+		"packages/**/*",
 		"e2e/**/*",
 		"examples/**/*",
 		"*.config.ts"
