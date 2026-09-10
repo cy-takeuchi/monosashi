@@ -1,0 +1,484 @@
+# ツールチェーンの判断
+
+リポジトリ全体に効く判断。パッケージ固有のものは各
+`packages/*/docs/DECISIONS.md`。
+
+kintone 自体の事実は [`KINTONE.md`](KINTONE.md)、
+パッケージの設計判断は各 `packages/*/docs/DECISIONS.md`。
+
+## モノレポは既存の monosashi のリポジトリを使う
+
+**2026-09-10。** kisekae を作るにあたって、リポジトリを分けるか 1 つにするかを決めた。
+
+**1 つにする。理由は実測の根拠が割れると静かに腐るから。**
+kisekae の実測は、monosashi のリポジトリにある `fields.ts` / `layout.ts` が
+定義したアプリを測ったもの。別リポジトリだと、フィールドを 1 つ変えた瞬間に
+kisekae の実測が**古いアプリの記録**になり、それを検出する仕組みがどこにも作れない。
+1 リポジトリなら 1 コミットで両方が動き、`check` 1 回で見える。
+
+**新しいリポジトリを作らずに既存のものを使う**のは、npm の Trusted Publishing が
+owner / repository / workflow filename に紐づいていて、
+**接続は作ったあと編集できない**（削除して作り直すしかない）ため。
+**リポジトリ名を変えると、この 3 つのうち repository が変わるので
+接続を作り直すことになる。** そのついでにワークフロー名とタグの形も
+揃えた（`release-monosashi.yml` / `monosashi-v*`）── どうせ 1 回の
+作り直しで済むので、追加コストがゼロだった。
+
+リポジトリ名を変える場合は npmjs.com で接続を貼り直す。
+**失敗するのは次に publish しようとした瞬間**なので、改名とリリースを
+同じ日にやらないと原因が分からなくなる。
+
+## パッケージは 3 つ。共有するのは足場だけ
+
+| | 公開 | 中身 |
+|---|---|---|
+| `packages/monosashi` | する | レコード。検証アプリの定義もここ |
+| `packages/kisekae` | する | フォーム定義 |
+| `packages/rig` | **しない** | 認証・kintone クライアント・実行の入口 |
+
+### rig に入れるもの / 入れないもの
+
+**入れたのは 5 つだけ**（`env` / `repoRoot` / `client` / `describeError` / `run`）。
+
+**検証アプリの構築（`tools/fixture-app/`）は monosashi に残した。**
+アプリの定義はレコードの実測が主な用途で、kisekae は建ったアプリを読むだけ。
+共有しているのは**建っているアプリそのもの**で、定義するコードではない。
+
+**`pack:check` も共有しない。** 土台（pack → 空プロジェクトへ install →
+依存の実体を確かめる → 2 モード × 2 バージョンで型検査）は共通だが、
+**シナリオが別物**。monosashi の 507 行のうち大半は利用者側のソースを
+文字列で埋め込んだシナリオで、25 箇所が monosashi 固有だった。
+kisekae には `declare global` も `/kintone` サブパスも無い。
+
+引数化して一般化はしない。シナリオを書くための DSL を作ることになる。
+**2 つ書いてみて初めて境界が正確に引ける。**
+
+### 規約は rig が持ち、適用は各パッケージがする
+
+`runScript` を通していない入口を探す走査は rig
+（`toolConvention`）に置き、各パッケージが自分の `tools/` に適用する。
+
+検査を各パッケージに写して回ると、`runScript` の意図が変わったときに
+片方だけ古くなる。それは `runScript` を作った理由そのもの
+（7 本のうち 1 本だけ `describeError` ではなく `String(error)` だった）。
+
+**実際にこの検査が働いた。** kisekae の `tools/packCheck.ts` が
+`main()` を直接呼んでいるのを、置いた直後に捕まえた。
+
+## `.env` はリポジトリのルートに 1 つ
+
+`pnpm run` はスクリプトを**そのパッケージのディレクトリ**で実行するので、
+cwd 相対の `".env"` はモノレポにした時点で壊れる。
+
+`rig` の `repoRoot` が `pnpm-workspace.yaml` を目印に上へ探す。
+`.git` を使わないのは、worktree や submodule ではファイルだったり
+別の場所を指したりするため。`pnpm-workspace.yaml` は
+「pnpm がワークスペースのルートだと見なす場所」そのもの。
+
+見つからなければ**落ちる**。黙って cwd を使うと、`.env` が無いのではなく
+「環境変数が未設定です」という別の症状で現れて原因が読めなくなる。
+
+## 除外パターンは `**/dist` にしない
+
+`.gitignore` と `biome.json` の両方で同じ罠がある。
+
+**`packages/*/dist` と書く。** `**/dist` にすると、検査対象のソースである
+`packages/*/test/dist/consumer.ts` まで巻き込む。
+monosashi は移行前から `.gitignore` に `/dist`（先頭スラッシュ）と書いて
+この罠を避けていた。モノレポではその手が使えないので、階層を明示する。
+
+**`biome.json` は JSON でコメントを置けない。** 理由はここに書く。
+
+移行で実際に 1 件踏んだ。`biome.json` の `"!fixtures"` はルート直下前提で、
+`packages/*/fixtures` に移った 4.6 MiB の `measured.json` を
+biome が処理しようとして警告が出た（`--error-on-warnings` なので落ちる）。
+
+## リリースはタグの前置で分ける
+
+| パッケージ | タグ | ワークフロー |
+|---|---|---|
+| monosashi | `monosashi-v*` | `release-monosashi.yml` |
+| kisekae | `kisekae-v*` | `release-kisekae.yml` |
+
+**1 つのワークフローで両方を publish しない。** Trusted Publishing の接続が
+workflow filename に紐づくので、片方の接続を触るためにもう片方も
+貼り直すことになる。
+
+**ファイル名とタグの形は、接続を作り直すときにだけ変えられる。**
+リポジトリ改名と同時にやれば手作業は 1 回で済む。
+別の日にやると npmjs.com を 2 度開くことになり、しかも
+**貼り直し忘れは次に publish しようとした瞬間まで気づけない**。
+
+## ライブ検証は 1 つのジョブに直列で入れる
+
+2 つのパッケージが**同じ検証アプリ**を測るので、
+`concurrency: group: live-verification` を共有する。
+
+ジョブを分けると `app:build` や採取が並行して走り、
+「たまに落ちる不安定なジョブ」として現れる。
+原因が並行実行だと気づくまでに時間がかかる種類の失敗。
+
+順序はレコードの採取（Playwright）→ フォーム定義の採取（REST のみ）。
+kisekae の採取はブラウザを使わない。
+
+## 変更されたパッケージだけ検査する仕組みは、まだ入れない
+
+`pnpm --filter "...[origin/main]" check` は入れない。
+3 パッケージなら常に検査しても数秒で、先に入れると
+**「浅い clone で base ref が取れず全部スキップされて緑になる」**という、
+いちばん見つけにくい失敗を抱える。
+
+速度が実際に痛くなってから移る。
+
+---
+
+## 週次ライブ検証の判定を、PR の CI ではなくジョブ内で行う
+
+当初は「フィクスチャ更新 PR を立て、その PR 上で既存の CI に判定させる」設計だった。
+既存の CI は `on: pull_request` で走るので追加設定が要らない、という理由。
+
+**成立しない。GITHUB_TOKEN で作った PR は他のワークフローを起動しない**（GitHub の仕様）。
+再帰的なワークフロー実行を防ぐための制限で、PAT か GitHub App のトークンを使わない限り回避できない。
+
+秘密情報を 1 つ増やすより、**ライブ検証のジョブ自身が新しい実測に対してテストを走らせ、
+結果を PR のタイトルと本文に載せる**ほうが単純。
+`continue-on-error` にして、テストが落ちても PR は立てる。
+落ちたときこそ、新しい実測データが手元に必要になる。
+
+型の主張が壊れたときはジョブ自体も失敗させる。
+スケジュール実行の失敗はワークフローを最後に更新した人に通知されるので、
+PR が立つだけより気づかれやすい。
+
+## 短い値を Secret にしない
+
+`FIXTURE_APP_ID=2` を GitHub の Secret にすると、
+**ログ中のあらゆる `2` が伏せられる**。実際にこうなった。
+
+```
+Run pnpm run e***e:install          ← "e2e" の 2
+[403] [CB_NO0***] 権限がありません   ← エラーコード CB_NO02
+適用に失敗した（*** 回目）
+```
+
+このジョブは「何が変わったか」を診断するのが仕事なので、ログが読めないのは致命的。
+アプリ ID は URL に出る情報で秘密ではない。Variable に置く。
+
+## スケジュール実行は放置すると止まる
+
+GitHub はリポジトリが 60 日間非アクティブだと `schedule:` を自動で無効化する。
+「人が忘れても動く」ことが目的の仕組みなので、この性質は目的と正面から衝突する。
+ワークフローの冒頭にコメントで残してある。
+
+## Actions が PR を作れるようにする設定が要る
+
+`peter-evans/create-pull-request` は既定では失敗する。
+
+```
+GitHub Actions is not permitted to create or approve pull requests.
+```
+
+Settings → Actions → General → Workflow permissions の
+「Allow GitHub Actions to create and approve pull requests」で有効にする。
+
+**この設定は「作成」と「承認」を同じトグルで制御する。**
+承認まで許すので既定で無効なのは妥当。有効にすると、main にマージされた
+ワークフローが PR を自己承認できるようになる。
+このリポジトリにその経路は書いていないが、緩和したことは意識しておく。
+
+避ける手もある。ジョブはブランチを push するだけにして、PR は人が開く方式。
+設定変更は要らないが、「人が忘れても動く」という目的は弱まる。
+
+## `ncu -u` に `packageManager` を触らせない
+
+`npm-check-updates` は `packageManager` フィールドも**更新対象として扱う**。
+`ncu -u` を打つと依存と一緒に pnpm 自身のバージョンが書き換わる。
+
+```
+ pnpm                11.6.0  →    12.3.4
+```
+
+pnpm 11 以降はこのフィールドを見て、一致しないバージョンを自分で取りに行く
+（manage-package-manager-versions）。つまり **`ncu -u` はその場では何も壊さず、
+次に `pnpm` を打った瞬間に pnpm 本体を差し替える。**
+
+2026-09-05 にこれで手元の pnpm が壊れた。書き込まれた `pnpm@11.25.0` を pnpm が
+取りに行き、`~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0/` に**中身のない**
+ものが入った。以降このリポジトリで `pnpm` を打つと必ずそこへ委譲され、こうなる。
+
+```
+node_modules/@pnpm/exe/pnpm: line 1: This: command not found
+```
+
+`pnpm` 自体が動かないので `pnpm install` では戻せない。手で消すしかない。
+
+```sh
+git checkout package.json                                # packageManager を戻す
+rm -rf ~/Library/pnpm/store/v11/links/@pnpm/exe/11.25.0  # 壊れたものを消す
+pnpm --version                                           # 戻ることを確認
+```
+
+**取り込みが壊れた原因は特定できていない。** `~/.npmrc` の `ignore-scripts=true` を
+疑ったが、後から入った `12.3.4` は同じ設定のまま正常な実行ファイルとして入った。
+確実に言えるのは、この経路で壊れることが一度起きた、ということだけ。
+
+### 対処
+
+`.ncurc.json` で `pnpm` を除外する。設定ファイルが効くことは確認済み。
+
+```json
+{ "reject": ["pnpm"] }
+```
+
+pnpm を上げたいときは意図して上げる。`packageManager` は
+**動かす pnpm を決める設定**であって、依存ではない。
+依存の一括更新のついでに動くと、更新した本人にも何が変わったのか見えない。
+
+## この環境で `pnpm publish` を手元から実行しない
+
+`pnpm publish --dry-run` が**出力ゼロのまま固まった**。`~/.npmrc` の既定レジストリが
+社内のプロキシに向いているためで、認証の入力待ちと見ている。
+`package.json` の `publishConfig.registry` は npmjs を指しているので公開先自体は正しいが、
+`--dry-run` の経路はそこを見に行かない。
+
+公開物が利用者から読めるかは **`pnpm run pack:check`** で確かめる。
+`pnpm pack` した tarball を空のプロジェクトに入れ、`exports` / `files` /
+`moduleResolution` / 実行時 import / 依存が入らないことまで通す。
+レジストリに触らないので固まらない。
+
+publish 自体は **パッケージごとのリリースワークフロー**が行う。
+`v*` のタグを押したときだけ走り、`pnpm run check` を通してから publish する。
+
+## publish に npm CLI を使わない
+
+pnpm 11.6.0 の `pnpm publish` には **`--provenance` が無い**（`--help` にも
+バイナリ内の文字列にも存在しない）。provenance は「どのリポジトリのどの
+ワークフローがこの tarball を作ったか」を sigstore で署名するもので、
+**実測を売りにするパッケージが出所を証明できないのは筋が通らない**。
+
+選択肢は 2 つあった。
+
+| | 得るもの | 代償 |
+| --- | --- | --- |
+| CI の publish だけ `npm publish` にする | provenance と **OIDC Trusted Publishing の両方が確実** | ツールが 2 つ混ざる。`pack:check` が検証する tarball の生成元と実際の出荷物がずれる |
+| pnpm 12 に上げる | pnpm 一本のまま `--provenance` が使える | **OIDC Trusted Publishing に対応しているか確認できていない** |
+
+**pnpm 12 を選んだ。** ツールを 1 つに保つことを優先している。
+
+選んだ時点では代償が確定していなかった。npm のドキュメントは「npm CLI は OIDC 環境を
+自動検出してトークンより優先する」と明言しているが、pnpm 側は 12.0.0 のリリースノートにも
+settings のドキュメントにも `pnpm publish --help` にも OIDC の記載が無く、
+**トークンを捨てられるかは実際に試すまで分からなかった。**
+
+### 2026-09-06: pnpm は OIDC を実装していた
+
+0.1.0 の公開ログで判明した。pnpm は自分から GitHub の ID トークンを取りに行っている。
+
+```
+GET .../idtoken/...?audience=npm%3Aregistry.npmjs.org 200 289ms
+[WARN] Skipped OIDC: ERR_PNPM_AUTH_TOKEN_EXCHANGE: Failed token exchange request
+       with body message: Unknown error (status code 404)
+```
+
+`audience=npm:registry.npmjs.org` の取得は 200 で成功し、npm への交換だけが 404 で落ちた。
+**この時点でパッケージが存在せず Trusted Publisher も未設定だったため**で、想定どおり
+トークンにフォールバックして公開された。ドキュメントに書かれていないだけで実装はある。
+
+つまり pnpm を選んだ代償は無かった。Trusted Publisher を設定したのでトークンは捨てた。
+
+**0.1.1 で確定した。** `Skipped OIDC` の警告が消え、トークンを一切持たない状態で
+stage できた。`ERR_PNPM_AUTH_TOKEN_EXCHANGE` の 404 は
+**Trusted Publisher が npm 側に登録されていなかった**ことが原因だった。
+
+### 失敗の理由を 401 に隠さない
+
+0.1.1 の最初の試行は `401 Unauthorized` で落ちた。これは症状であって原因ではない。
+
+`actions/setup-node` に `registry-url` を書くと、`.npmrc` に
+`_authToken=${NODE_AUTH_TOKEN}` が仕込まれる。`NPM_TOKEN` の Secret を消した後は
+その中身が setup-node のプレースホルダ `XXXXX-XXXXX-XXXXX-XXXXX` のままになる。
+OIDC が 404 で失敗したあと pnpm がそれで publish を試み、401 になった。
+
+**本当の失敗理由（404）が 401 に置き換わって見えなくなる。**
+認証を OIDC だけに任せるなら `.npmrc` に authToken を置く理由がないので、
+`registry-url` は書かない。公開先は `publishConfig.registry` が決める。
+
+なお pnpm は静的な `_authToken` より OIDC を優先する（PR #11495、2026-05）ので、
+これが OIDC を潰していたわけではない。潰していたのは診断のしやすさだけ。
+
+### CI に公開させない（staged publish）
+
+npm の Trusted Publisher には Allowed actions がある。`npm stage publish`
+（pnpm では `pnpm stage publish`。**pnpm 12 にも実装がある**）は常に許可され、
+直接の `publish` を許すかは選択制。
+
+**直接 publish を許可しない。** npm の設定画面自身がこう書いている。
+
+> Not recommended. For stronger security, leave unchecked to allow staged publishing only.
+
+CI は `pnpm stage publish` で npm に置くだけで、その時点では誰からも見えない。
+人間が 2FA を通して承認して初めて公開される。
+
+一度「ワークフローが固定されトークン経路も塞がっているのだから
+直接 publish でよい」と判断したが、**撤回した。** 残るリスクとして挙げた
+「ワークフロー自体の乗っ取り」を「そこまで想定するならリポジトリの書き込み権限が
+すでに破られている」と切り捨てたのが誤り。近年の npm のサプライチェーン攻撃は
+まさにその経路であり、npm が staged publish を作ったのもそのため。
+**リポジトリが破られた「あと」に人間の 2FA がもう一段あることに意味がある。**
+
+代償はリリースごとに手作業が 1 つ増えること。リリースワークフローは stage したあと
+`::notice::` で承認を促す。
+
+| サブコマンド | 用途 |
+| --- | --- |
+| `pnpm stage publish` | CI が置く |
+| `pnpm stage list` / `view` | 置かれているものを見る |
+| `pnpm stage approve` / `reject` | 承認 / 却下 |
+
+**承認は npmjs.com のブラウザで行う。** `pnpm stage approve` も使えるが、
+手元は既定レジストリが社内プロキシを向いており、`--registry` の明示と
+npmjs への認証が別途要る（この環境で `pnpm publish` が固まったのと同じ理由）。
+
+## pnpm 12 は lockfile に pnpm 自身を書く
+
+pnpm 12.3.4 に上げると `pnpm-lock.yaml` の**先頭に YAML ドキュメントがもう 1 つ**増える。
+
+```yaml
+---
+lockfileVersion: '9.0'
+importers:
+  .:
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.3.4
+        version: 12.3.4
+packages:
+  '@pnpm/exe.darwin-arm64@12.3.4': ...   # 全プラットフォーム分
+---
+lockfileVersion: '9.0'                    # ここから下が従来の依存グラフ（無変更）
+```
+
+既存の依存グラフは 1 行も変わらず、純粋な追加だった（101 行）。
+`pnpm install --frozen-lockfile` を 2 回続けても md5 が変わらないことを確認している。
+
+これは `packageManager` フィールドと**二重に** pnpm のバージョンを固定する。
+`packageManager` は「どの pnpm を動かすか」、lockfile は「その pnpm の実体は何か」。
+pnpm を上げるときは `packageManager` を手で書き換えたあと
+**`pnpm install` を回して lockfile も更新する**必要がある。
+
+### この節は環境で内容が変わる
+
+`packageManagerDependencies` に `@pnpm/exe` が入るかどうかは、
+**pnpm がどう入っているかで変わる**。mise が入れた pnpm を経由すると
+`@pnpm/exe` とその全プラットフォーム分（19 行）が書かれ、
+`pnpm/action-setup` が入れた pnpm では書かれない。
+
+しかも **`--frozen-lockfile` でも書き換わる。** frozen が守るのは依存グラフで、
+この節は対象外らしい。同じ環境で 2 回続ければ安定するが、
+環境をまたぐと 19 行が出たり消えたりする。どちらの形でも CI は通る。
+
+実害は差分のノイズだけだが、`git add -A` で無自覚に混ぜ込みやすい
+（2026-09-06 に実際に混ぜた）。**コミット前に `git diff --stat` を見る。**
+
+## TypeScript は 5.9 と 7 の両方で dist を検査する
+
+**2026-09-08。** 導入先（kintone-plugins）は**型チェックが 7、エディタが 5.9**
+という二重構成で、さらに AWS SAM 側は 5 系の別プロジェクト。
+**どちらか片方でしか通らない `.d.ts` を出すと、片方が黙って `any` に落ちる。**
+
+`typescript-5.9` という別名で 5.9.3 を devDependency に入れ、
+`pack:check` が両方で走る（6 シナリオ × 2 解決方式 × 2 版 = 24 通り）。
+`pnpm exec tsc` をやめて、それぞれのバイナリを絶対パスで呼ぶ。
+
+**言語機能の差では落ちない。** TS 7 は 5.9 の移植なので構文はほぼ同じ。
+5.9 レーンが拾うのは解決の挙動の差（`@types` の暗黙取り込み、
+`moduleResolution` の扱い）で、そこが本番の食い違いどころでもある。
+レーンが空回りしていないことは、素の型エラーを入れて
+**両方が独立に落ちる**ことで確かめた。
+
+最低サポート版を **5.9** として README に明記した。
+
+## 積んだ PR は下から先にマージすると上が消える
+
+#28（base: `main`）と #29（base: `refactor/run-script`）を
+**20 秒差**でマージした。順番が逆だった。
+
+| PR | base | マージ時刻 |
+|---|---|--:|
+| #28 | `main` | 15:18:**29** |
+| #29 | `refactor/run-script` | 15:18:**49** |
+
+#28 が `refactor/run-script` を `main` に取り込んだ時点で、
+そのブランチは行き先を失っている。そこへ #29 を入れても
+**どこにも届かない。** #29 は「MERGED」と表示され、
+GitHub 上は成功して見える。
+
+見つかったのは 0.2.0 の準備で `main` の履歴を見たとき。
+`test/deadExports.test.ts` が無く、`Api.DomElement` も戻っていた。
+**リリース直前でなければ気づかなかった。**
+
+`git log main..<ブランチ>` が空であることを、マージ後に確かめる。
+積むときは**上から先にマージする**か、`main` に向けて 1 本ずつ出す。
+
+## ドキュメントは 3 層に割る
+
+**2026-09-10。** monosashi の `docs/DECISIONS.md` は 3,384 行あり、
+3 つの塊が混ざっていた。
+
+| | 場所 | 行数 |
+|---|---|---|
+| kintone 自体の挙動 | `docs/KINTONE.md` | 572 |
+| 環境とツールチェーン | `docs/TOOLCHAIN.md`（この文書） | 287 |
+| monosashi の設計判断 | `packages/monosashi/docs/DECISIONS.md` | 2,526 |
+
+**基準は「kintone の挙動そのものか / 環境とツールチェーンか / そのパッケージの判断か」。**
+「どちらのパッケージが今必要としているか」では切らない。
+`set()` の受け入れ挙動は kisekae には要らないが、**kintone の事実**なので上に置く。
+パッケージを増やしたときに再測定しなくて済むことが目的。
+
+`CLAUDE.md` も同じ形に割った。ルートに共通ルール、各パッケージに固有のもの。
+**Claude Code は作業ディレクトリとその祖先から読む**ので、
+`packages/kisekae` で作業すれば両方が効き、共通ルールを 2 箇所に書かずに済む。
+
+### 分割は 1 コミットで、リンクは機械で確かめる
+
+見出しを移すと参照が静かに切れる。**リポジトリの `.md` 全件について、
+リンク先のファイルと見出しの存在を突き合わせるスクリプトで 0 件を確認した。**
+
+実際に 6 件見つかった（移動した節への相対パス 5 件と、
+`LICENSE` がルートに移ったことによる 1 件）。
+うち 1 件は**移動前から古かった参照**（存在しない見出しを指していた）。
+
+コードのコメントからの参照も同じように洗った。
+`grep -rn "DECISIONS"` で 30 箇所を確認し、4 件を直した。
+
+## 公開物の LICENSE は pnpm がルートから入れる
+
+各パッケージに `LICENSE` を置いていないが、`pnpm pack` の結果には
+`package/LICENSE` が入る。**pnpm がワークスペースのルートの LICENSE を
+コピーする。** `files: ["dist"]` に書いていなくても入る。
+
+モノレポ化で LICENSE がパッケージの外に出たので退行を疑ったが、
+tarball の中身を実際に見て問題ないことを確かめた。
+**`files` の指定だけを読んで判断しない。** `pack:check` が毎回中身を出している。
+
+## リリースワークフローの名前とタグは、接続を作り直すときに揃える
+
+**2026-09-10。** `release.yml` を `release-monosashi.yml` に、
+タグを `v*` から `monosashi-v*` に変えた。
+
+**タグを変えたのは、モノレポでは `v*` がどのパッケージのものか言えないから。**
+`v0.4.0` を見て monosashi のことだと分かるのは経緯を知っている人だけ。
+`kisekae-v*` と並べたときに片方だけ前置が無いのは、
+「monosashi が特別」という意味に読める。特別ではない。
+
+**ワークフロー名を変えられたのは、リポジトリ改名で Trusted Publisher を
+どうせ作り直すから。** 紐づけは owner / repository / workflow filename の 3 つで、
+repository が変わる時点で作り直しが必要になる。同じ 1 回の作業に
+ファイル名の変更を乗せれば追加コストがゼロ。
+
+**別の日にやると npmjs.com を 2 度開くことになる。** しかも貼り直し忘れは
+**次に publish しようとした瞬間まで気づけない**（npm はエラーを publish 時にしか出さない）。
+名前を変えるなら、変えるものを全部同時に変える。
+
+タグの前置そのものは紐づけに含まれないので、いつでも変えられる。
+**変えにくいのはワークフローのファイル名の方**という非対称がある。

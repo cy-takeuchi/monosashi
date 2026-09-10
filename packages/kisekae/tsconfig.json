@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"types": ["node"]
+	},
+	// **`.ts` を置いた場所を全部含める。**
+	// 漏れを test/typecheckScope.test.ts が縛っている（monosashi と同じ）
+	"include": ["src/**/*", "test/**/*", "tools/**/*", "*.config.ts"],
+	"exclude": ["test/dist/**/*"]
+}

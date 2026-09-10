@@ -1,0 +1,28 @@
+{
+	"name": "@kintone-type/rig",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "実測の足場。認証・kintone クライアント・実行スクリプトの入口を 2 パッケージで共有する。公開しない。",
+	"license": "MIT",
+	"exports": {
+		"./client": "./src/client.ts",
+		"./describeError": "./src/describeError.ts",
+		"./env": "./src/env.ts",
+		"./repoRoot": "./src/repoRoot.ts",
+		"./run": "./src/run.ts",
+		"./toolConvention": "./src/toolConvention.ts"
+	},
+	"scripts": {
+		"check": "pnpm run tsc && pnpm run test",
+		"tsc": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@kintone/rest-api-client": "^6.2.1",
+		"@types/node": "^26.4.1",
+		"dotenv": "^17.4.2",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.0"
+	}
+}

@@ -1,27 +1,28 @@
 node_modules
-# 先頭のスラッシュはリポジトリ直下に限定するため。
-# 付けないとあらゆる階層の dist にマッチし、
-# ビルド成果物を検査する test/dist/ まで巻き込んで除外してしまう
-/dist
-/probe-dist
 .env
 .env.*
 !.env.example
-# 実測データはコミットする。
-# Q6 で「PR は凍結フィクスチャに対してテストする」と決めているため、
-# これがリポジトリに無いとテスト戦略が成立しない。
-# fixtures/raw/ はブラウザからのエクスポートを一時的に置く場所（コミットしない）。
-fixtures/raw/*.json
 *.log
+*.tgz
+
+# ビルド成果物。パッケージごとに出る。
+# **先頭にスラッシュを付けない。** モノレポでは packages/*/dist に出るため。
+# ただし test/dist/ は検査対象のソースなので巻き込まないよう、
+# ディレクトリ名だけでなく親を含めて指定する
+packages/*/dist
+packages/*/probe-dist
+
+# 実測データはコミットする。
+# PR は凍結フィクスチャに対してテストするので、
+# これがリポジトリに無いとテスト戦略が成立しない。
+# 正規化前の生の採取結果だけを除外する（個人情報と環境依存値を含む）
+packages/*/fixtures/raw/*.json
+packages/*/fixtures/live/raw.json
+# フォーム定義の生の採取結果。有効化の前後で採り比べるので複数ファイルになる
+packages/*/fixtures/live/form-raw*.json
 
 # ログインセッション。認証情報そのものなので絶対にコミットしない
-e2e/.auth
-# 正規化前の生の採取結果。個人情報と環境依存値を含むのでコミットしない。
-# 基準として残すのは正規化したもの
-fixtures/live/raw.json
+packages/*/e2e/.auth
 # Playwright の実行結果
-playwright-report
-test-results
-
-# pnpm pack の成果物。pack:check は一時ディレクトリに作るので、ここに残るのは手で叩いた残骸
-*.tgz
+packages/*/playwright-report
+packages/*/test-results

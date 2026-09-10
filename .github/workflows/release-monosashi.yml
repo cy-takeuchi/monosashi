@@ -1,0 +1,87 @@
+name: Release monosashi
+
+# `monosashi-v*` タグを打つと npm に置く（公開はしない）。
+#
+# **kisekae とワークフローを分ける。** npm の Trusted Publishing は
+# owner / repository / **workflow filename** の 3 つに紐づき、
+# 接続は作ったあと編集できない（削除して作り直すしかない）。
+# 1 つのワークフローで両方を publish すると、片方の接続を触るために
+# もう片方も貼り直すことになる。
+#
+# **手元から publish しない。** この環境の `~/.npmrc` は既定レジストリが
+# 社内プロキシを向いており、`pnpm publish` は `--dry-run` を付けても
+# 出力ゼロのまま固まる（docs/DECISIONS.md「この環境で pnpm publish を
+# 手元から実行しない」）。CI から公開すれば、その事故が構造的に起きない。
+on:
+  push:
+    tags: ["monosashi-v*"]
+
+permissions:
+  contents: read
+  id-token: write # provenance の署名に要る
+
+# 同じタグを押し直したときに publish が二重に走らないようにする
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          # **registry-url は書かない。** 書くと setup-node が .npmrc に
+          # `_authToken=${NODE_AUTH_TOKEN}` を仕込む。Secret を消した今、
+          # その中身は setup-node のプレースホルダ（XXXXX-XXXXX-...）のままで、
+          # OIDC が失敗したときにそれで publish しようとして 401 になる。
+          # 本当の失敗理由が 401 に隠れるので置かない。
+          # 公開先は package.json の publishConfig.registry が決める
+      - run: pnpm install --frozen-lockfile
+
+      # タグだけ進めて version を上げ忘れる事故を止める。
+      # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い
+      - name: タグと package.json の version が一致するか
+        run: |
+          TAG="${GITHUB_REF_NAME#monosashi-v}"
+          PKG="$(node -p "require('./packages/monosashi/package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::タグ monosashi-v$TAG と package.json の version $PKG が食い違っている"
+            exit 1
+          fi
+          echo "version $PKG を公開する"
+
+      # **ここでステップを並べない。** 理由は check.yml と同じで、
+      # 定義は package.json の check ひとつに置く。
+      # pack:check が「利用者の立場で読めるか」まで確かめるので、
+      # 公開前の検査としてこれ以上足すものがない
+      - name: すべての検査
+        run: pnpm run check
+
+      # prepublishOnly が build を走らせる（check の pack:check でも走っているが、
+      # 出荷される dist はこちらが作ったものになる）
+      #
+      # **CI は公開しない。npm に置くだけ。**
+      # publish ではなく stage publish なので、この時点では誰からも見えない。
+      # 人間が npmjs.com で 2FA を通して承認して初めて公開される。
+      # npmjs.com 側の Allowed actions で直接 publish を禁止してあるので、
+      # ここを pnpm publish に戻すとワークフローが落ちる（それが狙い）。
+      #
+      # 認証はトークンではなく **OIDC Trusted Publishing**。
+      # pnpm が id-token から npm 向けのトークンを自分で交換するので、
+      # NODE_AUTH_TOKEN も NPM_TOKEN も要らない。
+      #
+      # --no-git-checks: タグの checkout は detached HEAD なので、
+      #   pnpm の「publish ブランチにいるか」の確認が必ず落ちる
+      # --provenance: pnpm 12 以降のフラグ。id-token: write と対で効く
+      - name: npm に置く（公開はしない）
+        working-directory: packages/monosashi
+        run: pnpm stage publish --provenance --no-git-checks
+
+      - name: 承認の案内
+        run: |
+          echo "::notice::monosashi@${GITHUB_REF_NAME#monosashi-v} を stage した。npmjs.com で 2FA を通して承認すると公開される"

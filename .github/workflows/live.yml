@@ -26,9 +26,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # **1 つのジョブに両パッケージの採取を入れる。**
+  # 同じ検証アプリを見るので、ジョブを分けると app:build や採取が並行して走り、
+  # 「たまに落ちる不安定なジョブ」として現れる。concurrency は上で共有している。
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        # レコードの採取は monosashi のもの。kisekae の採取だけ
+        # working-directory を上書きする
+        working-directory: packages/monosashi
     env:
       KINTONE_BASE_URL: ${{ secrets.KINTONE_BASE_URL }}
       KINTONE_USERNAME: ${{ secrets.KINTONE_USERNAME }}
@@ -79,15 +87,27 @@ jobs:
       - name: 正規化して基準を更新
         run: pnpm run fixture:build
 
+      # フォーム定義の採取。**ブラウザを使わない**（REST の 2 API だけ）。
+      # monosashi の採取のあとに直列で回す。同じアプリを見るため
+      - name: フォーム定義を実 kintone から採取
+        working-directory: packages/kisekae
+        run: pnpm run app:collect-form
+
+      - name: フォーム定義を正規化して基準を更新
+        working-directory: packages/kisekae
+        run: pnpm run fixture:form
+
       - name: 差分の有無を判定
         id: diff
+        working-directory: .
         run: |
-          if git diff --quiet -- fixtures/measured.json; then
+          if git diff --quiet -- packages/monosashi/fixtures/measured.json packages/kisekae/fixtures/form/definition.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "kintone は変わっていない"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "実測に差分が出た"
+            git diff --stat -- packages/monosashi/fixtures packages/kisekae/fixtures
           fi
 
       # 新しい実測に対して既存のテストを走らせる。
@@ -102,14 +122,17 @@ jobs:
         id: verify
         if: steps.diff.outputs.changed == 'true'
         continue-on-error: true
-        run: pnpm run test
+        working-directory: .
+        run: pnpm -r run test
 
       - name: フィクスチャ更新 PR を立てる
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
           branch: fixture-update
-          add-paths: fixtures/measured.json
+          add-paths: |
+            packages/monosashi/fixtures/measured.json
+            packages/kisekae/fixtures/form/definition.json
           commit-message: "chore: 実測の変化を取り込む"
           title: >-
             ${{ steps.verify.outcome == 'failure'

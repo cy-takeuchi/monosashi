@@ -1,0 +1,117 @@
+name: Release kisekae
+
+# `kisekae-v*` タグを打つと npm に置く（公開はしない）。
+#
+# **monosashi とワークフローを分ける。** npm の Trusted Publishing は
+# owner / repository / **workflow filename** の 3 つに紐づき、
+# 接続は作ったあと編集できない（削除して作り直すしかない）。
+# 1 つのワークフローで両方を publish すると、片方の接続を触るために
+# もう片方も貼り直すことになる。
+#
+# タグの前置も分ける。`v*` は monosashi のもの（既存の接続がそれに紐づいている）。
+#
+# ---------------------------------------------------------------------------
+# ⚠️ 今このファイルは **初回公開（0.1.0）のための一時状態** にある。
+#
+# npm は「パッケージが存在しないと Trusted Publisher を設定できない」ため、
+# 0.1.0 だけは OIDC で publish できない（npm/cli#8544）。
+# monosashi 0.1.0 も同じ道を通っている
+# （docs/TOOLCHAIN.md「pnpm は OIDC を実装していた」）。
+#
+# 一時変更は 3 か所で、すべて `一時` と書いた囲みの中にある。
+# **0.1.0 が npm に出たら、このコミットを git revert して元に戻す。**
+# 戻し忘れると registry-url が残り、Secret を消したあとは
+# setup-node のプレースホルダで publish を試みて 401 になる。
+# 本当の失敗理由（404）がそれに隠れる。
+# ---------------------------------------------------------------------------
+on:
+  push:
+    tags: ["kisekae-v*"]
+
+permissions:
+  contents: read
+  id-token: write # provenance の署名に要る
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          # >>> 一時（1/3）: registry-url を足す <<<
+          # 平常時は **書かない**。書くと setup-node が .npmrc に
+          # `_authToken=${NODE_AUTH_TOKEN}` を仕込む。OIDC が失敗したときに
+          # そのプレースホルダで publish しようとして 401 になり、
+          # 本当の失敗理由が隠れる。公開先は publishConfig.registry が決める。
+          #
+          # 初回だけはトークンで publish するので、この仕込みが必要。
+          registry-url: https://registry.npmjs.org
+          # >>> 一時ここまで <<<
+      - run: pnpm install --frozen-lockfile
+
+      # タグだけ進めて version を上げ忘れる事故を止める。
+      # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い
+      - name: タグと package.json の version が一致するか
+        run: |
+          TAG="${GITHUB_REF_NAME#kisekae-v}"
+          PKG="$(node -p "require('./packages/kisekae/package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::タグ kisekae-v$TAG と package.json の version $PKG が食い違っている"
+            exit 1
+          fi
+          echo "version $PKG を公開する"
+
+      # >>> 一時（追加の確認）: 初回公開なので取り返しがつかない <<<
+      # 0.1.0 は staged publish ではなく本当の publish になる。
+      # 名前が既に誰かに取られていたら 403 で落ちるが、それは publish の
+      # 直前まで分からないので、ここで先に見て意図と違えば止める
+      - name: kisekae が未登録か
+        run: |
+          CODE="$(curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/kisekae)"
+          if [ "$CODE" = "404" ]; then
+            echo "kisekae は未登録。初回公開として進む"
+          else
+            echo "::error::registry.npmjs.org/kisekae が $CODE を返した。初回公開ではない可能性がある。一時変更を revert して OIDC の経路に戻すこと"
+            exit 1
+          fi
+      # >>> 一時ここまで <<<
+
+      # **ここでステップを並べない。** 定義はリポジトリの check ひとつに置く。
+      # kisekae の pack:check が「利用者の立場で読めるか」と
+      # 「実行時依存がゼロか」まで確かめるので、これ以上足すものがない
+      - name: すべての検査
+        run: pnpm run check
+
+      # >>> 一時（2/3, 3/3）: stage publish → publish、トークンを渡す <<<
+      # 平常時は `pnpm stage publish --provenance --no-git-checks` で、
+      # 認証はトークンではなく OIDC Trusted Publishing。CI は npm に置くだけで
+      # 公開はせず、人間が npmjs.com で 2FA を通して承認して初めて公開される。
+      #
+      # **初回はそれができない。** stage publish は Trusted Publishing の機能で、
+      # その Trusted Publisher はパッケージが存在しないと作れない。
+      # だから 0.1.0 だけはトークンで、しかも即時公開になる。
+      # granular access token は 2FA を通らないので、承認の関門も無い。
+      # **これは一度きりの例外。**
+      #
+      # --provenance はトークン経路でも効く（id-token: write と
+      # package.json の repository.url が実リポジトリと一致していることが条件。
+      # どちらも満たしている）
+      - name: npm に公開する（初回だけ・即時公開）
+        working-directory: packages/kisekae
+        run: pnpm publish --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # >>> 一時ここまで <<<
+
+      - name: 次にやること
+        run: |
+          V="${GITHUB_REF_NAME#kisekae-v}"
+          echo "::notice::kisekae@$V を公開した。次の 3 つをやる: (1) npmjs.com で Trusted Publisher を cy-takeuchi / jissoku / release-kisekae.yml で作る、Allowed actions は未チェック、Require 2FA (2) このコミットを git revert して一時変更を戻す (3) Secret NPM_TOKEN を削除し npm 側のトークンも revoke する"

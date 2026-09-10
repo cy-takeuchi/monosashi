@@ -1,0 +1,79 @@
+{
+	"name": "monosashi",
+	"version": "0.3.0",
+	"type": "module",
+	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
+	"license": "MIT",
+	"author": "Yoshihiko Takeuchi",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/cy-takeuchi/jissoku.git",
+		"directory": "packages/monosashi"
+	},
+	"homepage": "https://github.com/cy-takeuchi/jissoku/tree/main/packages/monosashi#readme",
+	"bugs": {
+		"url": "https://github.com/cy-takeuchi/jissoku/issues"
+	},
+	"keywords": [
+		"kintone",
+		"cybozu"
+	],
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./kintone": {
+			"types": "./dist/kintone.d.ts",
+			"default": "./dist/kintone.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"check": "pnpm run tsc && pnpm run test && pnpm run probe:build && pnpm run pack:check",
+		"build": "pnpm run build:clean && pnpm run build:types && pnpm run build:js && pnpm run build:check",
+		"build:clean": "rm -rf dist",
+		"build:types": "tsc -p tsconfig.build.json",
+		"build:js": "vite build",
+		"build:check": "tsc -p tsconfig.dist.json",
+		"pack:check": "pnpm run build && tsx tools/package/packCheck.ts && tsx tools/package/bundleSize.ts",
+		"prepublishOnly": "pnpm run build",
+		"tsc": "tsc --noEmit",
+		"probe:build": "vite build --config vite.probe.config.ts",
+		"app:build": "tsx tools/fixture-app/build.ts",
+		"app:verify": "tsx tools/fixture-app/verify.ts",
+		"app:inspect": "tsx tools/fixture-app/inspect.ts",
+		"probe:write": "tsx tools/probe-write/writeProbe.ts",
+		"probe:converter": "tsx tools/probe-write/verifyConverter.ts",
+		"app:deploy-probe": "tsx tools/fixture-app/deployProbe.ts",
+		"app:check-probe": "tsx tools/fixture-app/checkProbe.ts",
+		"test": "vitest run",
+		"e2e": "playwright test",
+		"fixture:build": "tsx tools/fixture/build.ts",
+		"fixture:set-behavior": "tsx tools/fixture/setBehavior.ts",
+		"e2e:install": "playwright install --with-deps chromium"
+	},
+	"devDependencies": {
+		"@kintone-type/rig": "workspace:*",
+		"@kintone/rest-api-client": "^6.2.1",
+		"@playwright/test": "^1.62.1",
+		"@types/node": "^26.4.1",
+		"dotenv": "^17.4.2",
+		"tsx": "^4.23.13",
+		"typescript": "^7.0.2",
+		"typescript-5.9": "npm:typescript@5.9.3",
+		"vite": "^8.2.2",
+		"vitest": "^5.0.0"
+	},
+	"sideEffects": false
+}

@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		// **nodenext で出す。** bundler のままだと相対 import に拡張子が無くても
+		// 通ってしまい、出来上がった dist/*.d.ts が nodenext の利用者で解決できない。
+		// しかも skipLibCheck: true（TS の既定）ではエラーにならず型が黙って any に落ちる
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"noEmit": false,
+		"emitDeclarationOnly": true,
+		"declaration": true,
+		"declarationMap": true,
+		"outDir": "dist",
+		"rootDir": "src"
+	},
+	"include": ["src/**/*"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test-d.ts"]
+}
