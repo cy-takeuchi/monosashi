@@ -1,12 +1,17 @@
 import { config } from "dotenv";
+import { envPath } from "./repoRoot";
 
 /**
  * dotenv は既存の process.env を上書きしない（override: false が既定）。
  * そのため `op run --env-file=.env -- ...` で起動した場合は
  * op が解決した実値が優先され、ここでの読み込みは素通りする。
  * op を使わない場合は .env の値がそのまま使われる。
+ *
+ * **パスは cwd 相対にしない。** `pnpm run` はスクリプトをパッケージの
+ * ディレクトリで実行するので、モノレポでは `".env"` がパッケージの中を指す。
+ * `.env` はリポジトリのルートに 1 つ置く（`repoRoot.ts`）。
  */
-config({ path: ".env", quiet: true });
+config({ path: envPath(), quiet: true });
 
 const required = (name: string): string => {
 	const value = process.env[name];

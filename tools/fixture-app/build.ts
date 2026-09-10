@@ -8,6 +8,7 @@ import {
 	waitForDeploy,
 } from "../shared/client";
 import { env } from "../shared/env";
+import { envPath } from "../shared/repoRoot";
 import { runScript } from "../shared/run";
 import {
 	builtInFieldTypes,
@@ -320,7 +321,8 @@ const addTestRecords = async (
  * 再実行のたびに孤児アプリが増え続ける。
  */
 const writeEnvKey = (key: string, value: string): void => {
-	const path = ".env";
+	// リポジトリのルートの .env。cwd 相対にするとモノレポで別の場所を指す
+	const path = envPath();
 	const current = existsSync(path) ? readFileSync(path, "utf8") : "";
 	const lines = current.split("\n");
 	const index = lines.findIndex((line) => line.startsWith(`${key}=`));
