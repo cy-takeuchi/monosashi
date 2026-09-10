@@ -1,6 +1,12 @@
 import { describe, expectTypeOf, test } from "vitest";
 import type { Editing, Saved } from "./field.js";
-import type { CreateRecord, EditingRecord, SavedRecord } from "./record.js";
+import type {
+	CreateRecord,
+	EditingRecord,
+	EditingRecordWithMeta,
+	SavedRecord,
+	SavedRecordWithMeta,
+} from "./record.js";
 import type { RestRecord } from "./rest.js";
 
 /**
@@ -114,5 +120,44 @@ describe("レコード型が読み取りで正しく絞り込める", () => {
 			return field.value ?? "";
 		};
 		expectTypeOf(check).toBeFunction();
+	});
+});
+
+describe("$id / $revision を保証するレコード型", () => {
+	test("素のレコード型では $id.value が string に絞れない", () => {
+		// インデックスシグネチャなので 28 種別の value の合併型になる。
+		// これが自前の WithMeta 型を書かせていた原因（#34）
+		expectTypeOf<SavedRecord["$id"]["value"]>().not.toEqualTypeOf<string>();
+		expectTypeOf<EditingRecord["$id"]["value"]>().not.toEqualTypeOf<string>();
+	});
+
+	test("WithMeta なら string に絞れる", () => {
+		expectTypeOf<SavedRecordWithMeta["$id"]["value"]>().toEqualTypeOf<string>();
+		expectTypeOf<
+			SavedRecordWithMeta["$revision"]["value"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EditingRecordWithMeta["$id"]["value"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<
+			EditingRecordWithMeta["$revision"]["value"]
+		>().toEqualTypeOf<string>();
+	});
+
+	test("他のフィールドは元の型のまま引ける", () => {
+		// 交差型にしたことで通常のフィールドが壊れていないこと
+		expectTypeOf<SavedRecordWithMeta["singleLineText"]>().toEqualTypeOf<
+			SavedRecord[string]
+		>();
+		expectTypeOf<EditingRecordWithMeta["singleLineText"]>().toEqualTypeOf<
+			EditingRecord[string]
+		>();
+	});
+
+	test("作成画面のレコードには WithMeta が無い", () => {
+		// $id / $revision が存在しないので、対になる型を作らない（#34）
+		expectTypeOf<CreateRecord[string]>().not.toEqualTypeOf<
+			SavedRecord[string]
+		>();
 	});
 });

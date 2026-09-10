@@ -16,12 +16,14 @@
 // グローバル拡張はこの副作用 import でのみ有効になる
 import "../../dist/kintone";
 import {
+	type EditingRecordWithMeta,
 	field,
 	guard,
 	type LooseRecord,
 	type Rest,
 	type RestRecord,
 	type SavedRecord,
+	type SavedRecordWithMeta,
 	setValue,
 	toAddParams,
 	toRestWrite,
@@ -52,6 +54,16 @@ const record: LooseRecord = {
 const { record: converted, id, revision } = toRestWrite(record);
 const update: { app: string; id: string } = toUpdateParams("1", record);
 const add: { app: string } = toAddParams("1", record);
+
+// $id / $revision を保証する型は .d.ts の出力でも交差型が保たれること。
+// ここが崩れると $id.value が 28 種別の合併型に戻り、
+// 利用者側でだけ updateRecord に渡せなくなる（#34）
+declare const savedWithMeta: SavedRecordWithMeta;
+declare const editingWithMeta: EditingRecordWithMeta;
+const savedId: string = savedWithMeta.$id.value;
+const savedRevision: string = savedWithMeta.$revision.value;
+const editingId: string = editingWithMeta.$id.value;
+const editingRevision: string = editingWithMeta.$revision.value;
 
 // --- 代入 ---
 setValue(record, "text", "b");
@@ -89,3 +101,10 @@ kintone.events.on("app.record.detail.show", (event) => {
 });
 
 console.log(rowId, converted, id, revision, update, add, restRecord);
+
+console.log(
+	savedId,
+	savedRevision,
+	editingId,
+	editingRevision,
+);

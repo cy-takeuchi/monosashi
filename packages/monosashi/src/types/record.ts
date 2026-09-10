@@ -33,6 +33,48 @@ export type EditingRecord = {
 };
 
 /**
+ * `$id` と `$revision` を必ず持つレコード。`RestRecordWithMeta` の Saved 版。
+ *
+ * ## なぜ要るか
+ *
+ * `SavedRecord` はインデックスシグネチャなので `record.$id.value` が
+ * **28 種別の `value` の合併型**になり `string` に絞れない。
+ * `updateRecord` の `id` に渡そうとすると型エラーになる。
+ *
+ * ```ts
+ * declare const record: SavedRecordWithMeta;
+ * await client.record.updateRecord({
+ *   app, id: record.$id.value, revision: record.$revision.value, record: rest,
+ * });
+ * ```
+ *
+ * 詳細画面・一覧画面・`submit.success` のレコードは保存済みなので、
+ * 実際には必ず持っている。**型がそれを表せていなかった。**
+ *
+ * ## 保存前のレコードには使えない
+ *
+ * 作成画面には `$id` / `$revision` が存在しない（`CreateRecord`）。
+ * `change` / `submit` で保存前のレコードを扱うところでは使わない。
+ */
+export type SavedRecordWithMeta = SavedRecord & {
+	$id: Saved.Id;
+	$revision: Saved.Revision;
+};
+
+/**
+ * `$id` と `$revision` を必ず持つ編集画面のレコード。
+ *
+ * 理由は `SavedRecordWithMeta` と同じ。
+ * **編集画面（`edit.show` / `edit.change` / `edit.submit`）だけで使える。**
+ * 作成画面の `event.record` も `EditingRecord` だが、そちらは
+ * `$id` を持たないので、文脈を確かめずに付けると嘘になる。
+ */
+export type EditingRecordWithMeta = EditingRecord & {
+	$id: Editing.Id;
+	$revision: Editing.Revision;
+};
+
+/**
  * 作成画面のレコード。
  *
  * システムフィールドを持たない（実測: 作成画面 28 フィールド / それ以外 37 フィールド）。

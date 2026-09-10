@@ -94,7 +94,9 @@ export type {
 export type {
 	CreateRecord,
 	EditingRecord,
+	EditingRecordWithMeta,
 	SavedRecord,
+	SavedRecordWithMeta,
 	SetRecord,
 } from "./types/record.js";
 export type { RestRecord, RestRecordWithMeta } from "./types/rest.js";

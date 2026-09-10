@@ -2538,3 +2538,34 @@ kintone の関数名そのもので、個人情報ではなく測定の対象。
 たまたま**サブディレクトリ**と**`.json` 以外の拡張子**で回避していた。
 「直下の `.json` は全部サンプル」という前提はどこにも書かれておらず、
 `loadSamples` の実装にだけ表れていた。
+
+## `$id` を保証する型を REST 側にしか用意していなかった
+
+**2026-09-10、Issue #34。** `RestRecordWithMeta` はあるのに、
+`SavedRecord` / `EditingRecord` に対応するものが無かった。
+
+レコード型はインデックスシグネチャなので `record.$id.value` が
+**28 種別の `value` の合併型**になり `string` に絞れない。
+`updateRecord` の `id` に渡そうとすると型エラーになる。
+
+REST 側でその問題を解いておきながら、**同じ問題が JS API 側にもあることを
+見落としていた。** 報告者は複数のプラグインで同じローカル型を書き写していた。
+
+```ts
+export type SavedRecordWithMeta = SavedRecord & { $id: Saved.Id; $revision: Saved.Revision };
+export type EditingRecordWithMeta = EditingRecord & { $id: Editing.Id; $revision: Editing.Revision };
+```
+
+インデックスシグネチャとの交差型が効くのは、TypeScript が
+**判別子が矛盾する交差型を `never` に畳む**ため。`Saved.OneOf & Saved.Id` は
+`type` が `"SINGLE_LINE_TEXT" & "__ID__"` のように潰れるメンバが消えて
+`Saved.Id` だけが残る。`RestRecordWithMeta` が既にこれで動いていた。
+
+**`CreateRecord` の版は作らない。** 作成画面には `$id` / `$revision` が
+存在しない（実測: 作成画面 28 フィールド / それ以外 37 フィールド）。
+`EditingRecordWithMeta` も作成画面の `event.record` には使えない。
+そこは型では止められないので JSDoc に書いた。
+
+`test/dist/consumer.ts` が `.d.ts` の出力でも交差型が保たれることを見る。
+TS 7 で `field.subtableRow` の `id?: never` が宣言出力から落ちた前例があり、
+**src のテストが全部通ったまま利用者側だけ壊れる**ことが実際に起きている。

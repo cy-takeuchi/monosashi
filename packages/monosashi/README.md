@@ -94,6 +94,7 @@ import { field, toUpdateParams } from "monosashi";
 | | 用途 |
 |---|---|
 | `SavedRecord` / `EditingRecord` | レコード型。取得元で `value` の型が違う |
+| `*RecordWithMeta` | `$id` / `$revision` を保証する版。素の型では `$id.value` が全種別の合併型になり `string` に絞れない |
 | `SetRecord` | `kintone.app.record.set()` に渡す型。`disabled` / `error` を持てる |
 | `Rest` / `RestRecord` | REST API の型 |
 | `Saved` / `Editing` | フィールド型の名前空間 |
