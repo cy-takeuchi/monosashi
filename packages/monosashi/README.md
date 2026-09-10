@@ -127,7 +127,7 @@ import { field, toUpdateParams } from "monosashi";
 **自前の `kintone.d.ts` を持っているなら、置き換えればよい。**
 残したい場合は `monosashi/kintone` を import せず、自分の `declare global` の中で
 `EditingRecord` / `SetRecord` / `EventOf` を参照する
-（理由と手順は [DECISIONS](docs/DECISIONS.md)）。
+（理由と手順は [DECISIONS](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/docs/DECISIONS.md)）。
 
 ### `guard.*`
 
@@ -199,13 +199,13 @@ kintone.app.record.set({ record: toSetRecord(record) });
 
 ## もっと詳しく
 
-- [`fixtures/measured.json`](fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
-- [`fixtures/write-behavior.md`](fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
-- [`fixtures/set-behavior.md`](fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
-- [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
+- [`fixtures/measured.json`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
+- [`fixtures/write-behavior.md`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
+- [`fixtures/set-behavior.md`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
+- [設計判断の記録](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
   実測で判明した kintone / API の制約と、**測り方を間違えた記録**も入っている
-- [開発する](CONTRIBUTING.md) — 実測の手順。共通の手順は[ルート](../../CONTRIBUTING.md)
+- [開発する](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/CONTRIBUTING.md) — 実測の手順。共通の手順は[ルート](https://github.com/cy-takeuchi/jissoku/blob/main/CONTRIBUTING.md)
 
 ## ライセンス
 
-[MIT](../../LICENSE)
+[MIT](LICENSE)

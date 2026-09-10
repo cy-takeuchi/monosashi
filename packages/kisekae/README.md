@@ -98,14 +98,14 @@ import type { Properties, Layout, Field, Form } from "kisekae";
 宣言していない。`updateFormLayout` に送っていないので kintone が付けている。
 
 kisekae はそれを型に出す。乖離の内容は
-[`src/types/raw.test-d.ts`](src/types/raw.test-d.ts) が式で固定しているので、
+[`src/types/raw.test-d.ts`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/kisekae/src/types/raw.test-d.ts) が式で固定しているので、
 公式が追いついたらそのテストが落ちる。
 
 ## もっと読む
 
-- [開発する](CONTRIBUTING.md) — 実測の手順、型を足すとき、公開する
-- [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**
+- [開発する](https://github.com/cy-takeuchi/jissoku/blob/main/packages/kisekae/CONTRIBUTING.md) — 実測の手順、型を足すとき、公開する
+- [設計判断の記録](https://github.com/cy-takeuchi/jissoku/blob/main/packages/kisekae/docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**
 
 ## ライセンス
 
-[MIT](../../LICENSE)
+[MIT](LICENSE)

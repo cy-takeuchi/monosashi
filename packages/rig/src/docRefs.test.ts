@@ -91,10 +91,28 @@ const files = repoFiles();
 const markdown = files.filter((f) => f.endsWith(".md"));
 const headings = new Map(markdown.map((f) => [f, headingsOf(f)]));
 
+/**
+ * コードを落とす。
+ *
+ * **コードの中のリンクは例で、実在しなくてよい。**
+ * リンクの書き方を説明する文書が `` `[MIT](LICENSE)` `` と書いた瞬間に
+ * 「`docs/LICENSE` が無い」と報告された。
+ *
+ * 落とすのはこの検査だけ。**見出し参照の方は落とさない。**
+ * `` `EXAMPLE.md`「見出し名」 `` のようにファイル名がバックティックの中にあるのが
+ * 普通なので、落とすと何も拾えなくなる。
+ *
+ * **例に架空の名前を使うのは、この検査に引っかからないため。**
+ * 実在する 6 つの文書名しか見ないので、`EXAMPLE.md` なら例のままでいられる。
+ * 許容リストを作らずに済む書き方。
+ */
+const withoutCode = (text: string): string =>
+	text.replace(/```[\s\S]*?```/g, "").replace(/`[^`\n]*`/g, "");
+
 describe("Markdown のリンクが実在する", () => {
 	const broken: string[] = [];
 	for (const file of markdown) {
-		const text = readFileSync(join(root, file), "utf8");
+		const text = withoutCode(readFileSync(join(root, file), "utf8"));
 		for (const [, link] of text.matchAll(/\]\(([^)#][^)]*)\)/g)) {
 			if (link === undefined || /^(https?|mailto):/.test(link)) continue;
 			const target = normalize(

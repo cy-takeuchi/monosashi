@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runScript } from "@jissoku/rig/run";
@@ -224,6 +224,30 @@ const main = (): void => {
 		.sort();
 	console.log(`\n同梱 ${listed.length} 件:`);
 	for (const entry of listed) console.log(`  ${entry}`);
+
+	// **出荷される README の相対リンクが tarball の中で解決すること。**
+	// README は npm のページにも、tarball を展開した人の手元にも出る。
+	// `[MIT](../../LICENSE)` はパッケージのルートより上を指していて
+	// **どちらでも解決しなかった**（各パッケージに LICENSE を置いて直した）。
+	// 出荷しないもの（docs/ や fixtures/）へのリンクは絶対 URL にする。
+	//
+	// リポジトリ内のリンク検査（`packages/rig/src/docRefs.test.ts`）は
+	// **リポジトリの中で**解決するかを見るので、ここは見えない。
+	const shipped = new Set(listed);
+	const readme = readFileSync("README.md", "utf8");
+	const dangling: string[] = [];
+	for (const [, link] of readme.matchAll(/\]\(([^)#][^)]*)\)/g)) {
+		if (link === undefined || /^(https?|mailto):/.test(link)) continue;
+		const target = link.split("#")[0] ?? "";
+		if (!shipped.has(join("package", target))) dangling.push(link);
+	}
+	if (dangling.length > 0) {
+		throw new Error(
+			`出荷される README のリンクが tarball の中で解決しません: ${dangling.join(", ")}\n` +
+				"出荷するものは相対リンク、出荷しないものは絶対 URL にしてください",
+		);
+	}
+	console.log(`\nREADME の相対リンク: すべて同梱物を指しています`);
 
 	writeFileSync(
 		join(work, "package.json"),
