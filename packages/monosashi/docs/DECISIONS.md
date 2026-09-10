@@ -2539,6 +2539,51 @@ kintone の関数名そのもので、個人情報ではなく測定の対象。
 「直下の `.json` は全部サンプル」という前提はどこにも書かれておらず、
 `loadSamples` の実装にだけ表れていた。
 
+## 型が「関数を経由したか」で結果を変えていた
+
+**2026-09-10、Issue #33。** `RestWriteRecord` は `{ [code]: { value: unknown } }` で、
+REST の契約としては正しかった。だが `field.*()` は `{ type, value }` を返す
+（`field` は `set()` にも渡すため。`type` を省くと set() が実行時に落ちる）。
+
+```ts
+const record: RestWriteRecord = {};
+record.a = field.file([{ fileKey }]);               // 通る
+record.b = { type: "FILE", value: [{ fileKey }] };  // TS2353 で落ちる
+```
+
+**同じ形なのに下だけが落ちる。** 関数の戻り値にはリテラルの余剰プロパティ検査が
+働かないためで、型の意図ではなく TypeScript の検査規則の副作用。
+報告者は「正しい使い方をすれば起きない」と理解した上で、
+それでも一貫していないと書いていた。**同意する。**
+
+### `type` を許す。根拠は実測
+
+`fixtures/write-behavior.md`（2026-08-29）は `type` 付きのペイロードを
+実 kintone の `updateRecord` に投げている。disabled-error / calc /
+file-minimal / file-full-shape / subtable-keep-id が該当し、**すべて受け入れ**。
+エラーになった 9 件はいずれも「そのフィールド種別は書けない」で、
+`type` プロパティ自体が拒否された例は無い。
+
+**確かめたのは「正しい `type` を付けたときに受け付けられること」だけ。**
+間違った `type` を送ったときにどうなるかは測っていないので、書いていない。
+
+### 境界は「`field.*()` が作るもの」に置く
+
+報告者の案は `{ type?: string; value: unknown } & Record<string, unknown>` だったが、
+**`Record<string, unknown>` は採らない。** それだと綴り違いも set() 専用の
+`disabled` も通り、`RestWriteRecord` が何も保証しない型になる。
+
+許すのは `type` だけ。`disabled` / `error` は REST も受け入れるが（実測）、
+`set()` 専用のプロパティなので入れない。`field.*()` が作る形をちょうど受け入れる、
+という境界にした。
+
+`src/convert/toRestWrite.test-d.ts` が**両側から縛る**。
+緩めば「何でも受け取る型になっていない」の 3 件が落ち、
+締めれば「手書きのリテラルが通る」が落ちる。
+
+変換関数（`toRestWrite` / `convertField`）は `type` を**付けない**。
+REST が要求しないため。**型が許すことと、この関数が出すものは別。**
+
 ## `$id` を保証する型を REST 側にしか用意していなかった
 
 **2026-09-10、Issue #34。** `RestRecordWithMeta` はあるのに、

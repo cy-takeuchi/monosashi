@@ -29,8 +29,47 @@ import { isExcludedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes.js";
  * **4 は必須**。id を除くと既存の行が置き換わり、新しい id が振られてデータが壊れる。
  */
 
+/**
+ * `addRecord` / `updateRecord` の `record` に渡せるレコード。
+ *
+ * ## `field.*()` が作る形をちょうど受け入れる
+ *
+ * REST が要るのは `value` だけ。それでも `type` を許すのは、
+ * **`field.*()` の戻り値が `{ type, value }` だから**
+ * （`field` は `set()` にも渡すので `type` を必ず持つ。省くと set() が落ちる）。
+ *
+ * ```ts
+ * const record: RestWriteRecord = {};
+ * record.a = field.file([{ fileKey }]);               // 推奨
+ * record.b = { type: "FILE", value: [{ fileKey }] };  // これも通る
+ * ```
+ *
+ * 許さないと、この 2 行で**下だけが弾かれる**。関数の戻り値には
+ * リテラルの余剰プロパティ検査が働かないので、`field.*()` を経由する分には
+ * 通ってしまい、同じものを手で書くと落ちる。
+ * **型が「関数を経由したか」で結果を変えるのは利用者から見て一貫していない**（#33）。
+ *
+ * 許すのは `type` だけ。`disabled` / `error` は `set()` 専用なので入れない
+ * （`SetRecord`）。境界を「`field.*()` が作るもの」に置いている。
+ *
+ * ## 根拠
+ *
+ * **`type` を付けて送っても受け付けられる**（実測 2026-08-29、
+ * `fixtures/write-behavior.md` の disabled-error / calc / file-minimal /
+ * file-full-shape / subtable-keep-id）。
+ *
+ * **確かめたのは「正しい `type` を付けたときに受け付けられること」だけ。**
+ * 間違った `type` を送ったときにどうなるかは測っていない。
+ *
+ * `toRestWrite` / `convertField` は `type` を**付けない**（REST が要らないため）。
+ * 型が許すことと、この変換関数が出すものは別。
+ */
 export type RestWriteRecord = {
-	[fieldCode: string]: { value: unknown };
+	[fieldCode: string]: {
+		value: unknown;
+		/** REST は要求しない。`field.*()` の戻り値をそのまま渡せるように許す */
+		type?: string;
+	};
 };
 
 export type RestWriteParams = {
