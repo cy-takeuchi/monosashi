@@ -1,5 +1,5 @@
-import { createClient } from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
+import { createClient } from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
 import { test } from "@playwright/test";
 
 /**

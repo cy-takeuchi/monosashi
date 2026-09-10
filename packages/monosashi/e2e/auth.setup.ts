@@ -1,4 +1,4 @@
-import { env } from "@kintone-type/rig/env";
+import { env } from "@jissoku/rig/env";
 import { expect, test as setup } from "@playwright/test";
 import { LOGIN_BUTTON, LOGIN_NAME, PASSWORD } from "./labels";
 

@@ -1,4 +1,4 @@
-import { env } from "@kintone-type/rig/env";
+import { env } from "@jissoku/rig/env";
 import { defineConfig, devices } from "@playwright/test";
 
 /**

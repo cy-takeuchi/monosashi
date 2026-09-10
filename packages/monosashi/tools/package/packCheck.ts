@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runScript } from "@kintone-type/rig/run";
+import { runScript } from "@jissoku/rig/run";
 
 /**
  * 公開したときに利用者が本当に使えるかを、tarball を入れて確かめる。

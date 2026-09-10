@@ -1,7 +1,7 @@
-import { createClient, log } from "@kintone-type/rig/client";
-import { describeError } from "@kintone-type/rig/describeError";
-import { env } from "@kintone-type/rig/env";
-import { runScript } from "@kintone-type/rig/run";
+import { createClient, log } from "@jissoku/rig/client";
+import { describeError } from "@jissoku/rig/describeError";
+import { env } from "@jissoku/rig/env";
+import { runScript } from "@jissoku/rig/run";
 
 /**
  * .env が指しているアプリの中身を読み取り専用で確認する。

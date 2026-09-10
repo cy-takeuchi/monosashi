@@ -2137,14 +2137,14 @@ await withDialogsAccepted(page, async () => { … });
 仕事**で、9 本の中で一番情報の少ない出力になっていた。
 写して回ると、こういう食い違いが黙って残る。
 
-`@kintone-type/rig` の `runScript(main)` に寄せた。同期の `main` も受ける。
+`@jissoku/rig` の `runScript(main)` に寄せた。同期の `main` も受ける。
 
 ### `describeError` を `client.ts` から出した
 
 この関数は kintone の何にも触らない純粋関数なのに `client.ts` にあった。
 `run.ts` から使うと、`packCheck.ts` のような **kintone を使わない
 スクリプトが `@kintone/rest-api-client` を引き込む**。
-`@kintone-type/rig` の `describeError` に分けた。
+`@jissoku/rig` の `describeError` に分けた。
 
 ### スタックも出す（意図した変更）
 

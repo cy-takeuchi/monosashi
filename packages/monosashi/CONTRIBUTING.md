@@ -71,7 +71,7 @@ env -u OP_ACCOUNT op account list
 `No accounts configured` と出る場合は 1Password CLI の連携が未設定。
 デスクトップアプリの **設定 → 開発者 → 1Password CLI と連携** をオンにする。
 
-`op://` のまま渡ってきた場合は `@kintone-type/rig` の `env` が検出して止める
+`op://` のまま渡ってきた場合は `@jissoku/rig` の `env` が検出して止める
 （そのまま kintone に投げると 401 になり原因が分かりにくいため）。
 
 ### アプリを作るスペース

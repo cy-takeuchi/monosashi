@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { log } from "@kintone-type/rig/client";
+import { log } from "@jissoku/rig/client";
 import type { ProbeStore } from "../../src/probe/store";
 import { normalize } from "./normalize";
 

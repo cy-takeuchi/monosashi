@@ -1,6 +1,6 @@
-import { createClient, log } from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
-import { runScript } from "@kintone-type/rig/run";
+import { createClient, log } from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
+import { runScript } from "@jissoku/rig/run";
 import { allFixtureFieldCodes, subtableFieldCodes } from "./fields";
 
 /**

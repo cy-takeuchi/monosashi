@@ -50,7 +50,7 @@
 		"fixture:form": "tsx tools/formDefinition.ts"
 	},
 	"devDependencies": {
-		"@kintone-type/rig": "workspace:*",
+		"@jissoku/rig": "workspace:*",
 		"@kintone/rest-api-client": "^6.2.1",
 		"@types/node": "^26.4.1",
 		"tsx": "^4.23.13",

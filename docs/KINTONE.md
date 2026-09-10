@@ -223,7 +223,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **`addFormFields` は参照先フィールドが先に必要** | ルックアップの `fieldMappings`、関連レコード一覧の `condition.field` | 2パスに分割。1回にまとめると `CB_VA01` で弾かれる |
 | **`addApp` はプレビュー環境にしか作らない** | `deployApp` するまで運用環境の API（`getApp` / `getRecords`）からは 404 になる。デプロイ前に失敗するとアプリはプレビューにだけ残る | 参照するときは `preview: true` を使う。`tools/fixture-app/inspect.ts` で状態を確認できる |
 | **`op run` は環境変数側の `op://` も解決しようとする** | env ファイルだけでなく、継承した環境変数に含まれる参照も対象。`~/.claude/settings.json` などで設定された参照が別 vault を指していると、無関係なコマンドが vault エラーで落ちる | 実行時に `env -u` で外す。**外す変数を列挙してはいけない**（2026-09-02: 列挙していたら後から増えた変数で落ちた）。`op://` を値に持つ変数を毎回数え上げる形にする（README 参照） |
-| `KintoneRestAPIError.message` は詳細を言わない | 「入力内容が正しくありません」までしか出ない | `errors` を展開する（`@kintone-type/rig` の `describeError`） |
+| `KintoneRestAPIError.message` は詳細を言わない | 「入力内容が正しくありません」までしか出ない | `errors` を展開する（`@jissoku/rig` の `describeError`） |
 | ゲストスペースは API パスが変わる | `/k/guest/{id}/v1/...`。クライアント生成時に `guestSpaceId` が必要で**後から切り替えられない** | `KINTONE_SPACE_ID` と `KINTONE_GUEST_SPACE_ID` を別変数にする |
 | **`getViews` は kintone 既定の一覧を返さない** | 検証アプリで返るのはプロセス管理が自動で作る「（作業者が自分）」1 件だけ。開発者が手で開いた既定の一覧は含まれない | 使う一覧は `updateViews` で宣言する。全置換だが**自動作成された一覧は消せない**（`GAIA_IL44`）ので、残したうえで先頭に足す |
 | **プロセス管理の先頭ステータスの作業者は限定される** | `CB_VA01`「先頭のステータスでは、作業者は空、またはレコードの作成者フィールドを指定します」。`entity.type: "CREATOR"` は弾かれる | `FIELD_ENTITY` で作成者フィールドを指す。ログイン名を書かずに済むので環境非依存 |

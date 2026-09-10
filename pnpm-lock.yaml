@@ -134,7 +134,7 @@ importers:
 
   packages/kisekae:
     devDependencies:
-      '@kintone-type/rig':
+      '@jissoku/rig':
         specifier: workspace:*
         version: link:../rig
       '@kintone/rest-api-client':
@@ -161,7 +161,7 @@ importers:
 
   packages/monosashi:
     devDependencies:
-      '@kintone-type/rig':
+      '@jissoku/rig':
         specifier: workspace:*
         version: link:../rig
       '@kintone/rest-api-client':

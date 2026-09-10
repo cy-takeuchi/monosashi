@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { createClient } from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
+import { createClient } from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
 import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { FILE_SLOT_COUNT, filledRecord } from "../tools/fixture-app/records";

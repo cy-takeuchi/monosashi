@@ -28,6 +28,33 @@ owner / repository / workflow filename に紐づいていて、
 **失敗するのは次に publish しようとした瞬間**なので、改名とリリースを
 同じ日にやらないと原因が分からなくなる。
 
+### 名前は jissoku にした
+
+既存のリポジトリを使う決定はそのままで、**名前だけ変えた**
+（`cy-takeuchi/monosashi` → `cy-takeuchi/jissoku`）。
+
+パッケージが 2 つ入ったリポジトリが片方の名前を持っていると
+`monosashi/packages/kisekae` という読みにくいパスになり、
+**「monosashi が主で kisekae が従」と読める。特別ではない。**
+
+改名で変わるものを同じ日に全部変えた。
+
+| | |
+| --- | --- |
+| リポジトリ | `cy-takeuchi/jissoku` |
+| ワークフロー | `release.yml` → `release-monosashi.yml`、`release-kisekae.yml` を新設 |
+| タグ | `v*` → `monosashi-v*` / `kisekae-v*` |
+| Trusted Publisher | 両方を削除して作り直し（owner / repository / **workflow filename** に紐づく） |
+| 各パッケージの repository / homepage / bugs | jissoku を指すように |
+| ワークスペースの `name` | `kintone-type-workspace` → `jissoku` |
+| rig のスコープ | `@kintone-type/rig` → `@jissoku/rig`（28 ファイル） |
+
+**下の 2 つは後から気づいて直した。** 改名で変わるのは GitHub 上の名前だけではない。
+`@kintone-type/rig` は**非公開パッケージなのでスコープは何でもよく、
+古いままでも動く**。動かなくなる場所が無いぶん残りやすかった。
+
+**改名の手順には `git grep` で古い名前を探すところまでを含める。**
+
 ## パッケージは 3 つ。共有するのは足場だけ
 
 | | 公開 | 中身 |

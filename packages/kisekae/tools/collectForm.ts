@@ -1,13 +1,13 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { createClient, log } from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
+import { runScript } from "@jissoku/rig/run";
 import type {
 	KintoneFormFieldProperty,
 	KintoneFormLayout,
 	KintoneRestAPIClient,
 } from "@kintone/rest-api-client";
-import { createClient, log } from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
-import { runScript } from "@kintone-type/rig/run";
 
 /**
  * 検証アプリの**フォーム定義**（`getFormFields` / `getFormLayout`）を採る。

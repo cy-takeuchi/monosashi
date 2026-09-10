@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { log } from "@kintone-type/rig/client";
-import { runScript } from "@kintone-type/rig/run";
+import { log } from "@jissoku/rig/client";
+import { runScript } from "@jissoku/rig/run";
 import { countFields, normalizeForm } from "./normalizeForm";
 
 /**

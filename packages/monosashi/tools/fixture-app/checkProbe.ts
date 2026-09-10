@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { createClient, log } from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
-import { runScript } from "@kintone-type/rig/run";
+import { createClient, log } from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
+import { runScript } from "@jissoku/rig/run";
 
 /**
  * 検証アプリに貼られている採取カスタマイズが、手元のビルド結果と同一かを確かめる。

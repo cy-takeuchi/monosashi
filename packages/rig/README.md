@@ -1,4 +1,4 @@
-# @kintone-type/rig
+# @jissoku/rig
 
 実測の足場。**公開しない**（`private: true`）。
 

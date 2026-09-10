@@ -1,12 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import {
-	appUrl,
-	createClient,
-	log,
-	waitForDeploy,
-} from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
-import { runScript } from "@kintone-type/rig/run";
+import { appUrl, createClient, log, waitForDeploy } from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
+import { runScript } from "@jissoku/rig/run";
 
 /**
  * 採取カスタマイズを検証アプリに適用する。

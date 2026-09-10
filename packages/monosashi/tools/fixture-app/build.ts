@@ -1,15 +1,15 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import {
 	appUrl,
 	createClient,
 	log,
 	resolveSpace,
 	waitForDeploy,
-} from "@kintone-type/rig/client";
-import { env } from "@kintone-type/rig/env";
-import { envPath } from "@kintone-type/rig/repoRoot";
-import { runScript } from "@kintone-type/rig/run";
+} from "@jissoku/rig/client";
+import { env } from "@jissoku/rig/env";
+import { envPath } from "@jissoku/rig/repoRoot";
+import { runScript } from "@jissoku/rig/run";
+import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import {
 	builtInFieldTypes,
 	fixtureAppBaseFields,

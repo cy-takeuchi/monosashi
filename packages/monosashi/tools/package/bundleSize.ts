@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { runScript } from "@kintone-type/rig/run";
+import { runScript } from "@jissoku/rig/run";
 import { build } from "vite";
 
 /**

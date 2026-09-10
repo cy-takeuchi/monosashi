@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runScript } from "@kintone-type/rig/run";
+import { runScript } from "@jissoku/rig/run";
 
 /**
  * 出荷物を利用者の立場で検査する。

@@ -64,7 +64,7 @@
 		"e2e:install": "playwright install --with-deps chromium"
 	},
 	"devDependencies": {
-		"@kintone-type/rig": "workspace:*",
+		"@jissoku/rig": "workspace:*",
 		"@kintone/rest-api-client": "^6.2.1",
 		"@playwright/test": "^1.62.1",
 		"@types/node": "^26.4.1",

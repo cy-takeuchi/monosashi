@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { log } from "@kintone-type/rig/client";
-import { runScript } from "@kintone-type/rig/run";
+import { log } from "@jissoku/rig/client";
+import { runScript } from "@jissoku/rig/run";
 import type { Probed } from "../../src/probe/serialize";
 import type { ProbeStore, SetCaseResult } from "../../src/probe/store";
 

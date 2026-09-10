@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
+import { createClient, log } from "@jissoku/rig/client";
+import { describeError } from "@jissoku/rig/describeError";
+import { env } from "@jissoku/rig/env";
+import { runScript } from "@jissoku/rig/run";
 import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
-import { createClient, log } from "@kintone-type/rig/client";
-import { describeError } from "@kintone-type/rig/describeError";
-import { env } from "@kintone-type/rig/env";
-import { runScript } from "@kintone-type/rig/run";
 import type { BuiltInCodes, RecordState } from "./cases";
 import { cases } from "./cases";
 
