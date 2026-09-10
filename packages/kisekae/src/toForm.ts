@@ -17,7 +17,7 @@ import type { Layout, Properties, Property } from "./types/raw.js";
  * ## 同期の純粋関数
  *
  * クライアントを受け取らない。取得は利用者が行う
- * （`docs/DECISIONS.md`「11. 入力」）。
+ * （`docs/DECISIONS.md`「決定サマリ」）。
  *
  * ```ts
  * const [f, l] = await Promise.all([

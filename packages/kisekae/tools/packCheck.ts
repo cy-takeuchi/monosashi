@@ -34,7 +34,7 @@ import { runScript } from "@jissoku/rig/run";
  * kisekae には `declare global` も `/kintone` サブパスも無い。
  *
  * 共通部分を先に抽象化しない。2 つ書いてみて初めて境界が正確に引ける
- * （リポジトリの `docs/TOOLCHAIN.md`「pack:check も共有しない」）。
+ * （リポジトリの `docs/TOOLCHAIN.md`「rig に入れるもの / 入れないもの」）。
  */
 
 const MODES = [

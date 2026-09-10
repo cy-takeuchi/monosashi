@@ -10,7 +10,7 @@ name: Release monosashi
 #
 # **手元から publish しない。** この環境の `~/.npmrc` は既定レジストリが
 # 社内プロキシを向いており、`pnpm publish` は `--dry-run` を付けても
-# 出力ゼロのまま固まる（docs/DECISIONS.md「この環境で pnpm publish を
+# 出力ゼロのまま固まる（docs/TOOLCHAIN.md「この環境で `pnpm publish` を
 # 手元から実行しない」）。CI から公開すれば、その事故が構造的に起きない。
 on:
   push:

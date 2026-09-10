@@ -1,15 +1,15 @@
-# 開発する
+# 開発する（monosashi）
 
-このリポジトリに手を入れるときの手順。**利用するだけなら読む必要はない**
-（使い方は [README](README.md)）。
+**monosashi 固有の手順**。共通の手順は
+[リポジトリのルートの CONTRIBUTING](../../CONTRIBUTING.md) にある
+（セットアップ / 認証情報 / スペース / 検査 / 依存 / 公開）。
+**利用するだけなら読む必要はない**（使い方は [README](README.md)）。
 
-このプロジェクトの原則は 1 つ。**型に書く前に測る。**
-推測で書いた型は実際に何度も外れている（README の「なぜ実測が要るのか」）。
-以下の手順は、その原則を運用可能にするためにある。
+このパッケージが測るのは**レコードの値**。
+検証アプリの構築と採取カスタマイズもここにある（kisekae は建ったアプリを読むだけ）。
 
-- [セットアップ](#セットアップ)
 - [実測の手順](#実測の手順)
-- [検査する](#検査する)
+- [公開の器を確かめる（pack:check）](#公開の器を確かめるpackcheck)
 - [公開する](#公開する)
 - [設計上の要点](#設計上の要点)
 
@@ -17,97 +17,10 @@
 何を決めたか、**何を捨てたか、なぜ捨てたか**、
 そして**測り方を間違えた記録**が入っている。
 
-## セットアップ
-
-```sh
-pnpm install
-pnpm approve-builds   # 対話式。esbuild のビルドを許可する
-cp .env.example .env
-```
-
-### 認証情報の渡し方
-
-`.env` に直接書くか、1Password の参照を書いて `op run` で解決するかを選べる。
-
-```sh
-# .env
-KINTONE_USERNAME=op://<vault>/<item>/username
-KINTONE_PASSWORD=op://<vault>/<item>/password
-```
-
-```sh
-op run --account <アカウント> --env-file=.env -- pnpm run app:build
-```
-
-`op run` は秘密情報をプロセスの環境変数にだけ渡すので、ディスクに残らない。
-dotenv は既存の `process.env` を上書きしないため、コード側の変更は不要。
-
-**継承した環境変数に `op://` 参照があると巻き込まれる。**
-`op run` は env ファイルだけでなく、既に設定されている環境変数の参照も解決しようとする。
-それが別アカウントの vault を指していると、無関係なエラーでコマンドが落ちる。
-該当するものは `env -u` で外す。
-
-```sh
-env $(env | grep -o '^[A-Z_]*=op://' | sed 's/=op:\/\//\ /' | sed 's/^/-u /') \
-  op run --account <アカウント> --env-file=.env -- pnpm run <script>
-```
-
-**このリポジトリでは `--account my.1password.com`。**
-`.env` の参照が `op://Private/...` で、`Private` は個人アカウントの既定 vault のため。
-`OP_ACCOUNT` に業務アカウントが入っている環境では、
-明示しないと `"Private" isn't a vault in this account` で落ちる。
-
-**`--account` を明示するのは、環境変数 `OP_ACCOUNT` を上書きするため。**
-`OP_ACCOUNT` がユーザー全体（`~/.claude/settings.json` など）で設定されていると
-そのアカウントだけを探しに行くので、このリポジトリで別のアカウントを使いたい場合に必要になる。
-`--account` は `OP_ACCOUNT` より優先される。
-
-アカウントの一覧は次で確認する。
-
-```sh
-env -u OP_ACCOUNT op account list
-```
-
-`No accounts configured` と出る場合は 1Password CLI の連携が未設定。
-デスクトップアプリの **設定 → 開発者 → 1Password CLI と連携** をオンにする。
-
-`op://` のまま渡ってきた場合は `@jissoku/rig` の `env` が検出して止める
-（そのまま kintone に投げると 401 になり原因が分かりにくいため）。
-
-### アプリを作るスペース
-
-`.env` でスペースを指定すると、検証アプリ2つをそのスペース配下に作る。
-
-```sh
-KINTONE_SPACE_ID=12          # 通常スペース
-KINTONE_GUEST_SPACE_ID=      # ゲストスペースの場合はこちらだけを設定
-```
-
-どちらも未設定ならスペース配下には作らない。
-
-ゲストスペースを別の環境変数にしているのは、kintone の API パスが
-`/k/guest/{id}/v1/...` に変わり、`KintoneRestAPIClient` の生成時に
-`guestSpaceId` を渡す必要があるため（後から切り替えられない）。
-指定を取り違えた場合は `app:build` がスペース取得の時点で止まり、
-どちらに移すべきかを案内する。
-
-スペース ID はスペースの URL から取れる。
-
-| | URL | ID |
-|---|---|---|
-| 通常 | `https://example.cybozu.com/k/#/space/12` | `12` |
-| ゲスト | `https://example.cybozu.com/k/guest/34/` | `34` |
-
 ## 実測の手順
 
-kintone に接続するコマンドは、`op` を使う場合すべて
-
-```sh
-env $(env | grep -o '^[A-Z_]*=op://' | sed 's/=op:\/\//\ /' | sed 's/^/-u /') \
-  op run --account <アカウント> --env-file=.env -- <コマンド>
-```
-
-の形で実行する（`env -u` の理由は「認証情報の渡し方」を参照）。
+kintone に接続するコマンドの実行の形は
+[ルートの CONTRIBUTING](../../CONTRIBUTING.md#実-kintone-に接続するコマンドの形)。
 
 ### 一度だけ: 検証アプリを用意する
 
@@ -215,22 +128,7 @@ pnpm exec vitest run src/probe/setCases.test.ts
 **probe を変えたら貼り直しを忘れない。** `app:check-probe` が配信物の
 ハッシュを比べているので、貼り直すまで週次のライブ検証が失敗する。
 
-## 検査する
-
-```sh
-pnpm run check
-```
-
-**CI（`.github/workflows/check.yml`）が走らせるのはこれだけ。**
-手元と CI で同じものが回る。ワークフローにステップを並べると、
-手元で「CI と同じもの」を回すのに YAML を読むことになり、
-片方だけ更新されても誰も気づかない。定義は `package.json` の 1 箇所に置く。
-
-中身は Biome / `tsc` / テスト / 採取カスタマイズのビルド / `pack:check`。
-実 kintone には接続しないので数秒で終わる。
-**高速で常時グリーンであることが、テストがコメントアウトされないための条件。**
-
-### 公開の器を確かめる（`pack:check`）
+## 公開の器を確かめる（`pack:check`）
 
 ```sh
 pnpm run pack:check
@@ -251,87 +149,25 @@ pnpm run pack:check
 を通らない。実際、`exports` から `./kintone` を消しても `build:check` は緑のまま、
 `pack:check` は落ちることを確認してある。
 
-### `pnpm publish` は手元で実行しない
-
-**`--dry-run` を付けても実行しない。** 既定レジストリが社内プロキシに向いているため、
-出力ゼロのまま固まる。公開物の検証は `pack:check`、publish 自体の検証は CI 側で行う。
-
-### 依存を上げるとき
-
-`ncu -u` は `packageManager` も更新対象にする。pnpm はそのフィールドを見て
-自分を差し替えるので、**依存更新のついでに pnpm 本体が入れ替わる**。
-一度これで pnpm が壊れて動かなくなった（経緯と復旧手順は
-[`docs/DECISIONS.md`](docs/DECISIONS.md)）。
-
-`.ncurc.json` で `pnpm` を除外してあるので、そのまま `ncu -u` を使ってよい。
-pnpm を上げるときは `packageManager` を手で書き換え、**そのあと `pnpm install` を回す**。
-pnpm 12 から lockfile にも pnpm 自身が入るようになったので、両方を揃える必要がある。
-
-**TypeScript は 2 つ入っている。** `typescript`（7 系）と
-`typescript-5.9`（別名で入れた 5.9）。導入先が
-「型チェックは 7、エディタは 5.9」という二重構成で、
-さらに AWS SAM 側が 5 系の別プロジェクトのため、
-`pack:check` が両方で `dist` を検査する。**上げるときは両方を上げる。**
-片方だけ上げると、検査しているつもりの版が実物とずれる。
-
 ## 公開する
 
-publish は **`.github/workflows/release-monosashi.yml`** だけが行う。手元からは実行しない
-（理由は「[`pnpm publish` は手元で実行しない](#pnpm-publish-は手元で実行しない)」）。
+手順と npmjs.com 側の設定は
+[ルートの CONTRIBUTING](../../CONTRIBUTING.md#公開する)。
+monosashi 固有なのは次の 2 つだけ。
+
+| | |
+|---|---|
+| タグ | **`monosashi-v*`**（`v*` ではない。モノレポではどちらのパッケージか言えないため） |
+| ワークフロー | `.github/workflows/release-monosashi.yml` |
 
 ```sh
-# 1. version を上げる
-#    タグと package.json の version が食い違うとワークフローが止まる
-vim package.json
-
-# 2. コミットしてタグを打つ
-git commit -am "chore: version を 0.2.0 にする"
-git tag v0.2.0
-git push origin main --tags
+vim packages/monosashi/package.json      # version を上げる
+git commit -am "chore(monosashi): 0.3.1"
+git tag -a monosashi-v0.3.1 -m "monosashi 0.3.1"
+git push origin main && git push origin monosashi-v0.3.1
 ```
 
-タグを押すと CI が `pnpm run check` を通してから
-`pnpm stage publish --provenance` する。provenance は「どのリポジトリの
-どのワークフローがこの tarball を作ったか」の署名で、`id-token: write` と対で効く。
-
-**この時点ではまだ公開されていない。**
-
-```sh
-# 3. npmjs.com で 2FA を通して承認する
-#    https://www.npmjs.com/package/monosashi
-#    承認して初めて公開される
-```
-
-`pnpm stage list` / `view` / `approve` / `reject` でも扱えるが、手元は
-既定レジストリが社内プロキシを向いているので `--registry` の明示と
-npmjs への認証が要る。ブラウザで承認するほうが速い。
-
-### 認証にトークンを使っていない
-
-publish の認証は **OIDC Trusted Publishing**。`release-monosashi.yml` に
-`NODE_AUTH_TOKEN` は無く、GitHub Secrets にも npm のトークンは置いていない。
-pnpm が GitHub の id-token から npm 向けのトークンを自分で交換する
-（`permissions: id-token: write` がそのために要る）。0.1.1 で動作を確認済み。
-
-`setup-node` に **`registry-url` を書いてはいけない**。`.npmrc` に
-`_authToken` のプレースホルダが仕込まれ、OIDC が失敗したときに
-それで publish を試みて `401 Unauthorized` になる。本当の失敗理由が隠れる
-（`docs/DECISIONS.md`「失敗の理由を 401 に隠さない」）。
-
-npmjs.com 側は次の状態にしてある。**この 3 つが揃って初めて publish が通る。**
-
-| 設定 | 値 |
-| --- | --- |
-| Trusted Publisher | GitHub Actions / `cy-takeuchi` / `jissoku` / `release-monosashi.yml` |
-| Allowed actions | **未チェック**（staged publish のみ。直接公開は禁止） |
-| Publishing access | Require two-factor authentication and disallow bypass 2fa tokens |
-
-つまり **`release-monosashi.yml` 以外から npm に何かを置く経路は無く、置かれたものも
-人間が 2FA を通すまで公開されない。** リポジトリが破られても、そこで一段止まる。
-
-ワークフローのファイル名を変えると stage が落ちるので、
-改名するときは npmjs.com 側の Trusted Publisher も直すこと。
-`release-monosashi.yml` を `pnpm publish` に戻した場合も、Allowed actions が禁じているので落ちる。
+承認は https://www.npmjs.com/package/monosashi で行う。
 
 ## 設計上の要点
 

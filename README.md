@@ -44,6 +44,16 @@ pnpm run check
 実物との乖離は週次のライブ検証（`.github/workflows/live.yml`）が検出し、
 差分が出たらフィクスチャ更新 PR を立てる。
 
+## 手を入れる
+
+[CONTRIBUTING](CONTRIBUTING.md) に共通の手順（セットアップ / 認証情報 /
+検査 / 依存 / 公開）。パッケージ固有の手順は各パッケージにある。
+
+| | |
+|---|---|
+| [monosashi](packages/monosashi/CONTRIBUTING.md) | レコードの実測。検証アプリの構築と採取カスタマイズ |
+| [kisekae](packages/kisekae/CONTRIBUTING.md) | フォーム定義の実測 |
+
 ## ライセンス
 
 [MIT](LICENSE)

@@ -21,7 +21,7 @@ import type {
  *
  * ## 採取と正規化を分ける
  *
- * ここは**採るだけ**。環境依存値を伏せるのは `tools/fixture/formDefinition.ts`。
+ * ここは**採るだけ**。環境依存値を伏せるのは `tools/formDefinition.ts`。
  * `e2e` → `fixture:build` と同じ分け方にしてある。
  * 出力（`fixtures/live/form-raw.json`）はアプリ ID や識別子を含むのでコミットしない。
  *

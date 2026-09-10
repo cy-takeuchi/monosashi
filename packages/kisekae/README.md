@@ -24,7 +24,7 @@ const form = toForm(fields.properties, layout.layout);
 
 返るのは 5 つ。
 
-| | |
+| | 中身 |
 |---|---|
 | `fields` | フォームに置かれた実フィールド。**レイアウト順**（左上が先、右下が後）。所属あり |
 | `tables` | サブテーブル。中のフィールドは持たない |
@@ -100,6 +100,11 @@ import type { Properties, Layout, Field, Form } from "kisekae";
 kisekae はそれを型に出す。乖離の内容は
 [`src/types/raw.test-d.ts`](src/types/raw.test-d.ts) が式で固定しているので、
 公式が追いついたらそのテストが落ちる。
+
+## もっと読む
+
+- [開発する](CONTRIBUTING.md) — 実測の手順、型を足すとき、公開する
+- [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**
 
 ## ライセンス
 

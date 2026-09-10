@@ -204,7 +204,7 @@ kintone.app.record.set({ record: toSetRecord(record) });
 - [`fixtures/set-behavior.md`](fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
 - [設計判断の記録](docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
   実測で判明した kintone / API の制約と、**測り方を間違えた記録**も入っている
-- [開発する](CONTRIBUTING.md) — このリポジトリに手を入れるときの手順
+- [開発する](CONTRIBUTING.md) — 実測の手順。共通の手順は[ルート](../../CONTRIBUTING.md)
 
 ## ライセンス
 
