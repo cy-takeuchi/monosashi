@@ -54,6 +54,38 @@ export type RelatedApp = {
 };
 
 /**
+ * ルックアップの設定。
+ *
+ * `fieldMappings` の `field` は**同じアプリのフィールドコード**で、
+ * コピー先を列挙している（2026-09-10 実測）。
+ * コピー先の判別に元アプリの権限は要らない。
+ *
+ * 名前を付けて切り出しているのは、整形後の型（`Field`）が
+ * 同じ形を再定義しないため。
+ */
+export type LookupConfig = {
+	relatedApp: RelatedApp;
+	relatedKeyField: string;
+	fieldMappings: Array<{ field: string; relatedField: string }>;
+	lookupPickerFields: string[];
+	filterCond: string;
+	sort: string;
+};
+
+/** 関連レコード一覧の設定 */
+export type ReferenceTableConfig = {
+	relatedApp: RelatedApp;
+	condition: {
+		field: string;
+		relatedField: string;
+	};
+	filterCond: string;
+	displayFields: string[];
+	sort: string;
+	size: "1" | "3" | "5" | "10" | "20" | "30" | "40" | "50";
+};
+
+/**
  * `getFormFields` が返すフィールドの設定。
  *
  * 名前は公式（`KintoneFormFieldProperty`）に揃える。
@@ -354,17 +386,7 @@ export namespace Property {
 		code: string;
 		label: string;
 		noLabel: boolean;
-		referenceTable: {
-			relatedApp: RelatedApp;
-			condition: {
-				field: string;
-				relatedField: string;
-			};
-			filterCond: string;
-			displayFields: string[];
-			sort: string;
-			size: "1" | "3" | "5" | "10" | "20" | "30" | "40" | "50";
-		};
+		referenceTable: ReferenceTableConfig;
 	};
 
 	/**
@@ -388,14 +410,7 @@ export namespace Property {
 		label: string;
 		noLabel: boolean;
 		required: boolean;
-		lookup: {
-			relatedApp: RelatedApp;
-			relatedKeyField: string;
-			fieldMappings: Array<{ field: string; relatedField: string }>;
-			lookupPickerFields: string[];
-			filterCond: string;
-			sort: string;
-		};
+		lookup: LookupConfig;
 	};
 
 	/** サブテーブルに入れられる種別 */

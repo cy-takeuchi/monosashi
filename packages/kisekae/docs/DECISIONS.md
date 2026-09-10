@@ -7,7 +7,8 @@ kintone のフォーム定義（`getFormFields` / `getFormLayout`）を、
 対象バージョン: kintone-pretty-fields 0.11.0 / kintone-typeguard 0.18.3 /
 @kintone/rest-api-client 6.2.1 / TypeScript 7.0.2
 
-**実装は `Raw`（生のフォーム定義の型）まで。** これは実装前に決めたことの記録で、
+**実装は型（`Raw` / `Field`）まで。** `toForm` とガードはまだ無い。
+これは実装前に決めたことの記録で、
 [12. 作業順序](#12-作業順序)のとおり**実測が先**。
 実測は 2026-09-10 に 1 回目を採り終えた
 （`fixtures/form/definition.json` / monosashi の DECISIONS
@@ -125,7 +126,7 @@ enabled=false → [文字列]                          ← 落とす
 | 入力 | 純粋関数。クライアントを受け取らない |
 | 型 | 全種別を自前で書き下す。`@kintone/rest-api-client` は devDependency のみ |
 | 等価性テスト | **入力側**（生のフォーム定義）を縛る |
-| ガード | `type` で判別できないものだけ 3 個 |
+| ガード | `type` で判別できないものだけ 3 個（`isInSubtable` / `isInGroup` / `isTopLevel`） |
 | 実行時依存 | ゼロ。`pack:check` が縛る |
 | monosashi | **依存しない**。受け渡しの通貨は素の値 |
 | 根拠 | 実測。monosashi の検証アプリを共有する |
@@ -347,7 +348,7 @@ Raw の型  ←→  キーの表  ←→  fixtures/form/definition.json
 
 ## 6. ガードを 3 個に絞る
 
-**決定**: `type` で判別**できないもの**だけ出す。`isInTable` / `isInGroup` / `isTopLevel`。
+**決定**: `type` で判別**できないもの**だけ出す。`isInSubtable` / `isInGroup` / `isTopLevel`。
 `export * as guard` で名前空間に入れる。
 
 **理由**: TypeScript 7.0.2（monosashi と kintone-plugins の双方が使用中）の
@@ -583,8 +584,19 @@ export type { Field, Form, Raw } from "./types.js";
 `to*` は monosashi の規約（`toRestWrite` / `toSetRecord` / `toAddParams`）。
 返り値に `Form` という名前を与えるのは、消費側がこれを引数に取る関数を必ず書くため。
 
-`guard` を名前空間に入れるのは、`isInTable` のような一般的な名前をルートに置くと
+`guard` を名前空間に入れるのは、`isInSubtable` のような一般的な名前をルートに置くと
 消費側の import が衝突しやすいから。
+
+### テーブルは `Subtable` と呼ぶ
+
+**2026-09-10。** 当初ガードを `isInTable`、型を `InSubtable` と書いていて揺れていた。
+**kintone の語彙に揃える。** `type` の値が `"SUBTABLE"` で、`parent.type` も
+`"SUBTABLE"` を取るので、判別子と名前が食い違うのは読み手の負担になる。
+
+一方 `Form` のキーは `tables` のままにする。
+`subtables` は英語として不自然で、消費側が毎回書く名前なので短さを優先する。
+`Table` / `Group` はバケツの要素の型で、`Field.InSubtable` は
+「サブテーブルの中に置ける種別」。指しているものが違う。
 
 ## 11. モノレポ
 
@@ -663,7 +675,7 @@ kintone 自体の事実（約 235 行）と環境・ツールチェーンの判�
 2. `getFormFields` / `getFormLayout` の採取と正規化を作る（**済**）
 3. `pnpm run app:build` → `app:collect-form` → `fixture:form` で測る（**済**）
 4. [7](#7-ルックアップは判別ユニオンを壊す)と `enabled` を確定させる（**済**）
-5. `Raw` の型を書く（**済**）／ `Field` の型を書く
+5. `Raw` の型を書く（**済**）／ `Field` の型を書く（**済**）
 6. `toForm` とガードを書く
 7. モノレポ化（`packages/` への移動、ドキュメント分割、リリース配線）
 8. 6 本のプラグインを移行する
@@ -707,7 +719,7 @@ monosashi の `setRowValue(row, code, value: unknown)` が `unknown` を受け�
 | `"table" in f` / `f.table!` | `f.parent?.type === "SUBTABLE"` / `f.parent.code` |
 | `f.table` からラベルを `find` | `f.parent?.label` |
 | `filter(isSubtable)` / `filter(isGroup)` | `tables` / `groups` |
-| `filter(isInSubtable)` / `isNotInSubtable` | `guard.isInTable` / `guard.isTopLevel` |
+| `filter(isInSubtable)` / `isNotInSubtable` | `guard.isInSubtable` / `guard.isTopLevel` |
 | `spacers` | `elements.filter((e) => e.type === "SPACER")` |
 | `sortedOptions` | 無い。`Object.entries(options).sort()` |
 | `isLookupCopy` | 無い |
