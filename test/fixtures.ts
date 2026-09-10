@@ -11,6 +11,23 @@ import type { ProbeStore, Sample } from "../src/probe/store";
  * ライブ検証は別立てで、そちらが差分を検出したらフィクスチャを更新する。
  */
 
+/**
+ * `fixtures/` 直下の `.json` を**全部**読む。
+ *
+ * **`samples` を持たないファイルがあれば落とす。**
+ * 以前は `store.samples` をそのまま `flatMap` に返していたので、
+ * `samples` の無いファイルが 1 つ混ざると `undefined` が配列に入り、
+ * 20 フレーム先の `const { event, source } = sample` で
+ * 「Cannot destructure property 'event'」として現れた。
+ * **22 件が一度に落ちて、原因がフィクスチャの置き場所だと分からない。**
+ *
+ * 実際に `fixtures/form-definition.json`（フォーム定義の実測）を
+ * 直下に置いてこれを踏んだ。フォーム定義は `fixtures/form/` に移した
+ * （`readdirSync` は再帰しないのでサブディレクトリは対象外。`fixtures/live/` と同じ）。
+ *
+ * 黙って読み飛ばす形にはしない。`measured.json` そのものが壊れたときに
+ * 「テストは緑だが実測を 1 件も見ていない」状態になる。
+ */
 export const loadSamples = (dir = "fixtures"): Sample[] =>
 	readdirSync(dir)
 		.filter((name) => name.endsWith(".json"))
@@ -18,6 +35,13 @@ export const loadSamples = (dir = "fixtures"): Sample[] =>
 			const store = JSON.parse(
 				readFileSync(join(dir, name), "utf8"),
 			) as ProbeStore;
+			if (!Array.isArray(store.samples)) {
+				throw new Error(
+					`${join(dir, name)} に samples の配列がありません。` +
+						"実測サンプル以外のフィクスチャは fixtures/ の直下ではなく" +
+						"サブディレクトリに置いてください（fixtures/form/ など）。",
+				);
+			}
 			return store.samples;
 		});
 
