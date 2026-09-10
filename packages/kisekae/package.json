@@ -1,6 +1,6 @@
 {
 	"name": "kisekae",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"description": "Reshape kintone form definitions into a layout-ordered, membership-annotated form.",
 	"license": "MIT",
