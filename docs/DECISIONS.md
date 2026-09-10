@@ -658,7 +658,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **アプリ削除の REST API が無い** | `AppClient` に `deleteApp` は存在しない。UI からしか消せない | 検証アプリ構築を再実行可能にし、既存アプリを再利用する（`tools/fixture-app/build.ts`） |
 | **カテゴリー設定の REST API が無い** | `getAppSettings` / `updateAppSettings` にも含まれない | 手動設定。`app:verify` がレコードの `type` から未設定を検出して警告 |
 | プロセス管理は自動化できる | `updateProcessManagement` が存在する | `build.ts` で `STATUS` / `STATUS_ASSIGNEE` を作る |
-| **`getFormFields` では CATEGORY / STATUS の有効・無効を判定できない** | 設定が無効でも `カテゴリー` / `ステータス` を**常に返す**（2026-08-30 実測: プロセス管理を有効化していないアプリでも両方が返る）。一方レコードにはこれらの type は現れない | 検証はレコードの `type` から行う。フィールドコードは環境の言語で変わる（`カテゴリー` / `Categories`）ので**コード名ではなく `type` で判定する**（`tools/fixture-app/verify.ts`） |
+| **`getFormFields` は CATEGORY / STATUS を、設定が無効でも常に返す** | プロセス管理を有効化していないアプリでも `カテゴリー` / `ステータス` / `作業者` が返る（2026-08-30 実測）。一方レコードにはこれらの type は現れない。**ただし `enabled` が設定を反映するので、返ってくること自体は判定の妨げにならない**（2026-09-10 実測。[`enabled` は使える。「判定できない」は測っていないことを書いていた](#enabled-は使える判定できないは測っていないことを書いていた)） | 検証はレコードの `type` から行う（`tools/fixture-app/verify.ts`）。`enabled` で判定する形にも変えられるが、レコード側の検証はそのままで正しいので急がない。フィールドコードは環境の言語で変わる（`カテゴリー` / `Categories`）ので**コード名ではなく `type` で判定する** |
 | **`addFormFields` は参照先フィールドが先に必要** | ルックアップの `fieldMappings`、関連レコード一覧の `condition.field` | 2パスに分割。1回にまとめると `CB_VA01` で弾かれる |
 | **`addApp` はプレビュー環境にしか作らない** | `deployApp` するまで運用環境の API（`getApp` / `getRecords`）からは 404 になる。デプロイ前に失敗するとアプリはプレビューにだけ残る | 参照するときは `preview: true` を使う。`tools/fixture-app/inspect.ts` で状態を確認できる |
 | **`op run` は環境変数側の `op://` も解決しようとする** | env ファイルだけでなく、継承した環境変数に含まれる参照も対象。`~/.claude/settings.json` などで設定された参照が別 vault を指していると、無関係なコマンドが vault エラーで落ちる | 実行時に `env -u` で外す。**外す変数を列挙してはいけない**（2026-09-02: 列挙していたら後から増えた変数で落ちた）。`op://` を値に持つ変数を毎回数え上げる形にする（README 参照） |
@@ -2051,6 +2051,21 @@ type 'LooseField | null | undefined'.
 という作業が要るが、**それは別のパッケージの仕事**。
 `Api.FormField` はルートから出しているが、共通部分だけの緩い型に留める。
 
+> **2026-09-10 追記: その「別のパッケージ」を作ることにした。**
+> `kisekae`（`kintone-pretty-fields` の作り直し）が引き取る。
+> この節の結論は変わらない ── monosashi はフォーム定義を守備範囲に入れない。
+>
+> ただし**検証アプリは共有する**。フォーム定義を測る対象は、
+> monosashi がすでに建てた検証アプリそのもので、二重に建てる理由がない。
+> そのため `tools/fixture-app/layout.ts` に `SPACER` / `LABEL` / `HR` を足した
+> （[フォーム定義を測れる状態にする](#フォーム定義を測れる状態にする)）。
+> これらはレコードに現れないので monosashi の実測には影響しない。
+>
+> 実測データの所有は分ける。レコードの実測は `fixtures/measured.json`、
+> フォーム定義の実測は `fixtures/form/definition.json`。
+> kisekae の設計判断は `packages/kisekae/docs/DECISIONS.md` に置く
+> （モノレポ化したときの置き場所に最初から置く。移動を 2 度やらないため）。
+
 ## get() → set() の変換はまだ書けない
 
 **2026-09-08。** `kintone-typeguard` の `guardUtils.converterGetToSet` に
@@ -3106,3 +3121,245 @@ GitHub 上は成功して見える。
 **バイト数が 2 B 増えた**（9,630 → 9,632 B）。export 名がバンドルに残るため。
 [pack:check が拾って落ちた](#バンドルに載る量は-packcheck-で突き合わせる)ので表を更新した。
 **名前を変えると出荷物のサイズが変わる**という当たり前のことが、測っていると見える。
+
+## フォーム定義を測れる状態にする
+
+**2026-09-10。** [フォーム定義は守備範囲に入れない](#フォーム定義は守備範囲に入れない)の結論は
+変えないまま、**測る足場だけをこのリポジトリに置く**ことにした。
+使うのは `kisekae`（`kintone-pretty-fields` の作り直し）。
+
+### なぜ monosashi のリポジトリに置くのか
+
+測る対象が**この検証アプリそのもの**だから。
+`tools/fixture-app/fields.ts` は全 28 種別＋ルックアップ（キー / コピー先 2 つ）＋
+関連レコード一覧＋グループ＋サブテーブルを建てており、
+`CATEGORY` は REST API が無いので**手動設定が済んでいる**。
+同じものを別リポジトリに建て直すと、手動設定をもう一度やることになり、
+しかも**片方のアプリ定義が変わったときにもう片方の実測が静かに古くなる**。
+それを検出する仕組みはどこにも作れない。
+
+### 足したもの
+
+| | |
+|---|---|
+| `tools/fixture-app/layout.ts` | `SPACER`（名前あり / 名前なし）/ `LABEL` / `HR` を、トップレベルとグループの中の両方に置いた |
+| `tools/fixture-app/collectForm.ts` | `getFormFields` / `getFormLayout` を採る（`app:collect-form`） |
+| `tools/fixture/normalizeForm.ts` | 環境依存値を伏せる |
+| `tools/fixture/formDefinition.ts` | 正規化の入口（`fixture:form`）。出力は `fixtures/form/definition.json` |
+
+**ブラウザは使わない。** レコードの値は JS API / event / REST の 3 経路で形が違い、
+それを測るために Playwright が要った。フォーム定義は REST の 1 経路しかないので
+Node から素直に採れる。`e2e/` は monosashi のものとして残る。
+
+レイアウト要素は**1 行に 1 種類ずつ**置いた。混ぜると `updateFormLayout` に
+弾かれたときにどれが原因か分からない。
+ラベルの文字列は ASCII にした（`labelElement` / `labelInGroup`）。
+`e2e/panel.ts` の `fieldInput` が `getByText(label, { exact: true })` で
+フィールドのラベルから入力欄を辿るので、検証アプリの日本語ラベルと
+衝突しない文字列でなければならない。
+
+### 何を測るのか
+
+フォーム定義の型は、ここまで `@kintone/rest-api-client` の型を読んで書かれてきた。
+実測していない主張が 4 つある。どれも kisekae の型の骨格を左右する。
+
+1. **ルックアップのキーフィールドは通常プロパティを返すか。**
+   公式の型は `Lookup` を `type` / `code` / `label` / `noLabel` / `required` / `lookup` の
+   6 つだけとし、`maxLength` などを持たない形で宣言している。
+   返るなら「各型に optional な `lookup`」、返らないなら「種別ごとの独立メンバ」になる
+2. **ルックアップのコピー先を、対象アプリのフォーム定義だけで判別できるか。**
+   `kintone-pretty-fields` の `isLookupCopy` は元アプリの権限を要求していた
+3. **`CATEGORY` / `STATUS` / `STATUS_ASSIGNEE` の `enabled` は設定を反映するか**
+   （次の節）
+4. **`SPACER` の `elementId` は名前なしのとき空文字列か。`LABEL` / `HR` は
+   `getFormLayout` にどう現れるか。グループの中に置けるか**
+
+`lang` は渡さない。ラベルにしか効かず、上の 4 点はどれもラベルに依存しない。
+`preview` も渡さない（運用環境）。プラグインが実際に読むのは運用環境の定義。
+
+**結果は[フォーム定義の実測でわかったこと](#フォーム定義の実測でわかったこと)。**
+4 件のうち 3 件で、ドキュメント由来の主張が外れた。
+
+### 伏せるもの
+
+`revision`（fields / layout の両方）、採取時刻、
+`lookup.relatedApp.app` / `referenceTable.relatedApp.app`、
+ユーザー / 組織 / グループの `code` と `name`。
+
+**`{ type: "FUNCTION", code: "LOGINUSER()" }` の `code` は伏せない。**
+kintone の関数名そのもので、個人情報ではなく測定の対象。
+一律に伏せると「初期値にログインユーザーが指定されている」という情報が消える。
+`tools/fixture/normalizeForm.test.ts` がこの例外を縛っている。
+
+`properties` はキーで並べ替える（オブジェクトなので順序が揺れると毎回差分が出る）。
+**`layout` は並べ替えない。** レイアウトの順序は測定対象そのもの。
+
+## enabled は使える。「判定できない」は測っていないことを書いていた
+
+**2026-09-10。**[調査済みの kintone / API の制約](#調査済みの-kintone--api-の制約)に
+こう書いていた。
+
+> **`getFormFields` では CATEGORY / STATUS の有効・無効を判定できない**
+> 設定が無効でも `カテゴリー` / `ステータス` を**常に返す**（2026-08-30 実測）
+
+**前半は誤り。** 2026-08-30 に確かめたのは
+「プロセス管理を有効化していないアプリでも両方が返る」= **キーの存在**だけで、
+そこから「判定できない」を導いていた。`enabled` の値は測っていなかった。
+
+気づいたきっかけは `kintone-pretty-fields` の実装。あちらは `enabled` で絞って
+（`enabled: false` のフィールドを返さない）いた。両方が正しいことはあり得ない。
+
+### 測った
+
+`app:collect-form` で 2 つのアプリを同時に採ると、そのまま対照実験になった。
+
+| アプリ | プロセス管理 / カテゴリー | `STATUS` | `STATUS_ASSIGNEE` | `CATEGORY` |
+|---|---|---|---|---|
+| 測定用（app=2） | 有効 | `enabled: true` | `enabled: true` | `enabled: true` |
+| ルックアップ元（app=1） | 未設定 | `enabled: false` | `enabled: false` | `enabled: false` |
+
+**`enabled` は設定を反映する。** 3 種すべてが返ること自体は変わらないが、
+`enabled` を見れば有効・無効は分かる。キー集合も
+`["code", "enabled", "label", "type"]` で両アプリとも同じ。
+
+`kintone-pretty-fields` の実装が正しく、こちらの記述が間違っていた。
+
+### monosashi 側の対応は変えない
+
+`tools/fixture-app/verify.ts` はレコードの `type` から検証している。
+これはそのままで正しい（レコードに現れるかどうかは、`enabled` とは別の事実）。
+`enabled` で判定する形にも書き換えられるが、**動いているものを
+「新しく分かったから」で書き換える理由がない**。表の記述だけ直した。
+
+### 何が悪かったのか
+
+**測った範囲より広いことを書いた。** キーの存在を確かめて、
+値の意味まで結論した。次にそこを読んだ人（今回は自分）は測り直さない。
+
+この文書は「測っていないものを測ったふりで書かない」ことを
+[実測とドキュメントを混ぜない](#実測とドキュメントを混ぜない)で自分に課しているが、
+それは**型の JSDoc の話として**書いていた。この文書自身にも同じ規律が要る。
+
+**実測の記述には、何を確かめたのかを書く。** 「常に返る」は確かめた。
+「判定できない」は確かめていない。1 行の中でその 2 つが混ざっていた。
+
+## フォーム定義の実測でわかったこと
+
+**2026-09-10。** `app:collect-form` の初回。kisekae の型の骨格を決めるために採った
+（[フォーム定義を測れる状態にする](#フォーム定義を測れる状態にする)）。
+**4 件のうち 3 件で、ドキュメント由来の主張が外れた。**
+
+### ルックアップのキーフィールドは 6 プロパティだけ返す（公式の型が正しい）
+
+```json
+{ "type": "SINGLE_LINE_TEXT", "code": "lookupKey", "label": "ルックアップ",
+  "noLabel": false, "required": false, "lookup": { ... } }
+```
+
+`minLength` / `maxLength` / `unique` / `defaultValue` / `expression` /
+`hideExpression` は**付いてこない**。通常の `SINGLE_LINE_TEXT` は全部持っている。
+`@kintone/rest-api-client` の `Lookup` 型の主張どおり。
+
+これは kisekae の型の骨格を決めた
+（`packages/kisekae/docs/DECISIONS.md` の「7. ルックアップ」）。
+
+### ルックアップのコピー先には印が付かない。ただし元のフィールドが列挙している
+
+`lookupCopyName` のキー集合は通常の `singleLineText` と**完全に同一**。
+コピー先であることを示すプロパティは無い。
+
+一方、キーフィールドの `lookup.fieldMappings` がコピー先を列挙している。
+
+```json
+"fieldMappings": [
+  { "field": "lookupCopyName",   "relatedField": "name"   },
+  { "field": "lookupCopyAmount", "relatedField": "amount" }
+]
+```
+
+`field` は**同じアプリのフィールドコード**。つまりコピー先の判別は
+**対象アプリの `getFormFields` だけでできる**。
+`kintone-pretty-fields` の README は `isLookupCopy` に
+「Requires lookup source app permissions」と書いているが、
+それは実装の都合で、情報が無いからではない。
+
+### LABEL と HR は `elementId` を持って返る（公式の型が外れている）
+
+```json
+{ "type": "LABEL", "label": "labelElement", "elementId": "", "size": { "width": "200" } }
+{ "type": "HR",                            "elementId": "", "size": { "width": "200" } }
+```
+
+`@kintone/rest-api-client` の `fieldLayout.d.ts` は
+`Label = { type; label; size }` / `HR = { type; size }` と宣言していて
+**`elementId` を持たない**。実測では両方が `elementId: ""` を返す。
+
+`updateFormLayout` には `elementId` を送っていない（`layout.ts` を見れば分かる）。
+**kintone が付けて返している。**
+
+### グループの中にレイアウト要素を置ける
+
+`SPACER` / `LABEL` / `HR` をグループの `layout` の中に置いた `updateFormLayout` が通り、
+`getFormLayout` もそのまま返した。公式の型
+（`Group<T extends Array<Row<Field.OneOf[]>>>`）の主張どおり。
+
+サブテーブルの中身は 17 種のフィールドだけで、レイアウト要素は現れない。
+これも公式の型（`InSubtable` が `Label` / `HR` / `Spacer` を `Exclude` している）どおり。
+
+### 名前なしスペーサーの `elementId` は空文字列
+
+```json
+{ "type": "SPACER", "elementId": "spacerNamed", "size": { "width": "100", "height": "50" } }
+{ "type": "SPACER", "elementId": "",            "size": { "width": "100", "height": "50" } }
+```
+
+消費側（kintone-plugins の `shared/src/utils/options.ts:277`）が
+`.filter(({ elementId }) => elementId !== "")` で名前なしを捨てている前提は正しい。
+
+### フィクスチャは環境の言語に依存する
+
+`fixtures/form/definition.json` には組み込みフィールドのコードが
+キーとして残る（`レコード番号` / `作成者` …）。
+ルックアップの `sort` にも入る（`"レコード番号 desc"`）。
+**英語環境で採ると別のファイルが出る。**
+
+これは `fixtures/measured.json` も同じで、**伏せない方を選んでいる**
+（伏せるとフィクスチャが読めなくなる）。
+`tools/fixture/normalizeForm.ts` の「環境ごとに同じファイルが出る」は
+**キーの順序についての話**で、コードには及ばない。
+
+## fixtures/ の直下は「実測サンプル」専用
+
+**2026-09-10。** フォーム定義の実測を `fixtures/form-definition.json` として
+直下に置いたら、**レコードのテストが 22 件落ちた。**
+
+`test/fixtures.ts` の `loadSamples` は `fixtures/` の `.json` を**全部**読んで
+`store.samples` を展開する。`samples` を持たないファイルが 1 つ混ざると
+`flatMap` に `undefined` が入り、20 フレーム先の
+`const { event, source } = sample` で
+「Cannot destructure property 'event' of 'sample' as it is undefined」として現れる。
+
+**エラーが原因を指していない。** 22 件が一度に落ちるのに、
+どれも「型の主張が実測と合わない」ように見える。
+置き場所の問題だと気づくまでにフィクスチャを疑うことになる。
+
+### 直した
+
+- フォーム定義は `fixtures/form/definition.json` に置く。
+  `readdirSync` は再帰しないのでサブディレクトリは対象外
+  （`fixtures/live/` が既にそうなっている）
+- `loadSamples` は `samples` の配列が無いファイルを見つけたら**落ちる**。
+  メッセージに置き場所の指示を書いた
+
+**黙って読み飛ばす形にはしない。** `measured.json` そのものが壊れたときに
+「テストは緑だが実測を 1 件も見ていない」状態になる。
+これは[「通ること」しか見ない検査は any を捕まえられない](#通ることしか見ない検査は-any-を捕まえられない)と
+同じ形の穴で、フィクスチャ側にも同じ穴があった。
+
+### なぜ気づかなかったか
+
+`fixtures/` に置くファイルを増やしたのが初めてだった。
+`fixtures/live/raw.json` と `fixtures/*-behavior.md` は、
+たまたま**サブディレクトリ**と**`.json` 以外の拡張子**で回避していた。
+「直下の `.json` は全部サンプル」という前提はどこにも書かれておらず、
+`loadSamples` の実装にだけ表れていた。
