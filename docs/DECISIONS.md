@@ -3316,6 +3316,25 @@ kintone の関数名そのもので、個人情報ではなく測定の対象。
 消費側（kintone-plugins の `shared/src/utils/options.ts:277`）が
 `.filter(({ elementId }) => elementId !== "")` で名前なしを捨てている前提は正しい。
 
+### 組み込みフィールドが「properties にあってレイアウトに無い」状態は実在する
+
+ルックアップ元アプリ（app=1）のレイアウトは `key` / `name` / `amount` の
+3 行だけで、**組み込みフィールド 5 つ（`RECORD_NUMBER` / `CREATOR` /
+`CREATED_TIME` / `MODIFIER` / `UPDATED_TIME`）が `properties` にあって
+レイアウトに無い**。
+
+`tools/fixture-app/build.ts` がこのアプリのレイアウトを 3 行で設定しているため。
+測定用アプリの方は組み込みを 1 行目に置いているので、この状態にならない。
+**2 つのアプリを同時に採ったことで、両方の状態が 1 つのフィクスチャに入った。**
+
+これは kisekae の `unplaced` の 2 種類目（フォームから外した組み込みフィールド）で、
+想定ではなく実在することが確かめられた。
+`packages/kisekae/test/toForm.test.ts` がこれを縛っている。
+
+なお `enabled` を持つのはプロセス管理系 3 種だけで、
+組み込みフィールドは持たない。「置かれていない」ことは
+`enabled` では分からない。
+
 ### フィクスチャは環境の言語に依存する
 
 `fixtures/form/definition.json` には組み込みフィールドのコードが

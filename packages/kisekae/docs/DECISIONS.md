@@ -7,7 +7,7 @@ kintone のフォーム定義（`getFormFields` / `getFormLayout`）を、
 対象バージョン: kintone-pretty-fields 0.11.0 / kintone-typeguard 0.18.3 /
 @kintone/rest-api-client 6.2.1 / TypeScript 7.0.2
 
-**実装は型（`Raw` / `Field`）まで。** `toForm` とガードはまだ無い。
+**実装は `toForm` とガードまで。** 残るのはモノレポ化と消費側の移行。
 これは実装前に決めたことの記録で、
 [12. 作業順序](#12-作業順序)のとおり**実測が先**。
 実測は 2026-09-10 に 1 回目を採り終えた
@@ -556,6 +556,24 @@ setRowValue(newRow, tableField.code, await getInitialValue(tableField));
 よって `elements` の `parent` は `{ type: "GROUP"; ... } | null` で正しい。
 サブテーブルの中身は 17 種のフィールドだけで、レイアウト要素は現れない。
 
+### `unplaced` の 2 種類目も実在した
+
+**実測 2026-09-10。** ルックアップ元アプリのレイアウトは 3 行だけで、
+**組み込みフィールド 5 つが `properties` にあってレイアウトに無い**。
+
+つまり `unplaced` は想定ではなく、2 種類とも実在する。
+
+| | 例 | `enabled` |
+|---|---|---|
+| アプリ設定由来（原理的にレイアウトに出ない） | `CATEGORY` / `STATUS` / `STATUS_ASSIGNEE` | 持つ |
+| フォームから外した組み込みフィールド | `RECORD_NUMBER` など | **持たない** |
+
+`enabled` では「置かれていない」ことは分からない。バケツで表すのが正しい。
+
+これらを `parent: null` で兼ねていたら、消費側が
+「トップレベルに置かれている」と読んで `setFieldShown` を呼び、失敗する
+（`hideFields` が実際にやっている処理）。
+
 ## 10. 命名
 
 **決定**
@@ -676,7 +694,7 @@ kintone 自体の事実（約 235 行）と環境・ツールチェーンの判�
 3. `pnpm run app:build` → `app:collect-form` → `fixture:form` で測る（**済**）
 4. [7](#7-ルックアップは判別ユニオンを壊す)と `enabled` を確定させる（**済**）
 5. `Raw` の型を書く（**済**）／ `Field` の型を書く（**済**）
-6. `toForm` とガードを書く
+6. `toForm` とガードを書く（**済**）
 7. モノレポ化（`packages/` への移動、ドキュメント分割、リリース配線）
 8. 6 本のプラグインを移行する
 
