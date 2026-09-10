@@ -148,7 +148,7 @@ git push origin main && git push origin kisekae-v0.1.1
 ### 測った範囲より広いことを書かない
 
 キーの存在を確かめただけで値の意味まで結論した記述が、実際に 1 件あって
-実測で否定された（monosashi の `docs/DECISIONS.md`「enabled は使える」）。
+実測で否定された（[`../monosashi/docs/DECISIONS.md`](../monosashi/docs/DECISIONS.md)「enabled は使える」）。
 **実測の記述には何を確かめたのかを書く。**
 
 `enabled` については「設定を反映するか」を測って、反映することを確認した。

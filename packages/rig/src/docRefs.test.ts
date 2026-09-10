@@ -5,7 +5,7 @@
  *
  * 見出しを移すと参照が静かに切れる。ドキュメントを 3 層に割ったとき
  * 「リンクを機械で確かめた」と記録したが、**確かめたのはファイルの存在だけ**で、
- * 本文が「`docs/DECISIONS.md`「見出し名」」の形で指している参照は見ていなかった。
+ * 本文が**ファイル名に `「見出し名」` を続ける形**で指している参照は見ていなかった。
  *
  * あとから 6 件見つかった。3 層の分割とモノレポ化で移った見出しを
  * 古い場所のまま指していたもので、**リンクではなく地の文なので誰も気づけない**。
@@ -21,7 +21,7 @@
  * | | 形 |
  * |---|---|
  * | Markdown のリンク | `[文字](相対パス)` |
- * | 地の文の見出し参照 | `` `docs/DECISIONS.md`「見出し名」 `` |
+ * | 地の文の見出し参照 | ファイル名のうしろに `「見出し名」` を続けたもの |
  *
  * 後者は `.md` だけでなく `.ts` のコメントと `.yml` にもある。
  *
@@ -40,8 +40,22 @@ import { repoRoot } from "./repoRoot";
 
 const root = repoRoot();
 
-const tracked = (): string[] =>
-	execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" })
+/**
+ * リポジトリのファイルを列挙する。
+ *
+ * **`--others` を付ける。** `git ls-files` だけだと追跡済みのファイルしか返らず、
+ * **新しく足したドキュメントがコミットするまで走査されない。**
+ * この検査を入れたコミット自身がそれで CI だけ落ちた
+ * （手元では新規の 3 ファイルが未追跡で、走査対象に入っていなかった）。
+ *
+ * `--exclude-standard` で gitignore は尊重する（`fixtures/live/` などを読まない）。
+ */
+const repoFiles = (): string[] =>
+	execFileSync(
+		"git",
+		["ls-files", "--cached", "--others", "--exclude-standard"],
+		{ cwd: root, encoding: "utf8" },
+	)
 		.split("\n")
 		.filter(Boolean);
 
@@ -73,7 +87,7 @@ const headingsOf = (file: string): string[] =>
 			return matched?.[1] ? [matched[1]] : [];
 		});
 
-const files = tracked();
+const files = repoFiles();
 const markdown = files.filter((f) => f.endsWith(".md"));
 const headings = new Map(markdown.map((f) => [f, headingsOf(f)]));
 
