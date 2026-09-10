@@ -338,6 +338,69 @@ CI は `pnpm stage publish` で npm に置くだけで、その時点では誰�
 手元は既定レジストリが社内プロキシを向いており、`--registry` の明示と
 npmjs への認証が別途要る（この環境で `pnpm publish` が固まったのと同じ理由）。
 
+### 2026-09-10: 新しいパッケージの初回公開は monosashi の前例が通らない
+
+**npm はパッケージが存在しないと Trusted Publisher を設定できない。** 設定画面が
+パッケージの下にしかないためで、初回だけは OIDC で publish できない（npm/cli#8544）。
+そこは monosashi 0.1.0 と同じだが、**その先が変わっていた。**
+
+kisekae 0.1.0 は 3 回落ちてから通った。落ち方がそれぞれ違う原因を指していて、
+**エラーが変わったことが手がかりになった。**
+
+| | 返り | 意味 |
+| --- | --- | --- |
+| 1 | `403 E_STAGE_REQUIRED` | トークンは有効。だが **stage しかできない** |
+| 2 | `404 {"error":"Not found"}` | トークンが**通っていない** |
+| 3 | 成功 | |
+
+1 回目の本文が全部書いてあった。
+
+```
+Cannot publish "kisekae": this token can only publish to a staging area,
+and "kisekae" does not exist yet. Create it first with a direct-capable
+token, then use `npm stage publish`. (E_STAGE_REQUIRED)
+```
+
+**壁は 2 重。** stage は既存パッケージにしか使えないので、stage しかできない
+トークンでは新しい名前を作れない。
+
+原因は granular access token の **`Bypass two-factor authentication`** の
+チェックを入れていなかったこと。入れないとアカウントの 2FA 要求が効き、
+CI には対話の 2FA が無いので direct publish が落ちて stage だけが残る。
+`kisekae` はまだ存在しないので **`Only select packages` では選べない**（`All packages` が要る）。
+
+**monosashi 0.1.0 のときはこの壁が無かった。** npm が 2026-07-31 に
+2FA bypass トークンの扱いを変えている。同じ changelog は
+**2027-01 に bypass トークンから direct publish を取り上げる**と予告している。
+そのときこの手順は使えなくなる。**新しいパッケージを作るなら、それより前に名前だけ取る。**
+
+2 回目の 404 は別の話で、npm 側でトークンを作り直したのに GitHub の Secret を
+更新していなかった。**npm は認証失敗を 401 ではなく 404 で返す**
+（PUT できない匿名ユーザにパッケージの存在を漏らさないため）。
+`gh api .../actions/secrets/NPM_TOKEN --jq .updated_at` を見れば分かる。
+
+#### 初回公開の手順
+
+一時変更は **1 コミットに閉じて `git revert` で戻す。** 手で戻すと取りこぼす。
+`registry-url` が残るのが一番まずい（上の「失敗の理由を 401 に隠さない」）。
+
+1. granular access token を作る。**`Bypass two-factor authentication` を入れる**。
+   `All packages` / `Read and write` / 期限は最短
+2. `gh secret set NPM_TOKEN`。**更新されたかを `updated_at` で確かめる**
+3. リリースワークフローを一時変更して 1 コミットにする
+   - `setup-node` に `registry-url: https://registry.npmjs.org` を足す
+   - `pnpm stage publish` → `pnpm publish`（stage は Trusted Publishing の機能なので使えない）
+   - publish ステップに `NODE_AUTH_TOKEN` を渡す
+4. タグを打つ。**`--provenance` はトークン経路でも効く**ので初回から署名が付く
+   （`package.json` の `repository.url` が実リポジトリと一致していることが条件。
+   リポジトリ改名を先に済ませておく）
+5. npmjs.com で Trusted Publisher を作る。Allowed actions は未チェック
+6. `git revert` で 3 を戻す
+7. Secret を消し、npm 側のトークンも revoke する
+
+**初回だけは即時公開になる。** stage を通れないので、人間が 2FA で承認する関門が
+無いまま出る。一度きりの例外として受け入れる。
+
 ## pnpm 12 は lockfile に pnpm 自身を書く
 
 pnpm 12.3.4 に上げると `pnpm-lock.yaml` の**先頭に YAML ドキュメントがもう 1 つ**増える。

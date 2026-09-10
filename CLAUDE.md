@@ -98,6 +98,11 @@ owner / repository / **workflow filename** に紐づき、接続は作ったあ�
 
 同じ理由で**リポジトリ名を変えるときは npmjs.com で接続を貼り直す**。
 
+**新しいパッケージの初回公開だけは OIDC が使えない。** npm はパッケージが
+存在しないと Trusted Publisher を設定できず、`stage publish` も新しい名前を作れない。
+手順は [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)「新しいパッケージの初回公開は
+monosashi の前例が通らない」。**2027-01 以降はその手順も使えなくなる。**
+
 ## コミット
 
 Conventional Commits の型（`feat` / `fix` / `chore` / `docs` / `refactor` / `test` / `revert`）に
