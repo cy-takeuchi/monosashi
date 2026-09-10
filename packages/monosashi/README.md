@@ -97,7 +97,6 @@ import { field, toUpdateParams } from "monosashi";
 | `*RecordWithMeta` | `$id` / `$revision` を保証する版。素の型では `$id.value` が全種別の合併型になり `string` に絞れない |
 | `SetRecord` | `kintone.app.record.set()` に渡す型。`disabled` / `error` を持てる |
 | `Rest` / `RestRecord` | REST API の型 |
-| `RestWriteRecord` | REST に書き込む形。**`field.*()` が作る `{ type, value }` をそのまま受け取る**（`type` は REST が要求しないが、付けても受け付けられる） |
 | `Saved` / `Editing` | フィールド型の名前空間 |
 | `Api.*` | JS API が受け渡す値の型。**根拠は公式ドキュメント**（実測ではない） |
 | `EventOf<"app.record.detail.show">` | イベント名から event の形を引く |

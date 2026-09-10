@@ -22,7 +22,6 @@ import {
 	type LooseRecord,
 	type Rest,
 	type RestRecord,
-	type RestWriteRecord,
 	type SavedRecord,
 	type SavedRecordWithMeta,
 	setValue,
@@ -66,14 +65,6 @@ const savedRevision: string = savedWithMeta.$revision.value;
 const editingId: string = editingWithMeta.$id.value;
 const editingRevision: string = editingWithMeta.$revision.value;
 
-// 手書きのリテラルが余剰プロパティで弾かれないこと（#33）。
-// field.*() を経由するかどうかで結果が変わらない
-const writeRecord: RestWriteRecord = {
-	viaBuilder: field.file([{ fileKey: "x" }]),
-	byHand: { type: "FILE", value: [{ fileKey: "x" }] },
-	valueOnly: { value: "x" },
-};
-
 // --- 代入 ---
 setValue(record, "text", "b");
 
@@ -111,10 +102,4 @@ kintone.events.on("app.record.detail.show", (event) => {
 
 console.log(rowId, converted, id, revision, update, add, restRecord);
 
-console.log(
-	savedId,
-	savedRevision,
-	editingId,
-	editingRevision,
-	Object.keys(writeRecord),
-);
+console.log(savedId, savedRevision, editingId, editingRevision);
