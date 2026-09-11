@@ -1,8 +1,5 @@
-import type {
-	LooseField,
-	LooseRecord,
-	LooseSubtableRow,
-} from "../types/loose.js";
+import type { LooseField, LooseRecord } from "../types/loose.js";
+import { isSubtableRows } from "../types/loose.js";
 import { isExcludedOnWrite, UI_ONLY_PROPERTIES } from "./fieldTypes.js";
 
 /**
@@ -43,13 +40,6 @@ export type RestWriteParams = {
 };
 
 const uiOnly = new Set<string>(UI_ONLY_PROPERTIES);
-
-const isSubtableRows = (value: unknown): value is LooseSubtableRow[] =>
-	Array.isArray(value) &&
-	value.every(
-		(row) =>
-			typeof row === "object" && row !== null && "value" in (row as object),
-	);
 
 const convertValue = (field: LooseField): unknown => {
 	if (field.type !== "SUBTABLE") return field.value;

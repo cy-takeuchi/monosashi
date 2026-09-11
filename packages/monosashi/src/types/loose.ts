@@ -31,3 +31,20 @@ export type LooseSubtableRow = {
 	id?: string | null;
 	value: LooseRecord;
 };
+
+/**
+ * サブテーブルの行の配列か。
+ *
+ * **同じ実装が `toRestWrite.ts` と `toSetRecord.ts` にあった。**
+ * あの 2 本は「除くべきものが実測で違う」ので実装を使い回さない
+ * （CLAUDE.md「書き込みは REST と `set()` で要件が違う」）。
+ * ただしそれは**除外の方針**の話で、この判定は方針ではなく
+ * 「`LooseSubtableRow[]` として読めるか」という型の骨格の確認。
+ * 骨格はまさにこのファイルが 1 箇所に持つと決めたもの。
+ */
+export const isSubtableRows = (value: unknown): value is LooseSubtableRow[] =>
+	Array.isArray(value) &&
+	value.every(
+		(row) =>
+			typeof row === "object" && row !== null && "value" in (row as object),
+	);

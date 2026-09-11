@@ -308,7 +308,14 @@ const addTestRecords = async (
 
 	const { ids } = await client.record.addRecords({
 		app,
-		records: [emptyRecord(), filledRecord(fileKeys, loginCode)],
+		records: [
+			emptyRecord(),
+			// **固定値を渡す。** 検証アプリのテストレコードは実測の対象なので、
+			// 毎回違う値にすると週次の差分に本物の変化が埋もれる
+			filledRecord(fileKeys, loginCode, {
+				singleLineTextUnique: "unique-001",
+			}),
+		],
 	});
 	log(`  未入力レコード id=${ids[0]} / 入力済みレコード id=${ids[1]}`);
 };
