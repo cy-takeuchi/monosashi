@@ -11,7 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import { deadExports, declaredExports } from "@jissoku/rig/deadExports";
-import { sources } from "@jissoku/rig/sources";
+import { expandSources, rootConfigs } from "@jissoku/rig/sources";
 import { describe, expect, test } from "vitest";
 
 /**
@@ -30,11 +30,19 @@ const PUBLIC_ENTRIES = ["src/index.ts"];
  */
 const ROOTS = ["src", "test", "tools"];
 
-const findings = deadExports(ROOTS, PUBLIC_ENTRIES);
+// **root の `*.config.ts` も走査に入れる。** ビルド設定は根から
+// `src/` の定数を読むことがあり、外すと実際に使われている export が
+// 「未参照」と報告される（`vite.probe.config.ts` で実際に起きた）。
+// `tsconfig.json` の `include` が `*.config.ts` を含んでいるのと揃える
+const TARGETS = [...ROOTS, ...rootConfigs()];
+
+const findings = deadExports(TARGETS, PUBLIC_ENTRIES);
 
 describe("export したものは使われている", () => {
 	test("走査が空振りしていない", () => {
-		expect(ROOTS.flatMap((root) => sources(root)).length).toBeGreaterThan(5);
+		expect(
+			TARGETS.flatMap((target) => expandSources(target)).length,
+		).toBeGreaterThan(5);
 		// 宣言の拾い漏れが無いことの当たり。ここが空になったら正規表現が壊れている
 		expect(declaredExports(readFileSync("src/guard.ts", "utf8"))).toContain(
 			"isInSubtable",

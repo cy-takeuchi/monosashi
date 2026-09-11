@@ -198,6 +198,37 @@ const sampleScreen = (): string =>
 
 const isIndex = (): boolean => currentScreen === "screen.index";
 
+/**
+ * 画面のレコードを、採取用の緩い形で取る。
+ *
+ * **`getRecordViaJsApi()` の戻りは `unknown`。** 測定器が測定対象の型を
+ * 信じてはいけないので（`kintoneApi.ts`）、そこは変えない。
+ * ただし「type と value を持つ辞書として読む」という同じキャストが
+ * 5 箇所に写されていた。読み方は 1 つなので、名前を付けて 1 箇所にする。
+ */
+type LooseCell = {
+	type?: string;
+	value?: unknown;
+	disabled?: boolean;
+	error?: string | null;
+};
+
+const looseRecord = (): Record<string, LooseCell> | undefined =>
+	getRecordViaJsApi() as Record<string, LooseCell> | undefined;
+
+/**
+ * レコードの中の最初のサブテーブルのコード。
+ *
+ * 行操作の測定と `rowCount` の両方が要る。別々に書くと、
+ * 片方だけ「最初の 1 つ」以外を選ぶようになったときに気づけない。
+ */
+const findSubtableCode = (
+	record: Record<string, LooseCell> | undefined,
+): string | undefined =>
+	record === undefined
+		? undefined
+		: Object.keys(record).find((code) => record[code]?.type === "SUBTABLE");
+
 const captureJsApi = (): void => {
 	// 一覧画面では kintone.app.record.get() が null を返す。
 	// そのまま記録すると中身が undefined のサンプルが混ざって分析を汚すので採らない。
@@ -243,12 +274,7 @@ const captureRest = async (): Promise<void> => {
  * その根拠の有無をここで確定させる。
  */
 const captureAfterSet = (): void => {
-	const before = getRecordViaJsApi() as
-		| Record<
-				string,
-				{ type?: string; disabled?: boolean; error?: string | null }
-		  >
-		| undefined;
+	const before = looseRecord();
 	if (before === undefined) {
 		throw new Error("レコードを取得できません");
 	}
@@ -327,9 +353,7 @@ const captureSetValue = async (): Promise<void> => {
 		);
 	}
 
-	const before = getRecordViaJsApi() as
-		| Record<string, { type?: string; value?: unknown }>
-		| undefined;
+	const before = looseRecord();
 	if (before === undefined) throw new Error("レコードを取得できません");
 
 	// ルックアップのキーフィールドも type は SINGLE_LINE_TEXT なので除く。
@@ -439,17 +463,16 @@ const takeSubtable = (): { tableCode: string; rows: LooseRow[] } => {
 			"change ハンドラの登録がまだ終わっていません。数秒待ってから押してください",
 		);
 	}
-	const record = getRecordViaJsApi() as
-		| Record<string, { type?: string; value?: unknown }>
-		| undefined;
-	if (record === undefined) throw new Error("レコードを取得できません");
+	// **`record` という名前を使わない。** モジュールの `record()`
+	// （サンプルを 1 件記録する関数）を隠してしまい、この関数の中から
+	// 採取を呼べなくなる
+	const current = looseRecord();
+	if (current === undefined) throw new Error("レコードを取得できません");
 
-	const tableCode = Object.keys(record).find(
-		(code) => record[code]?.type === "SUBTABLE",
-	);
+	const tableCode = findSubtableCode(current);
 	if (tableCode === undefined) throw new Error("SUBTABLE が見つかりません");
 
-	const table = record[tableCode];
+	const table = current[tableCode];
 	if (table === undefined || !Array.isArray(table.value)) {
 		throw new Error("SUBTABLE の値が配列ではありません");
 	}
@@ -650,17 +673,17 @@ const fillRequired = async (): Promise<void> => {
 	const app = getAppId();
 	if (app === null) throw new Error("アプリ ID を取得できません");
 
-	const record = getRecordViaJsApi() as
-		| Record<string, { type?: string; value?: unknown }>
-		| undefined;
-	if (record === undefined) throw new Error("レコードを取得できません");
+	// 上と同じ理由でモジュールの `record()` を隠さない。
+	// `current` も使えない（この下でセルの値の名前に使っている）
+	const screenRecord = looseRecord();
+	if (screenRecord === undefined) throw new Error("レコードを取得できません");
 
 	const required = await getRequiredFields(app);
 	const patch: Record<string, { type: string; value: unknown }> = {};
 	const skipped: string[] = [];
 
 	for (const { code, type } of required) {
-		const field = record[code];
+		const field = screenRecord[code];
 		// 画面に無い必須フィールド（作成画面のシステムフィールド等）は触らない
 		if (field === undefined) continue;
 		// ルックアップのキーは値を入れても解決されないので触らない
@@ -941,13 +964,9 @@ const api = {
 	 * UI 操作は非同期に反映されるので、固定時間で待たずにこれをポーリングする。
 	 */
 	rowCount: (): number => {
-		const rec = getRecordViaJsApi() as
-			| Record<string, { type?: string; value?: unknown }>
-			| undefined;
-		if (rec === undefined) return -1;
-		const code = Object.keys(rec).find((k) => rec[k]?.type === "SUBTABLE");
-		const table = code === undefined ? undefined : rec[code];
-		return Array.isArray(table?.value) ? table.value.length : -1;
+		const current = looseRecord();
+		const code = findSubtableCode(current);
+		return code === undefined ? -1 : countRows(current, code);
 	},
 } satisfies ProbeApi;
 

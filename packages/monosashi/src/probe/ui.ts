@@ -52,10 +52,12 @@ export const renderPanel = (actions: Action[], screen: string): void => {
 	// kintone は詳細画面から編集画面に移るときページを再読み込みしないため、
 	// 「既にあれば何もしない」にすると詳細画面用のボタンが残り続け、
 	// 編集画面でしか使えない操作が出てこない。
-	document.getElementById("krp-panel")?.remove();
+	document.getElementById(PANEL)?.remove();
 
 	const panel = document.createElement("div");
-	panel.id = "krp-panel";
+	// **id も testIds.ts から取る。** リテラルで書くと
+	// 「唯一の出どころ」という testIds.ts の主張が崩れる
+	panel.id = PANEL;
 	panel.dataset.testid = PANEL;
 	// どの画面と判定したかを機械可読にする。
 	// ボタンの出し分けが画面判定に依存しているので、

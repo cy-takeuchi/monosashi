@@ -1,7 +1,7 @@
 import { type Dialog, expect, type Locator, type Page } from "@playwright/test";
 // **API の形は probe 側が持つ。** ここで手で書くと、probe を直したときに
 // 黙ってずれる（`src/probe/api.ts`）。ACTION と同じ扱いにする
-import type { MaybeProbeWindow, ProbeWindow } from "../src/probe/api";
+import type { MaybeProbeWindow, ProbeApi, ProbeWindow } from "../src/probe/api";
 import { type ActionId, PANEL, testId } from "../src/probe/testIds";
 import {
 	CUSTOMIZE_ERROR,
@@ -39,6 +39,55 @@ import {
  * 短く見積もる利点が無いぶん、実際にかかりうる時間に合わせる。
  */
 const PANEL_TIMEOUT_MS = 30_000;
+
+/**
+ * UI 操作の change イベントを待つ上限。
+ *
+ * 実測では行数の反映から 40ms ほどで飛ぶ。余裕を見てこの値にしてある。
+ * **「飛ばなかった」という観測はこの上限に依存する**ので、
+ * 値を変えたら過去の観測と比較できなくなることに注意する。
+ */
+const UI_EVENT_TIMEOUT_MS = 3000;
+
+/**
+ * 出ないかもしれない確認ダイアログを待つ上限。
+ *
+ * 上の値とは意味が違う。あちらは実測の前提で、こちらは操作の都合。
+ * **同じ定数を使い回さない。** UI_EVENT_TIMEOUT_MS を実測の都合で
+ * 動かしたときに、削除の待ち方まで一緒に変わってしまう
+ */
+const OPTIONAL_DIALOG_TIMEOUT_MS = 3000;
+
+/**
+ * probe の API を 1 つ呼ぶ。**パネルが立っている前提。**
+ *
+ * `page.evaluate` のコールバックはブラウザで動くので、e2e 側の変数や
+ * ヘルパを閉じ込められない。`window` から取り出すしかなく、
+ * その取り出し（`window as unknown as ProbeWindow`）が **18 箇所**に
+ * 同じ形で書かれていた。
+ *
+ * `api.ts` は「その取り出しが 21 箇所に同じ形で書かれていた。ここで名前を
+ * 付ける」と書いて `ProbeWindow` 型を足したが、**名前が付いたのは型だけで
+ * キャストは 18 箇所に残っていた**。ここで呼び出しごと 1 箇所にする。
+ *
+ * 引数と戻り値の型は `ProbeApi` から引くので、probe 側を直すと
+ * 呼び出し側が落ちる（`satisfies ProbeApi` と対になっている）。
+ */
+const probeCall = <Name extends keyof ProbeApi>(
+	page: Page,
+	method: Name,
+	...args: Parameters<ProbeApi[Name]>
+): Promise<Awaited<ReturnType<ProbeApi[Name]>>> =>
+	page.evaluate(
+		({ name, params }) => {
+			const probe = (window as unknown as ProbeWindow)
+				.__kintoneRecordProbe as unknown as {
+				[key: string]: (...values: unknown[]) => unknown;
+			};
+			return probe[name]?.(...params);
+		},
+		{ name: method as string, params: args as unknown[] },
+	) as Promise<Awaited<ReturnType<ProbeApi[Name]>>>;
 
 /**
  * ダイアログを承認する状態で処理を走らせる。
@@ -89,7 +138,10 @@ export const waitForPanel = async (
 	// change ハンドラの登録は getFieldCodes を待つので非同期。
 	// 待たずに set() 系を実行すると、発火していても件数が 0 になり
 	// 「change は飛ばない」という誤った測定結果が出る。
-	// 固定時間の待機ではなく、状態が真になるまで待つ
+	// 固定時間の待機ではなく、状態が真になるまで待つ。
+	//
+	// **ここは probeCall を使えない。** パネルが立つ前は probe が本当に
+	// 無いので、`MaybeProbeWindow` で見る必要がある
 	await page.waitForFunction(
 		() =>
 			(window as unknown as MaybeProbeWindow).__kintoneRecordProbe?.ready() ===
@@ -97,13 +149,6 @@ export const waitForPanel = async (
 	);
 };
 
-/**
- * パネルのボタンを押し、完了と成功を確かめる。
- *
- * 押しただけでは成功したか分からない。probe は失敗を画面の文字に出すだけなので、
- * 機械可読な data-result と lastError() で確認する。
- * ここを省くと「静かに空振りした採取」がそのまま基準データになる。
- */
 /**
  * kintone がカスタマイズの実行時エラーを表示していないことを確かめる。
  *
@@ -121,6 +166,13 @@ const assertNoCustomizeError = async (
 	).toHaveCount(0);
 };
 
+/**
+ * パネルのボタンを押し、完了と成功を確かめる。
+ *
+ * 押しただけでは成功したか分からない。probe は失敗を画面の文字に出すだけなので、
+ * 機械可読な data-result と lastError() で確認する。
+ * ここを省くと「静かに空振りした採取」がそのまま基準データになる。
+ */
 export const click = async (page: Page, action: ActionId): Promise<void> => {
 	const button = page.locator(`[data-testid="${testId(action)}"]`);
 	await button.click();
@@ -137,19 +189,14 @@ export const click = async (page: Page, action: ActionId): Promise<void> => {
 	// data-result より先に lastError を見る。
 	// 逆にすると「ok を期待したが error だった」としか出ず、
 	// probe が投げた理由が失敗メッセージに載らない
-	const error = await page.evaluate(() =>
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.lastError(),
-	);
+	const error = await probeCall(page, "lastError");
 	expect(error, `採取 ${action} が失敗した`).toBeNull();
 
 	await expect(button).toHaveAttribute("data-result", "ok");
 };
 
-export const clearSamples = async (page: Page): Promise<void> => {
-	await page.evaluate(() => {
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.clear();
-	});
-};
+export const clearSamples = (page: Page): Promise<void> =>
+	probeCall(page, "clear");
 
 /**
  * 採取結果を取り出す。
@@ -157,10 +204,8 @@ export const clearSamples = async (page: Page): Promise<void> => {
  * ブラウザのダウンロードを使わない。落ちる先とファイル名が環境に依存し、
  * CI とローカルで挙動が変わるため。
  */
-export const exportSamples = async (page: Page): Promise<string> =>
-	page.evaluate(() =>
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.export(),
-	);
+export const exportSamples = (page: Page): Promise<string> =>
+	probeCall(page, "export");
 
 /**
  * 指定した (イベント, 経路) が採れるまで待つ。
@@ -202,52 +247,19 @@ export const waitForSample = (
  * 意味を持つ。登録漏れと発火しなかったことを取り違えると実測が嘘になる。
  */
 export const registeredChangeEvents = (page: Page): Promise<string[]> =>
-	page.evaluate(() =>
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.changeEvents(),
-	);
+	probeCall(page, "changeEvents");
+
+export const rowCount = (page: Page): Promise<number> =>
+	probeCall(page, "rowCount");
 
 /**
- * kintone の UI を操作し、その間に発火した change イベントを採る。
+ * 監視中に change が 1 つでも飛ぶまで、**上限付きで**待つ。
  *
- * `set()` と UI 操作では発火するイベントが違う（実測）。
- * UI 側はパネルのボタンでは起こせないので、kintone のボタンを直接押す。
- * 掴むのは役割と名前で特定できるものだけで、内部セレクタは使わない。
- *
- * ## 完了をどう判定するか
- *
- * **行数の変化では足りない。** change イベントは行数が反映されたあとに飛ぶため、
- * 行数の変化で監視を閉じると**イベントを 1 つずつ後ろの操作に取り違える**。
- * 実際それで「追加では飛ばず削除で飛ぶ」という誤った結果を得た（実測 2026-08-31）。
- *
- * そこで 2 段階で待つ。
- *
- * 1. 行数が変わること（操作が実際に起きたことの確認）
- * 2. イベントが飛ぶこと
- *
- * 2 は**上限付きで待つ**。「飛ばなかった」を確かめるには、
- * どれだけ待ったかを決めるしかない。上限に達したら「発火なし」として記録する。
+ * 「飛ばなかった」を確かめるには、どれだけ待ったかを決めるしかない。
+ * 上限に達したら「発火なし」として先へ進み、それ自体を測定結果として記録する。
  * ここだけは固定の上限を置く。無いと絶対に終わらない。
  */
-export const measureUiRowChange = async (
-	page: Page,
-	label: string,
-	button: RegExp,
-	delta: 1 | -1,
-): Promise<void> => {
-	const before = await rowCount(page);
-
-	await beginWatch(page);
-	await page.getByRole("button", { name: button }).first().click();
-
-	// 期待どおりに行数が変わるまで待つ。変わらなければ空振りなので、
-	// タイムアウトで落として空振りを実測として残さない
-	await page.waitForFunction(
-		(expected) =>
-			(window as unknown as ProbeWindow).__kintoneRecordProbe.rowCount() ===
-			expected,
-		before + delta,
-	);
-
+const waitForWatchedEvent = async (page: Page): Promise<void> => {
 	try {
 		await page.waitForFunction(
 			() =>
@@ -259,20 +271,76 @@ export const measureUiRowChange = async (
 	} catch {
 		// 上限まで待っても飛ばなかった。それ自体が測定結果なので記録に進む
 	}
+};
 
+/**
+ * kintone の UI を操作し、その間に発火した change イベントを採る。
+ *
+ * `set()` と UI 操作では発火するイベントが違う（実測）。
+ * UI 側はパネルのボタンでは起こせないので、kintone のボタンを直接押す。
+ * 掴むのは役割と名前で特定できるものだけで、内部セレクタは使わない。
+ *
+ * ## 3 つの操作で同じ手順を踏む
+ *
+ * 行の増減・フィールドの入力・表内セルの入力で、**操作そのもの以外は同じ**。
+ *
+ *   監視を始める → 操作する → 上限付きでイベントを待つ →
+ *   計算の完了を待つ → 監視を閉じる → エラー表示が出ていないことを見る
+ *
+ * これが 3 箇所に逐語で写されていた。**待ちの上限が実測の前提**
+ * （「飛ばなかった」はこの値に依存する）なので、写した先で 1 つでも
+ * ずれると、比較できない観測が混ざる。
+ *
+ * @param act 監視中に行う操作。完了の待ち方は操作ごとに違うのでここで受ける
+ */
+const measureWhileWatching = async (
+	page: Page,
+	label: string,
+	act: () => Promise<void>,
+): Promise<void> => {
+	await probeCall(page, "beginWatch");
+	await act();
+	await waitForWatchedEvent(page);
 	await waitForCalculations(page);
-	await endWatch(page, label);
+	await probeCall(page, "endWatch", label);
 	await assertNoCustomizeError(page, label);
 };
 
 /**
- * UI 操作の change イベントを待つ上限。
+ * UI で行を増減させ、その間に発火した change イベントを採る。
  *
- * 実測では行数の反映から 40ms ほどで飛ぶ。余裕を見てこの値にしてある。
- * 「飛ばなかった」という観測はこの上限に依存するので、値を変えたら
- * 過去の観測と比較できなくなることに注意する。
+ * ## 完了をどう判定するか
+ *
+ * **行数の変化では足りない。** change イベントは行数が反映されたあとに飛ぶため、
+ * 行数の変化で監視を閉じると**イベントを 1 つずつ後ろの操作に取り違える**。
+ * 実際それで「追加では飛ばず削除で飛ぶ」という誤った結果を得た（実測 2026-08-31）。
+ *
+ * そこで 2 段階で待つ。
+ *
+ * 1. 行数が変わること（操作が実際に起きたことの確認）
+ * 2. イベントが飛ぶこと（`measureWhileWatching` が上限付きで待つ）
  */
-const UI_EVENT_TIMEOUT_MS = 3000;
+export const measureUiRowChange = async (
+	page: Page,
+	label: string,
+	button: RegExp,
+	delta: 1 | -1,
+): Promise<void> => {
+	const before = await rowCount(page);
+
+	await measureWhileWatching(page, label, async () => {
+		await page.getByRole("button", { name: button }).first().click();
+
+		// 期待どおりに行数が変わるまで待つ。変わらなければ空振りなので、
+		// タイムアウトで落として空振りを実測として残さない
+		await page.waitForFunction(
+			(expected) =>
+				(window as unknown as ProbeWindow).__kintoneRecordProbe.rowCount() ===
+				expected,
+			before + delta,
+		);
+	});
+};
 
 /**
  * kintone が計算フィールドを計算し終えるまで待つ。
@@ -332,21 +400,6 @@ const waitForCalculations = async (page: Page): Promise<void> => {
 	}
 };
 
-const beginWatch = (page: Page): Promise<void> =>
-	page.evaluate(() => {
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.beginWatch();
-	});
-
-const endWatch = (page: Page, label: string): Promise<void> =>
-	page.evaluate((name) => {
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.endWatch(name);
-	}, label);
-
-export const rowCount = (page: Page): Promise<number> =>
-	page.evaluate(() =>
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.rowCount(),
-	);
-
 /**
  * ラベルから、そのフィールドの入力欄を掴む。
  *
@@ -360,7 +413,7 @@ export const rowCount = (page: Page): Promise<number> =>
  * 「2 段上」と決め打ちにすると、kintone が入れ子を 1 段変えただけで壊れる。
  * 実測では 2 段上だが、そこに依存しない形にしてある。
  */
-const fieldInput = async (page: Page, label: string) => {
+const fieldInput = async (page: Page, label: string): Promise<Locator> => {
 	const anchor = page.getByText(label, { exact: true });
 	let path = "..";
 	for (let depth = 1; depth <= 5; depth += 1) {
@@ -386,51 +439,57 @@ export const measureUiFieldChange = async (
 	value: string,
 ): Promise<void> => {
 	const input = await fieldInput(page, fieldLabel);
-
-	await beginWatch(page);
-	await input.fill(value);
-	await input.blur();
-
-	try {
-		await page.waitForFunction(
-			() =>
-				(window as unknown as ProbeWindow).__kintoneRecordProbe.watched()
-					.length > 0,
-			undefined,
-			{ timeout: UI_EVENT_TIMEOUT_MS },
-		);
-	} catch {
-		// 上限まで待っても飛ばなかった。それ自体が測定結果
-	}
-
-	await waitForCalculations(page);
-	await endWatch(page, label);
-	await assertNoCustomizeError(page, label);
+	await measureWhileWatching(page, label, async () => {
+		await input.fill(value);
+		await input.blur();
+	});
 };
 
 /**
- * サブテーブルのセルの入力欄を、列ヘッダーのラベルから掴む。
+ * 列ヘッダーの位置を求める。
  *
- * 表外のフィールドと違い、ラベル（列ヘッダー）から祖先をたどると
+ * 表のセルは列ヘッダーのラベルから直接掴めない。ラベルから祖先をたどると
  * 表全体に着いてしまい、列を特定できない（実測: 入力欄が 17 件）。
- * そこで列ヘッダーの位置を求め、行の同じ位置のセルを取る。
+ * そこで**ヘッダーの位置を求め、行の同じ位置のセル**を取る。
  * 使うのは ARIA の標準ロール（table / columnheader / row / cell）だけで、
  * kintone 固有のセレクタは使わない。
  *
- * ヘッダー行の位置は決め打ちにせず、**入力欄を持つ最初の行**を探す。
- * 「1 行目が本文」と決めると、表の構造が変わったときに黙って別の行を触る。
+ * サブテーブルと一覧のインライン編集で同じ手順を踏むので 1 箇所にする。
  */
-const subtableCellInput = async (page: Page, header: string) => {
-	const table = page
+const columnIndex = async (
+	table: Locator,
+	header: string,
+	where: string,
+): Promise<{ index: number; headers: string[] }> => {
+	const headers = await table.getByRole("columnheader").allTextContents();
+	const index = headers.findIndex((text) => text.trim() === header);
+	if (index < 0) {
+		throw new Error(
+			`列ヘッダー「${header}」が${where}にありません（${headers.length} 列）`,
+		);
+	}
+	return { index, headers };
+};
+
+/** 列ヘッダーの文字を含む表。ARIA の table ロールで掴む */
+const tableWithHeader = (page: Page, header: string): Locator =>
+	page
 		.getByRole("table")
 		.filter({ has: page.getByText(header, { exact: true }) })
 		.first();
 
-	const headers = await table.getByRole("columnheader").allTextContents();
-	const index = headers.findIndex((text) => text.trim() === header);
-	if (index < 0) {
-		throw new Error(`列ヘッダー「${header}」が見つかりません`);
-	}
+/**
+ * サブテーブルのセルの入力欄を、列ヘッダーのラベルから掴む。
+ *
+ * ヘッダー行の位置は決め打ちにせず、**入力欄を持つ最初の行**を探す。
+ * 「1 行目が本文」と決めると、表の構造が変わったときに黙って別の行を触る。
+ */
+const subtableCellInput = async (
+	page: Page,
+	header: string,
+): Promise<Locator> => {
+	const table = tableWithHeader(page, header);
+	const { index } = await columnIndex(table, header, "表");
 
 	const rows = table.getByRole("row");
 	const count = await rows.count();
@@ -453,26 +512,10 @@ export const measureUiCellChange = async (
 	value: string,
 ): Promise<void> => {
 	const input = await subtableCellInput(page, header);
-
-	await beginWatch(page);
-	await input.fill(value);
-	await input.blur();
-
-	try {
-		await page.waitForFunction(
-			() =>
-				(window as unknown as ProbeWindow).__kintoneRecordProbe.watched()
-					.length > 0,
-			undefined,
-			{ timeout: UI_EVENT_TIMEOUT_MS },
-		);
-	} catch {
-		// 上限まで待っても飛ばなかった。それ自体が測定結果
-	}
-
-	await waitForCalculations(page);
-	await endWatch(page, label);
-	await assertNoCustomizeError(page, label);
+	await measureWhileWatching(page, label, async () => {
+		await input.fill(value);
+		await input.blur();
+	});
 };
 
 /**
@@ -496,11 +539,7 @@ export const measureBlockedSubmit = async (
 	message: string,
 	expectedScreen: string,
 ): Promise<void> => {
-	await page.evaluate((text) => {
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.blockNextSubmit(
-			text,
-		);
-	}, message);
+	await probeCall(page, "blockNextSubmit", message);
 
 	await page.getByRole("button", { name: SAVE_BUTTON }).click();
 
@@ -575,7 +614,7 @@ export const deleteRecord = async (
 		try {
 			await page
 				.locator("a", { hasText: DELETE_CONFIRM })
-				.click({ timeout: UI_EVENT_TIMEOUT_MS });
+				.click({ timeout: OPTIONAL_DIALOG_TIMEOUT_MS });
 		} catch {
 			// window.confirm で確定済み
 		}
@@ -597,9 +636,7 @@ export const deleteRecord = async (
  * ## どの行を触るか
  *
  * **先頭行と決め打ちにしない。** 並び順は一覧の設定で変わる。
- * この実行で作ったレコードへのリンクを持つ行を選ぶ。
- * 掴みどころは `href` の中の `record=<id>` で、これは URL なので
- * 環境の言語では変わらない（編集画面へ URL で直接遷移するのと同じ考え方）。
+ * この実行で作ったレコードへのリンクを持つ行を選ぶ（`recordRow`）。
  *
  * 自分で作ったレコードだけを触るので、検証アプリのテストレコードは汚れない。
  *
@@ -620,9 +657,7 @@ export const measureInlineEdit = async (
 	value: string,
 	fieldCode: string,
 ): Promise<void> => {
-	const row = page
-		.getByRole("row")
-		.filter({ has: page.locator(`a[href*="record=${recordId}&"]`) });
+	const row = recordRow(page, recordId);
 	await expect(
 		row,
 		`レコード ${recordId} の行が一覧で一意に決まらない`,
@@ -663,9 +698,21 @@ export const measureInlineEdit = async (
 };
 
 /**
+ * 一覧の中で、そのレコードを指す行。
+ *
+ * **先頭行と決め打ちにしない。** 並び順は一覧の設定で変わる。
+ * 掴みどころは `href` の中の `record=<id>` で、これは URL なので
+ * 環境の言語では変わらない（編集画面へ URL で直接遷移するのと同じ考え方）。
+ */
+export const recordRow = (page: Page, recordId: string): Locator =>
+	page
+		.getByRole("row")
+		.filter({ has: page.locator(`a[href*="record=${recordId}&"]`) });
+
+/**
  * インライン編集中の行から、列ヘッダーのラベルでセルの入力欄を掴む。
  *
- * サブテーブルと同じ考え方（`subtableCellInput`）。列ヘッダーの位置を求め、
+ * サブテーブルと同じ考え方（`columnIndex`）。列ヘッダーの位置を求め、
  * 行の同じ位置のセルを取る。使うのは ARIA の標準ロールだけ。
  */
 const inlineCellInput = async (
@@ -673,18 +720,8 @@ const inlineCellInput = async (
 	row: Locator,
 	header: string,
 ): Promise<Locator> => {
-	const table = page
-		.getByRole("table")
-		.filter({ has: page.getByText(header, { exact: true }) })
-		.first();
-
-	const headers = await table.getByRole("columnheader").allTextContents();
-	const index = headers.findIndex((text) => text.trim() === header);
-	if (index < 0) {
-		throw new Error(
-			`列ヘッダー「${header}」が一覧にありません（${headers.length} 列）`,
-		);
-	}
+	const table = tableWithHeader(page, header);
+	const { index, headers } = await columnIndex(table, header, "一覧");
 
 	const box = row.getByRole("cell").nth(index).getByRole("textbox");
 	const count = await box.count();
@@ -765,19 +802,13 @@ export const measureSetBehavior = async (
 	// フラグは localStorage なので、いま開いている画面で立てれば
 	// 遷移後も効く。**開いてから立てると 1 件目の show が採られてしまう**
 	// （2026-09-08 に 1 件だけ増えたのがこれ）
-	await page.evaluate(() =>
-		(window as unknown as ProbeWindow).__kintoneRecordProbe.suppressSamples(
-			true,
-		),
-	);
+	await probeCall(page, "suppressSamples", true);
 
 	// **21 回遷移するので、期間中ずっとダイアログを承認する。**
 	// 汚れた編集画面から離れるたびに離脱確認が出る
 	return withDialogsAccepted(page, async () => {
 		await open(true);
-		const ids = await page.evaluate(() =>
-			(window as unknown as ProbeWindow).__kintoneRecordProbe.setCaseIds(),
-		);
+		const ids = await probeCall(page, "setCaseIds");
 
 		let measured = 0;
 		for (const id of ids) {
@@ -794,13 +825,7 @@ export const measureSetBehavior = async (
 				`set() のケース ${id} を始める前（前のケースのエラー表示が残っている）`,
 			);
 
-			const ran = await page.evaluate(
-				(caseId) =>
-					(window as unknown as ProbeWindow).__kintoneRecordProbe.runSetCase(
-						caseId,
-					),
-				id,
-			);
+			const ran = await probeCall(page, "runSetCase", id);
 			if (!ran) continue; // この画面に対象が無い。skipped として記録済み
 
 			// **エラー表示の有無を数える。** count が 0 かどうかだけを見る。
@@ -808,14 +833,7 @@ export const measureSetBehavior = async (
 			// 1 ケースずつ走らせていることが対応づけの根拠になる
 			const shown = (await page.getByText(CUSTOMIZE_ERROR).count()) > 0;
 
-			await page.evaluate(
-				({ caseId, errorShown }) =>
-					(window as unknown as ProbeWindow).__kintoneRecordProbe.markSetCase(
-						caseId,
-						errorShown,
-					),
-				{ caseId: id, errorShown: shown },
-			);
+			await probeCall(page, "markSetCase", id, shown);
 			measured += 1;
 		}
 		// **止めたまま離れ、着地まで待つ。**
@@ -831,10 +849,6 @@ export const measureSetBehavior = async (
 	}).finally(async () => {
 		// **必ず戻す。** 止めたままにすると、このあとの採取が全部消える。
 		// 例外で抜けた場合も含めて戻すために finally に置く
-		await page.evaluate(() =>
-			(window as unknown as ProbeWindow).__kintoneRecordProbe.suppressSamples(
-				false,
-			),
-		);
+		await probeCall(page, "suppressSamples", false);
 	});
 };

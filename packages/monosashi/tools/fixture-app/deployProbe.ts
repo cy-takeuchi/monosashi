@@ -2,18 +2,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { appUrl, createClient, log, waitForDeploy } from "@jissoku/rig/client";
 import { env } from "@jissoku/rig/env";
 import { runScript } from "@jissoku/rig/run";
+import { PROBE_FILE_NAME, PROBE_PATH } from "../../src/probe/artifact";
 
 /**
  * 採取カスタマイズを検証アプリに適用する。
  *
- * ここが読み込むのは probe:build が吐いた probe-dist/probe.js。
+ * ここが読み込むのは probe:build が吐いた成果物（`src/probe/artifact.ts`）。
  * 人間が手でアプリに登録するのも、Playwright が CI で適用するのも、
  * すべてこの同じ成果物を使う（Q6）。
  * 採取ロジックをテンプレート文字列で二重に持つと、
  * 手動で採った実測と CI が検証している実測が別物になるため。
  */
-
-const PROBE_PATH = "probe-dist/probe.js";
 
 const main = async (): Promise<void> => {
 	if (!existsSync(PROBE_PATH)) {
@@ -31,14 +30,16 @@ const main = async (): Promise<void> => {
 	// 1 文字 3 バイトなぶん実物より小さく出る（52,771 バイトが 41,521 と表示された）。
 	// この数字は「貼るものが正しいか」の判断に使うので、
 	// `app:check-probe` と同じ単位に揃える
-	log(`probe.js を読み込み (${Buffer.byteLength(data, "utf8")} bytes)`);
+	log(
+		`${PROBE_FILE_NAME} を読み込み (${Buffer.byteLength(data, "utf8")} bytes)`,
+	);
 
 	// kintone の fileKey は 1 回しか使えない。
 	// desktop と mobile に同じキーを渡すと「ほかと重複しています」で弾かれるため、
 	// 適用先ごとにアップロードする。
 	const upload = async (): Promise<{ fileKey: string }> => {
 		const { fileKey } = await client.file.uploadFile({
-			file: { name: "probe.js", data },
+			file: { name: PROBE_FILE_NAME, data },
 		});
 		return { fileKey };
 	};

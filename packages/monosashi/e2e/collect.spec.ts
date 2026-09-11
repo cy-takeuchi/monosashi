@@ -25,6 +25,7 @@ import {
 	measureUiFieldChange,
 	measureUiRowChange,
 	proceedProcess,
+	recordRow,
 	registeredChangeEvents,
 	waitForPanel,
 	waitForSample,
@@ -410,12 +411,9 @@ test("実 kintone から採取する", async ({ page }) => {
 
 	await page.goto(`/k/${app}/?view=${listView.id}`);
 	await waitForPanel(page, "screen.index");
-	const extraRow = page
-		.getByRole("row")
-		.filter({ has: page.locator(`a[href*="record=${extra.id}&"]`) });
 	await deleteRecord(
 		page,
-		extraRow.getByRole("button", { name: DELETE_CONFIRM }),
+		recordRow(page, extra.id).getByRole("button", { name: DELETE_CONFIRM }),
 	);
 	await waitForSample(page, "app.record.index.delete.submit", "event.record");
 	forget(extra.id);

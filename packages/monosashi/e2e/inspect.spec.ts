@@ -1,6 +1,7 @@
 import { createClient } from "@jissoku/rig/client";
 import { env } from "@jissoku/rig/env";
 import { test } from "@playwright/test";
+import { PANEL } from "../src/probe/testIds";
 
 /**
  * kintone の画面に、役割と名前で掴める操作要素があるかを調べる。
@@ -25,16 +26,24 @@ test("レコード画面の操作要素を列挙する", async ({ page }) => {
 	await page.getByRole("button").first().waitFor({ state: "visible" });
 
 	const controls = await page.evaluate(() => {
-		const accessibleName = (el: Element): string =>
-			(
-				el.getAttribute("aria-label") ??
-				el.getAttribute("title") ??
-				el.getAttribute("alt") ??
-				el.textContent ??
-				""
-			)
+		// **`??` で繋がない。** `null` でなければそこで止まるので、
+		// 属性が空文字のときに textContent へ届かず、要素の文字が消える。
+		// 実測でそれに引っかかり、採取パネルのボタン 10 個を
+		// 「無い」と読み違えた（2026-09-05）。
+		// 同じ形が同ファイルにあと 2 つあるが、`page.evaluate` の
+		// コールバックは外部スコープを持てないので 1 本にはできない。
+		// **揃えるべきは実装ではなく挙動**なので、同じ規則で書く
+		const accessibleName = (el: Element): string => {
+			const candidates = [
+				el.getAttribute("aria-label"),
+				el.getAttribute("title"),
+				el.getAttribute("alt"),
+				el.textContent,
+			];
+			return (candidates.find((text) => (text ?? "").trim() !== "") ?? "")
 				.trim()
 				.slice(0, 40);
+		};
 
 		return [...document.querySelectorAll("button, a, input[type=button], img")]
 			.map((el) => ({
@@ -215,11 +224,13 @@ test("モバイルの操作要素を調べる", async ({ page }) => {
 			// パネルが載る＝カスタマイズが動いている画面。
 			// show イベントは load より後に飛ぶので、パネルを待つ
 			await page
-				.locator('[data-testid="krp-panel"]')
+				.locator(`[data-testid="${PANEL}"]`)
 				.waitFor({ state: "visible" })
 				.catch(() => undefined);
 
-			const found = await page.evaluate(() => {
+			// **`PANEL` は引数で渡す。** `page.evaluate` のコールバックは
+			// ブラウザで動くので、Node 側の定数を閉じ込められない
+			const found = await page.evaluate((panel) => {
 				// **`??` で繋がない。** `<button>` の `value` は `""` を返すので、
 				// そこで止まって textContent に届かず、ボタンの文字が全部消える。
 				// 実測でそれに引っかかり、採取パネルのボタン 10 個を
@@ -271,21 +282,21 @@ test("モバイルの操作要素を調べる", async ({ page }) => {
 					hasStatusText: document.body.innerText.includes("未処理"),
 					panel:
 						document
-							.querySelector('[data-testid="krp-panel"]')
+							.querySelector(`[data-testid="${panel}"]`)
 							?.getAttribute("data-screen") ?? null,
 					// パネルは在るのにボタンが列挙されなかった。
 					// 推測を重ねずに中身そのものを見る
 					panelHtml: (
-						document.querySelector('[data-testid="krp-panel"]')?.outerHTML ?? ""
+						document.querySelector(`[data-testid="${panel}"]`)?.outerHTML ?? ""
 					).slice(0, 400),
 					panelButtons: document.querySelectorAll(
-						'[data-testid="krp-panel"] button',
+						`[data-testid="${panel}"] button`,
 					).length,
 					// 画面に出ている文字。保存やアクションがどこにあるかの手がかり
 					// 保存は画面の下にあることが多い。先頭だけ見ると切れる
 					textTail: document.body.innerText.replace(/\s+/g, " ").slice(-500),
 				};
-			});
+			}, PANEL);
 
 			console.log(`\n=== ${label} ===`);
 			console.log(
@@ -367,7 +378,7 @@ test("削除の操作要素を探す", async ({ page }) => {
 		// そこで見ると描画途中を拾う（モバイルで実際に取り違えた）
 		await page.goto(`/k/${app}/show#record=${created.id}`);
 		await page
-			.locator('[data-testid="krp-panel"]')
+			.locator(`[data-testid="${PANEL}"]`)
 			.waitFor({ state: "visible" });
 		await scan("PC 詳細（そのまま）");
 
@@ -384,7 +395,7 @@ test("削除の操作要素を探す", async ({ page }) => {
 		// --- モバイル 詳細 ---
 		await page.goto(`/k/m/${app}/show?record=${created.id}`);
 		await page
-			.locator('[data-testid="krp-panel"]')
+			.locator(`[data-testid="${PANEL}"]`)
 			.waitFor({ state: "visible" });
 		await scan("モバイル 詳細（そのまま）");
 
@@ -393,7 +404,7 @@ test("削除の操作要素を探す", async ({ page }) => {
 		const view = Object.values(views).find((v) => v.name === "すべて");
 		await page.goto(`/k/${app}/?view=${view?.id ?? ""}`);
 		await page
-			.locator('[data-testid="krp-panel"]')
+			.locator(`[data-testid="${PANEL}"]`)
 			.waitFor({ state: "visible" });
 
 		// 行が出るまで待つ。ヘッダのボタンでは早すぎる
