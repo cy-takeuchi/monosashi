@@ -134,6 +134,108 @@ describe("Markdown のリンクが実在する", () => {
 	});
 });
 
+const DOC_NAMES = "DECISIONS|TOOLCHAIN|KINTONE|CONTRIBUTING|CLAUDE|README";
+
+/**
+ * 地の文の見出し参照を拾う。
+ *
+ * ## 拾えない形があった
+ *
+ * ファイル名と `「見出し名」` の間に**閉じ記号が入る形**を落としていた。
+ *
+ * ```md
+ * 手順は [`docs/TOOLCHAIN.md`](docs/TOOLCHAIN.md)「初回公開の手順」。
+ * ```
+ *
+ * `.md` の直後が `` ` `` か空白しか許されておらず、`)` で外れる。
+ * **この形はドキュメントで普通に書く**（リンクにしつつ見出しも指す）ので、
+ * 検査に見えない参照が黙って溜まっていた。
+ *
+ * 実際 monosashi → tsumekae の改名で 2 箇所が壊れたまま緑だった。
+ * ルートの CLAUDE.md と CONTRIBUTING.md にあった、初回公開の手順への参照。
+ * **検査が通ったから直したのではなく、人が気づいて直した。**
+ *
+ * `[text](path)` は `.md` が 2 回出るが、閉じ記号を許せば
+ * 2 つめ（`](path)` の側）が 「 に届くので拾える。
+ *
+ * ## 文書名を引数にする理由
+ *
+ * **このファイル自身が走査の対象**（`.ts` も見る）なので、下のテストに
+ * 実在する文書名で例を書くと、その例が本物の参照として拾われて落ちる。
+ * テストは架空の名前（`EXAMPLE.md`）を渡す。
+ *
+ * 走査から自分を除外する手は採らない。それは許容リストで、
+ * 「例に架空の名前を使う」のと同じ理由でリンクの検査でも避けている。
+ */
+const headingReferences = (
+	text: string,
+	docNames = DOC_NAMES,
+): { target: string; heading: string }[] => {
+	// `[\`)\]]*` が今回足したところ。バッククォート・`)`・`]` の連続を許す
+	const pattern = new RegExp(
+		`\`?([A-Za-z0-9_./-]*(?:${docNames})\\.md)[\`)\\]]*\\s*(?:の)?\\s*[「｢]([^」｣]+)[」｣]`,
+		"gs",
+	);
+
+	return [...text.matchAll(pattern)].flatMap(([, target, raw]) => {
+		if (target === undefined || raw === undefined) return [];
+		// **行をまたぐ参照はコメント記号が混ざる。**
+		// YAML の `#`、ブロックコメントの `*`、`//` を行頭から落とす。
+		// 落とさないと「この環境で `pnpm publish` を # 手元から実行しない」になる
+		const heading = squash(
+			raw
+				.split("\n")
+				.map((line) => line.replace(/^\s*(?:#|\*|\/\/)\s*/, ""))
+				.join(""),
+		);
+		return [{ target, heading }];
+	});
+};
+
+/**
+ * 拾い方そのものを縛る。
+ *
+ * **リポジトリ全体を走査するテストだけでは足りない。** あれは
+ * 「拾えたものが解決するか」しか見ないので、**拾えていない形があっても緑**。
+ * 今回の穴はまさにそれで、参照の件数が 15 を超えていることだけを見ていた。
+ *
+ * 書き方を 1 つ足したら、まずここに例を足す。
+ */
+describe("参照の拾い方", () => {
+	/** 架空の名前。実在する文書名で書くと、この例自身が本物の参照として拾われる */
+	const refs = (source: string) => headingReferences(source, "EXAMPLE");
+
+	test.each([
+		["バッククォート", "`docs/EXAMPLE.md`「見出し名」"],
+		["素のファイル名", "docs/EXAMPLE.md「見出し名」"],
+		["の を挟む", "`docs/EXAMPLE.md` の「見出し名」"],
+		// **これが拾えていなかった形。**
+		// `.md` の直後が `)` なので、閉じ記号を許すまで外れていた
+		[
+			"Markdown のリンク",
+			"手順は [`docs/EXAMPLE.md`](docs/EXAMPLE.md)「見出し名」。",
+		],
+		[
+			"リンクのテキストがファイル名でない",
+			"[説明](docs/EXAMPLE.md)「見出し名」",
+		],
+	])("%s", (_name, source) => {
+		expect(refs(source)).toEqual([
+			{ target: "docs/EXAMPLE.md", heading: "見出し名" },
+		]);
+	});
+
+	test("行をまたぐとコメント記号が混ざるので落とす", () => {
+		expect(refs("# `EXAMPLE.md`「前半\n# 後半」")).toEqual([
+			{ target: "EXAMPLE.md", heading: "前半後半" },
+		]);
+	});
+
+	test("見出しを伴わないファイル名は拾わない", () => {
+		expect(refs("詳しくは `docs/EXAMPLE.md` を読む")).toEqual([]);
+	});
+});
+
 /**
  * 地の文が指す見出しが、そのファイルに在ることを見る。
  *
@@ -142,12 +244,6 @@ describe("Markdown のリンクが実在する", () => {
  * **パッケージ直下**を指しているので、ファイル相対だけでは解決できない。
  */
 describe("地の文の見出し参照が生きている", () => {
-	const docNames = "DECISIONS|TOOLCHAIN|KINTONE|CONTRIBUTING|CLAUDE|README";
-	const pattern = new RegExp(
-		`\`?([A-Za-z0-9_./-]*(?:${docNames})\\.md)\`?\\s*(?:の)?\\s*[「｢]([^」｣]+)[」｣]`,
-		"gs",
-	);
-
 	const candidates = (from: string): string[] => {
 		const parts = from.split("/");
 		const bases = [posix.dirname(from)];
@@ -162,18 +258,8 @@ describe("地の文の見出し参照が生きている", () => {
 		(f) => f.endsWith(".md") || f.endsWith(".ts") || f.endsWith(".yml"),
 	)) {
 		const text = readFileSync(join(root, file), "utf8");
-		for (const [, target, raw] of text.matchAll(pattern)) {
-			if (target === undefined || raw === undefined) continue;
+		for (const { target, heading } of headingReferences(text)) {
 			checked += 1;
-			// **行をまたぐ参照はコメント記号が混ざる。**
-			// YAML の `#`、ブロックコメントの `*`、`//` を行頭から落とす。
-			// 落とさないと「この環境で `pnpm publish` を # 手元から実行しない」になる
-			const heading = squash(
-				raw
-					.split("\n")
-					.map((line) => line.replace(/^\s*(?:#|\*|\/\/)\s*/, ""))
-					.join(""),
-			);
 			const found = candidates(file).some((base) => {
 				const resolved = normalize(base ? `${base}/${target}` : target);
 				return (headings.get(resolved) ?? []).some((h) => {
