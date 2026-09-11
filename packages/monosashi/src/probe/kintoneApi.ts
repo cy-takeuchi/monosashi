@@ -45,14 +45,19 @@ export const getRecordViaJsApi = (): unknown => {
 	return result === null || result === undefined ? undefined : result.record;
 };
 
+/** kintone.api を 1 回呼ぶ。URL の組み立ても含めて 1 箇所にする */
+const restGet = async (
+	path: string,
+	params: Record<string, unknown>,
+): Promise<any> => {
+	const url = kintone.api.url(path, true);
+	return kintone.api(url, "GET", params);
+};
+
 export const getRecordViaRest = async (
 	app: number,
 	id: number,
-): Promise<unknown> => {
-	const url = kintone.api.url("/k/v1/record.json", true);
-	const response = await kintone.api(url, "GET", { app, id });
-	return response.record;
-};
+): Promise<unknown> => (await restGet("/k/v1/record.json", { app, id })).record;
 
 /** kintone.app.record.set()。events.on の中では動かないため、必ずボタン経由で呼ぶ */
 export const setRecordViaJsApi = (record: unknown): void => {
@@ -66,11 +71,8 @@ export const setRecordViaJsApi = (record: unknown): void => {
 export const getRecordsViaRest = async (
 	app: number,
 	query: string,
-): Promise<unknown> => {
-	const url = kintone.api.url("/k/v1/records.json", true);
-	const response = await kintone.api(url, "GET", { app, query });
-	return response.records;
-};
+): Promise<unknown> =>
+	(await restGet("/k/v1/records.json", { app, query })).records;
 
 export const getQueryCondition = (): string => {
 	try {
@@ -87,11 +89,23 @@ export const getQueryCondition = (): string => {
  * getFormFields はテーブル内フィールドを入れ子で返すため、
  * トップレベルの Object.keys だけでは取りこぼす。
  */
+/**
+ * フォーム定義の properties。
+ *
+ * `getFieldCodes` と `getRequiredFields` が**同じ 1 本の API を
+ * 別々に叩いていた**。採取のたびに 2 往復する必要は無い。
+ */
+const formProperties = async (
+	app: number,
+): Promise<
+	Record<
+		string,
+		{ type?: string; code?: string; required?: boolean; fields?: object }
+	>
+> => (await restGet("/k/v1/app/form/fields.json", { app })).properties ?? {};
+
 export const getFieldCodes = async (app: number): Promise<string[]> => {
-	const url = kintone.api.url("/k/v1/app/form/fields.json", true);
-	const response = await kintone.api(url, "GET", { app });
-	const properties: Record<string, { type?: string; fields?: object }> =
-		response.properties ?? {};
+	const properties = await formProperties(app);
 
 	const codes: string[] = [];
 	for (const [code, property] of Object.entries(properties)) {
@@ -116,12 +130,7 @@ export const getFieldCodes = async (app: number): Promise<string[]> => {
 export const getRequiredFields = async (
 	app: number,
 ): Promise<{ code: string; type: string }[]> => {
-	const url = kintone.api.url("/k/v1/app/form/fields.json", true);
-	const response = await kintone.api(url, "GET", { app });
-	const properties: Record<
-		string,
-		{ type?: string; code?: string; required?: boolean }
-	> = response.properties ?? {};
+	const properties = await formProperties(app);
 
 	const out: { code: string; type: string }[] = [];
 	for (const [code, property] of Object.entries(properties)) {

@@ -2,6 +2,7 @@ import { createClient } from "@jissoku/rig/client";
 import { env } from "@jissoku/rig/env";
 import { test } from "@playwright/test";
 import { PANEL } from "../src/probe/testIds";
+import { listViewId } from "../tools/fixture-app/views";
 
 /**
  * kintone の画面に、役割と名前で掴める操作要素があるかを調べる。
@@ -400,9 +401,7 @@ test("削除の操作要素を探す", async ({ page }) => {
 		await scan("モバイル 詳細（そのまま）");
 
 		// --- PC 一覧 ---
-		const { views } = await client.app.getViews({ app });
-		const view = Object.values(views).find((v) => v.name === "すべて");
-		await page.goto(`/k/${app}/?view=${view?.id ?? ""}`);
+		await page.goto(`/k/${app}/?view=${await listViewId(client, app)}`);
 		await page
 			.locator(`[data-testid="${PANEL}"]`)
 			.waitFor({ state: "visible" });

@@ -21,14 +21,27 @@
 		"enabled": true,
 		"rules": {
 			"preset": "recommended",
-			"suspicious": {
-				"noExplicitAny": "off"
-			},
 			"complexity": {
 				"noForEach": "off"
 			}
 		}
 	},
+	"overrides": [
+		{
+			"includes": [
+				"packages/monosashi/src/probe/**",
+				"packages/monosashi/src/kintone.ts",
+				"**/*.test-d.ts"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExplicitAny": "off"
+					}
+				}
+			}
+		}
+	],
 	"assist": {
 		"actions": {
 			"source": {
