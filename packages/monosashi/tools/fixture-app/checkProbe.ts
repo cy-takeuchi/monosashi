@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createClient, log } from "@jissoku/rig/client";
 import { env } from "@jissoku/rig/env";
 import { runScript } from "@jissoku/rig/run";
+import { PROBE_PATH } from "../../src/probe/artifact";
 
 /**
  * 検証アプリに貼られている採取カスタマイズが、手元のビルド結果と同一かを確かめる。
@@ -16,7 +17,7 @@ import { runScript } from "@jissoku/rig/run";
  * 方針（Q9）が成立しなくなる。しかもこの権限は「アプリに任意の JS を仕込める」もので、
  * CI に置くと main にマージされたコードが組織内の任意のアプリに JS を仕込めることになる。
  *
- * probe.js は変わらない限り貼り直す必要がない。
+ * 成果物は変わらない限り貼り直す必要がない。
  * 適用は probe を変えたときに人がローカルから行い、
  * 定期ジョブは**貼られているものが最新かを確認するだけ**にする。
  * `getAppCustomize` はアプリ管理権限で足りる。
@@ -29,8 +30,6 @@ import { runScript } from "@jissoku/rig/run";
  * 古い probe で採った結果を「kintone が変わった」と誤認するのが最悪の失敗なので、
  * ここは厳密にする。
  */
-
-const PROBE_PATH = "probe-dist/probe.js";
 
 const sha256 = (data: Buffer): string =>
 	createHash("sha256").update(data).digest("hex");

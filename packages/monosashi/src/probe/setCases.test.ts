@@ -299,8 +299,13 @@ describe("ケースごとに画面を作り直す", () => {
 		const anchor = "export const measureSetBehavior";
 		const source = codeOf("e2e/panel.ts", anchor);
 		const driver = source.slice(source.indexOf(anchor));
-		const stop = /suppressSamples\(\s*true\s*[,)]/;
-		const restore = /suppressSamples\(\s*false\s*[,)]/;
+		// **呼び出しは probeCall 経由**（`e2e/panel.ts`）。
+		// window のキャストを 1 箇所にまとめたときに
+		// `suppressSamples(true)` から `probeCall(page, "suppressSamples", true)`
+		// へ形が変わった。縛りたいのは「止めて、finally で戻す」ことなので、
+		// メソッド名と引数で探す
+		const stop = /"suppressSamples",\s*true\s*\)/;
+		const restore = /"suppressSamples",\s*false\s*\)/;
 		expect(driver, "採取を止めていない").toMatch(stop);
 		expect(driver, "採取を戻していない").toMatch(restore);
 

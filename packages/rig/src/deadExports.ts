@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { sources, withoutComments } from "./sources";
+import { expandSources, withoutComments } from "./sources";
 
 /**
  * export したまま誰も使っていないものを探す。
@@ -81,14 +81,15 @@ const mentions = (name: string, flags = ""): RegExp =>
 export const collectSources = (roots: readonly string[]): Map<string, string> =>
 	new Map(
 		roots
-			.flatMap((root) => sources(root))
+			.flatMap((root) => expandSources(root))
 			.map((path) => [path, withoutComments(readFileSync(path, "utf8"))]),
 	);
 
 /**
  * 死んだ export の一覧。
  *
- * @param roots 走査する根（`["src", "test", "tools"]` など）
+ * @param roots 走査する根。ディレクトリでもファイルでもよい
+ *   （`["src", "test", "tools", "vite.config.ts"]` など）
  * @param publicEntries 利用者から見える入口。ここの export は外から使われないのが正常
  */
 export const deadExports = (

@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { PROBE_FILE_NAME, PROBE_OUT_DIR } from "./src/probe/artifact";
 
 /**
  * 実測採取カスタマイズのビルド設定。
@@ -10,13 +11,13 @@ import { defineConfig } from "vite";
  */
 export default defineConfig({
 	build: {
-		outDir: "probe-dist",
+		outDir: PROBE_OUT_DIR,
 		emptyOutDir: true,
 		lib: {
 			entry: "src/probe/main.ts",
 			name: "kintoneRecordProbe",
 			formats: ["iife"],
-			fileName: () => "probe.js",
+			fileName: () => PROBE_FILE_NAME,
 		},
 		minify: false,
 		target: "es2020",

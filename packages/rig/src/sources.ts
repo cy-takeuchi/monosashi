@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 
 /**
  * 自分のツリーの `.ts` を走査する。
@@ -71,3 +71,23 @@ export const sourceDirs = (dir = "."): string[] =>
  */
 export const withoutComments = (source: string): string =>
 	source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+/**
+ * cwd 直下の `*.config.ts`。
+ *
+ * **ビルド設定は根から参照される。** `vite.probe.config.ts` が
+ * `src/probe/artifact.ts` の定数を読んでいるのに、走査の根が
+ * `src` / `test` / `tools` / `e2e` だけだったため、
+ * **実際に使われている export が「未参照」と報告された**。
+ * `tsconfig.json` の `include` は `*.config.ts` を含んでいるので、
+ * 走査もそこに揃える。
+ */
+export const rootConfigs = (dir = "."): string[] =>
+	readdirSync(dir, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && entry.name.endsWith(".config.ts"))
+		.map((entry) => (dir === "." ? entry.name : `${dir}/${entry.name}`))
+		.sort();
+
+/** ディレクトリなら再帰して `.ts` を集め、ファイルならそれ自身を返す */
+export const expandSources = (target: string): string[] =>
+	statSync(target).isDirectory() ? sources(target) : [target];
