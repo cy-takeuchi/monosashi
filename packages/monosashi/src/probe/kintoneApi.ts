@@ -54,15 +54,15 @@ export const getRecordViaRest = async (
 	return response.record;
 };
 
-/**
- * 一覧画面用。event.records と突き合わせるため、
- * 画面が今表示しているのと同じ絞り込み条件で取得する。
- */
 /** kintone.app.record.set()。events.on の中では動かないため、必ずボタン経由で呼ぶ */
 export const setRecordViaJsApi = (record: unknown): void => {
 	appNamespace().record.set({ record });
 };
 
+/**
+ * 一覧画面用。event.records と突き合わせるため、
+ * 画面が今表示しているのと同じ絞り込み条件で取得する。
+ */
 export const getRecordsViaRest = async (
 	app: number,
 	query: string,
