@@ -4,7 +4,7 @@ import { describeError } from "@jissoku/rig/describeError";
 import { env } from "@jissoku/rig/env";
 import { runScript } from "@jissoku/rig/run";
 import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
-import type { BuiltInCodes, RecordState } from "./cases";
+import type { BuiltInCodes, InspectedRecord, RecordState } from "./cases";
 import { cases } from "./cases";
 
 /**
@@ -77,11 +77,11 @@ const currentState = async (
 	app: string,
 	id: string,
 	fileKey: string,
-): Promise<{ record: Record<string, any>; state: RecordState }> => {
+): Promise<{ record: InspectedRecord; state: RecordState }> => {
 	const { record } = await client.record.getRecord({ app, id });
 	const rows = (record.subtable?.value ?? []) as { id: string }[];
 	return {
-		record: record as Record<string, any>,
+		record: record as InspectedRecord,
 		state: { subtableRowIds: rows.map((row) => row.id), fileKey },
 	};
 };

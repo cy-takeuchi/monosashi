@@ -24,6 +24,7 @@ import {
 	filledRecord,
 	lookupAppRecords,
 } from "./records";
+import { LIST_VIEW_NAME } from "./views";
 
 /**
  * 検証アプリを REST API で構築する。
@@ -157,49 +158,38 @@ const rebuildFixtureAppForm = async (
 		throw new Error("作成者フィールドのコードを解決できません");
 	}
 
+	// **作業者を空にしない。** 空だと誰もアクションを実行できず、
+	// 詳細画面にアクションボタン（「処理開始」）が出ない。
+	// それでは detail.process.proceed を測れない（実測 2026-09-02）。
+	//
+	// 作業者は「作成者」フィールドを指す。ユーザーのログイン名を書くと
+	// 環境ごとに違うものが必要になるが、これなら誰が実行しても同じ。
+	//
+	// entity.type: "CREATOR" ではなく FIELD_ENTITY を使う。
+	// 先頭のステータスは kintone が指定できるものを制限しており、
+	// CREATOR は次で弾かれる（実測 2026-09-05）:
+	//   states[未処理].assignee: 先頭のステータスでは、作業者は空、
+	//   またはレコードの作成者フィールドを指定します。
+	// **関数にする。** `as const` にすると entities が readonly になって
+	// updateProcessManagement に渡せない。かといって 1 つのオブジェクトを
+	// 2 つのステータスで共有すると、片方を直したつもりが両方に効く
+	const assignedToCreator = () => ({
+		type: "ONE" as const,
+		entities: [
+			{
+				entity: { type: "FIELD_ENTITY" as const, code: creatorCode },
+				includeSubs: false,
+			},
+		],
+	});
+
 	log(step("プロセス管理を有効化 (STATUS / STATUS_ASSIGNEE を作る)"));
 	await client.app.updateProcessManagement({
 		app,
 		enable: true,
 		states: {
-			// **作業者を空にしない。** 空だと誰もアクションを実行できず、
-			// 詳細画面にアクションボタン（「処理開始」）が出ない。
-			// それでは detail.process.proceed を測れない（実測 2026-09-02）。
-			//
-			// 作業者は「作成者」フィールドを指す。ユーザーのログイン名を書くと
-			// 環境ごとに違うものが必要になるが、これなら誰が実行しても同じ。
-			//
-			// entity.type: "CREATOR" ではなく FIELD_ENTITY を使う。
-			// 先頭のステータスは kintone が指定できるものを制限しており、
-			// CREATOR は次で弾かれる（実測 2026-09-05）:
-			//   states[未処理].assignee: 先頭のステータスでは、作業者は空、
-			//   またはレコードの作成者フィールドを指定します。
-			未処理: {
-				name: "未処理",
-				index: "0",
-				assignee: {
-					type: "ONE",
-					entities: [
-						{
-							entity: { type: "FIELD_ENTITY", code: creatorCode },
-							includeSubs: false,
-						},
-					],
-				},
-			},
-			処理中: {
-				name: "処理中",
-				index: "1",
-				assignee: {
-					type: "ONE",
-					entities: [
-						{
-							entity: { type: "FIELD_ENTITY", code: creatorCode },
-							includeSubs: false,
-						},
-					],
-				},
-			},
+			未処理: { name: "未処理", index: "0", assignee: assignedToCreator() },
+			処理中: { name: "処理中", index: "1", assignee: assignedToCreator() },
 			// 完了は終端。ここから進む先が無いので作業者は要らない
 			完了: {
 				name: "完了",
@@ -253,9 +243,9 @@ const rebuildFixtureAppForm = async (
 					{ ...view, index: String(order + 1) },
 				]),
 			),
-			すべて: {
+			[LIST_VIEW_NAME]: {
 				type: "LIST",
-				name: "すべて",
+				name: LIST_VIEW_NAME,
 				index: "0",
 				// 組み込みフィールドのコードは環境の言語で変わるので決め打ちしない。
 				// 残りは我々が付けたコードなので言語に依存しない

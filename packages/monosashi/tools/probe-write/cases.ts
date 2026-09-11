@@ -14,9 +14,38 @@ type Case = {
 	 * 組み込みフィールドのコードは環境の言語で変わるため、解決済みのものを受け取る。
 	 */
 	build: (codes: BuiltInCodes, state: RecordState) => Record<string, unknown>;
-	/** 送信後に確認したいこと（任意） */
-	inspect?: (after: Record<string, any>) => string;
+	/**
+	 * 送信後に確認したいこと（任意）。
+	 *
+	 * **`any` にしない。** 見たいのは「kintone が何を返したか」で、
+	 * こちらの型の主張ではないので緩くてよいが、`any` だと
+	 * `after.file.value.map(...)` のような書き間違いも通ってしまい、
+	 * 測定が静かに空振りする。`unknown` を基本にして、
+	 * 中身を読むところだけ形を書く
+	 */
+	inspect?: (after: InspectedRecord) => string;
 };
+
+/**
+ * 送信後に読み直したレコード。REST が返した形をそのまま読む。
+ *
+ * 値の中身は測定対象なので決めつけない。配列として読む必要がある
+ * ところだけ、要素をオブジェクトの辞書として見る。
+ */
+export type InspectedRecord = {
+	[code: string]: { value?: unknown } | undefined;
+};
+
+/** `value` を「キーを持つものの配列」として読む。読めなければ空配列 */
+const rowsOf = (
+	field: { value?: unknown } | undefined,
+): Record<string, unknown>[] =>
+	Array.isArray(field?.value)
+		? (field.value as unknown[]).filter(
+				(item): item is Record<string, unknown> =>
+					typeof item === "object" && item !== null,
+			)
+		: [];
 
 export type BuiltInCodes = {
 	recordNumber: string;
@@ -165,7 +194,7 @@ export const cases: Case[] = [
 			file: { type: "FILE", value: [{ fileKey: state.fileKey }] },
 		}),
 		inspect: (after) =>
-			`value=${JSON.stringify((after.file?.value ?? []).map((f: any) => Object.keys(f)))}`,
+			`value=${JSON.stringify(rowsOf(after.file).map((f) => Object.keys(f)))}`,
 	},
 	{
 		id: "file-full-shape",
@@ -185,7 +214,7 @@ export const cases: Case[] = [
 			},
 		}),
 		inspect: (after) =>
-			`value=${JSON.stringify((after.file?.value ?? []).map((f: any) => f.name))}`,
+			`value=${JSON.stringify(rowsOf(after.file).map((f) => f.name))}`,
 	},
 	{
 		id: "subtable-keep-id",
@@ -200,7 +229,7 @@ export const cases: Case[] = [
 			},
 		}),
 		inspect: (after) =>
-			`行 id = ${JSON.stringify((after.subtable?.value ?? []).map((r: any) => r.id))}`,
+			`行 id = ${JSON.stringify(rowsOf(after.subtable).map((r) => r.id))}`,
 	},
 	{
 		id: "subtable-drop-id",
@@ -213,7 +242,7 @@ export const cases: Case[] = [
 			},
 		}),
 		inspect: (after) =>
-			`行数=${(after.subtable?.value ?? []).length} 行 id = ${JSON.stringify((after.subtable?.value ?? []).map((r: any) => r.id))}`,
+			`行数=${rowsOf(after.subtable).length} 行 id = ${JSON.stringify(rowsOf(after.subtable).map((r) => r.id))}`,
 	},
 	{
 		id: "unknown-field",

@@ -4,6 +4,22 @@ import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
  * addFormFields が受け取る properties の型。
  * rest-api-client は "." しか export していないため深い import が使えない。
  * 公開 API のシグネチャから引き出すことで、パッケージ内部構造の変更に追従できる。
+ *
+ * ## `satisfies` にできない
+ *
+ * 下の定義は `as unknown as Properties` で押し通している。**これは
+ * 手抜きではなく、`satisfies` に替えると通らない**（実際に試した）。
+ * あちらの型は全プロパティが optional な巨大なユニオンで、
+ * このリポジトリの `exactOptionalPropertyTypes: true` と噛み合わない。
+ * さらにサブテーブルの中の型は外側と別物なので、`as const` を外しても
+ * 別の不一致が出る。
+ *
+ * **つまりこの型は「addFormFields に渡せる」ことをほとんど検査していない。**
+ * 実際に間違えるのはキーと `code` の取り違えなので、そこは
+ * `test/fixtureApp.test.ts` が見る（kintone は `code` を使うので、
+ * ずれていても addFormFields は通り、レイアウトとレコード投入で壊れる）。
+ * 定義そのものが受け入れられるかは `app:build` / `app:verify` が
+ * 実 kintone に対して確かめる。
  */
 type Properties = Parameters<
 	KintoneRestAPIClient["app"]["addFormFields"]

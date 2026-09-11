@@ -4,6 +4,7 @@ import { env } from "@jissoku/rig/env";
 import { expect, test } from "@playwright/test";
 import { ACTION } from "../src/probe/testIds";
 import { FILE_SLOT_COUNT, filledRecord } from "../tools/fixture-app/records";
+import { listViewId } from "../tools/fixture-app/views";
 import {
 	ADD_ROW,
 	DELETE_CONFIRM,
@@ -256,13 +257,9 @@ test("実 kintone から採取する", async ({ page }) => {
 	// プロセス管理が自動で作る「（作業者が自分）」に着くことがある。
 	// そこは作業者が付くまで 0 件なので、行が無くインライン編集を測れない。
 	// 「すべて」は build.ts で我々が宣言した一覧なので、名前で引ける
-	const { views } = await createClient().app.getViews({ app });
-	const listView = Object.values(views).find((view) => view.name === "すべて");
-	if (listView === undefined) {
-		throw new Error("「すべて」一覧がありません。app:build を実行してください");
-	}
+	const listViewIdValue = await listViewId(createClient(), app);
 
-	await page.goto(`/k/${app}/?view=${listView.id}`);
+	await page.goto(`/k/${app}/?view=${listViewIdValue}`);
 	await waitForPanel(page, "screen.index");
 
 	await click(page, ACTION.rest); // screen.index / rest.getRecords
@@ -297,7 +294,7 @@ test("実 kintone から採取する", async ({ page }) => {
 	// PC のレコードを使い回さず、モバイルで 1 件作って辿る。
 	// 作成 → 保存 → 詳細 → プロセス管理 → 編集 → 保存 を 1 本で通せば、
 	// mobile の submit / change / process をまとめて採れる
-	await page.goto(`/k/m/${app}/?view=${listView.id}`);
+	await page.goto(`/k/m/${app}/?view=${listViewIdValue}`);
 	await waitForSample(page, "mobile.app.record.index.show", "event.records");
 
 	await page.goto(`/k/m/${app}/edit`);
@@ -409,7 +406,7 @@ test("実 kintone から採取する", async ({ page }) => {
 	});
 	createdRecordIds.push(extra.id);
 
-	await page.goto(`/k/${app}/?view=${listView.id}`);
+	await page.goto(`/k/${app}/?view=${listViewIdValue}`);
 	await waitForPanel(page, "screen.index");
 	await deleteRecord(
 		page,
@@ -460,7 +457,7 @@ test("実 kintone から採取する", async ({ page }) => {
 	const measuredCases = await measureSetBehavior(page, app, setProbeRecord.id, {
 		// 汚れた編集画面から離れ、着地するまで止めたままにする。
 		// show は読み込み完了より後に飛ぶので、待たずに解除すると 1 件増える
-		leaveTo: `/k/${app}/?view=${listView.id}`,
+		leaveTo: `/k/${app}/?view=${listViewIdValue}`,
 		leaveScreen: "screen.index",
 	});
 	expect(measuredCases).toBeGreaterThan(0);
