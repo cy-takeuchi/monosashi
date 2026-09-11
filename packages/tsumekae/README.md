@@ -2,21 +2,6 @@
 
 実測に基づく kintone レコードの型・変換関数・型ガード。
 
-> **`monosashi` を改名したものです。** 0.4.0 まで `monosashi` という名前で
-> 公開していました。**中身は同じ**で、`tsumekae` 0.1.0 は `monosashi` 0.4.0 と
-> 同じコードです。import 元の名前だけ読み替えてください。
->
-> ```diff
-> - import { guard, toRestWrite } from "monosashi";
-> - import "monosashi/kintone";
-> + import { guard, toRestWrite } from "tsumekae";
-> + import "tsumekae/kintone";
-> ```
->
-> 名前を変えた理由は
-> [`docs/TOOLCHAIN.md`](https://github.com/cy-takeuchi/jissoku/blob/main/docs/TOOLCHAIN.md)
-> の「パッケージ名を monosashi から tsumekae に変えた」。
-
 `@kintone/dts-gen` の `kintone.d.ts` は `kintone.app.record.get()` も
 `kintone.events.on()` のハンドラ引数も `any` で、レコード周りの型を提供していない。
 `@kintone/rest-api-client` は REST API の型しか持たない。

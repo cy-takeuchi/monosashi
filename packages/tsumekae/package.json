@@ -1,6 +1,6 @@
 {
 	"name": "tsumekae",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
 	"license": "MIT",
