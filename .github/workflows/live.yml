@@ -51,12 +51,9 @@ jobs:
       FIXTURE_LOOKUP_APP_ID: ${{ vars.FIXTURE_LOOKUP_APP_ID || secrets.FIXTURE_LOOKUP_APP_ID }}
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      # pnpm / Node / 依存の導入は 4 つのワークフローで同じ。
+      # 定義は .github/actions/setup に置く
+      - uses: ./.github/actions/setup
       - run: pnpm run e2e:install
 
       # 環境が壊れているのか kintone が変わったのかを区別する。

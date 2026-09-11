@@ -26,28 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-          # **registry-url は書かない。** 書くと setup-node が .npmrc に
-          # `_authToken=${NODE_AUTH_TOKEN}` を仕込む。OIDC が失敗したときに
-          # そのプレースホルダで publish しようとして 401 になり、
-          # 本当の失敗理由が隠れる。公開先は publishConfig.registry が決める
-      - run: pnpm install --frozen-lockfile
+      # pnpm / Node / 依存の導入は 4 つのワークフローで同じ。
+      # registry-url を書かない理由もそこに置いてある
+      - uses: ./.github/actions/setup
 
-      # タグだけ進めて version を上げ忘れる事故を止める。
-      # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い
       - name: タグと package.json の version が一致するか
-        run: |
-          TAG="${GITHUB_REF_NAME#kisekae-v}"
-          PKG="$(node -p "require('./packages/kisekae/package.json').version")"
-          if [ "$TAG" != "$PKG" ]; then
-            echo "::error::タグ kisekae-v$TAG と package.json の version $PKG が食い違っている"
-            exit 1
-          fi
-          echo "version $PKG を公開する"
+        uses: ./.github/actions/check-tag-version
+        with:
+          package: kisekae
+          prefix: kisekae-v
 
       # **ここでステップを並べない。** 定義はリポジトリの check ひとつに置く。
       # kisekae の pack:check が「利用者の立場で読めるか」と
