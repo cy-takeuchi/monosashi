@@ -208,6 +208,11 @@ describe("パッケージのドキュメントが揃っている", () => {
 		expect(published.sort()).toEqual(["kisekae", "monosashi"]);
 	});
 
+	/** 走査が空振りしていないことの当たり。0 件だと以下が全部素通りする */
+	test("パッケージを実際に拾えている", () => {
+		expect(packages.length).toBeGreaterThanOrEqual(3);
+	});
+
 	/**
 	 * 公開するパッケージには同じ 4 つを置く。
 	 * kisekae に CONTRIBUTING.md が無く、共通の手順が monosashi の中にだけ
@@ -227,21 +232,36 @@ describe("パッケージのドキュメントが揃っている", () => {
 		expect(existsSync(join(root, "CONTRIBUTING.md"))).toBe(true);
 	});
 
-	/** 各パッケージの CONTRIBUTING がルートを指していること */
-	test.each(["kisekae", "monosashi"])(
-		"%s の CONTRIBUTING がルートを指している",
-		(name) => {
-			const text = readFileSync(
-				join(root, "packages", name, "CONTRIBUTING.md"),
-				"utf8",
-			);
-			expect(text).toContain("../../CONTRIBUTING.md");
-		},
-	);
+	/**
+	 * 各パッケージの CONTRIBUTING がルートを指していること。
+	 *
+	 * **`published` を使う。** 以前はここだけ `["kisekae", "monosashi"]` と
+	 * 書き直していて、3 つめの公開パッケージが増えても検査が追従しなかった。
+	 * 上で計算したものがあるのに書き写すのは、このリポジトリが何度も
+	 * 塞いできた形そのもの
+	 */
+	test.each(published)("%s の CONTRIBUTING がルートを指している", (name) => {
+		const text = readFileSync(
+			join(root, "packages", name, "CONTRIBUTING.md"),
+			"utf8",
+		);
+		expect(text).toContain("../../CONTRIBUTING.md");
+	});
 });
 
-test("この検査自身がリポジトリのルートを見ている", () => {
-	expect(relative(root, join(root, "packages/rig"))).toBe(
-		join("packages", "rig"),
+/**
+ * `repoRoot()` がこの検査の走るリポジトリを指していること。
+ *
+ * **以前ここは `relative(root, join(root, "packages/rig"))` を見ていて、
+ * `root` が何であっても真になる式だった**（構造上落ちようがない）。
+ * 見たいのは「`repoRoot()` の返り値が本当にこのリポジトリか」なので、
+ * ルートにしか無いものと、rig 自身の位置の両方を確かめる。
+ */
+test("repoRoot() がこのリポジトリのルートを指している", () => {
+	expect(existsSync(join(root, "pnpm-workspace.yaml"))).toBe(true);
+	expect(existsSync(join(root, "packages/rig/package.json"))).toBe(true);
+	// この検査ファイル自身が、求めたルートからの相対で見つかること
+	expect(existsSync(join(root, relative(root, import.meta.filename)))).toBe(
+		true,
 	);
 });

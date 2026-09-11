@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, test } from "vitest";
 import type {
 	EventOf,
+	KintoneEventMap,
 	KintoneEventName,
 	UnknownKintoneEvent,
 } from "./event.js";
@@ -303,5 +304,66 @@ describe("イベント名の網羅", () => {
 		expectTypeOf<"mobile.app.record.index.show">().toMatchTypeOf<KintoneEventName>();
 		expectTypeOf<"portal.show">().toMatchTypeOf<KintoneEventName>();
 		expectTypeOf<"app.report.show">().toMatchTypeOf<KintoneEventName>();
+	});
+});
+
+/**
+ * マップのキーと、そのイベントの `type` が一致していること。
+ *
+ * ## なぜ要るか
+ *
+ * `KintoneEventMap` は 1 エントリにつきイベント名を 2 回書く。
+ *
+ * ```ts
+ * "app.record.edit.show": EditShowEvent<"app.record.edit.show">;
+ * ```
+ *
+ * 約 40 エントリあり、**型引数を打ち間違えても tsc は通る。**
+ * 通ったうえで、利用者の `event.type` が別の名前のリテラルになる。
+ *
+ * ```ts
+ * kintone.events.on("app.record.edit.show", (event) => {
+ *   event.type;  // "app.record.create.show" と言われる
+ * });
+ * ```
+ *
+ * 上の「主要なイベント」は 5 件の**存在**しか見ていないので、
+ * 取り違えは 1 つも捕まらない。
+ *
+ * 名前は `events.on` に渡すリテラルであり、`type` で分岐するのは
+ * kintone カスタマイズの基本形なので、ここがずれると実害が出る。
+ *
+ * ## 1 式で全件見る
+ *
+ * 個別に書くと、エントリを足したときに書き忘れる。
+ * マップ型で回して、食い違ったキーだけを残す。
+ */
+type MismatchedEventNames = {
+	[Name in KintoneEventName]: KintoneEventMap[Name] extends { type: Name }
+		? never
+		: Name;
+}[KintoneEventName];
+
+describe("マップのキーと event.type が一致する", () => {
+	test("食い違っているイベントが 1 つも無い", () => {
+		expectTypeOf<MismatchedEventNames>().toEqualTypeOf<never>();
+	});
+
+	/**
+	 * 空振りでないことの当たり。
+	 *
+	 * 検査が `never` を返すだけなら、マップが空でも通ってしまう。
+	 * 実際に型引数を取り違えたものを作って、それが拾われることを見る。
+	 */
+	test("取り違えを実際に拾える", () => {
+		type Broken = {
+			"app.record.detail.show": EventOf<"app.record.create.show">;
+		};
+		type Detected = {
+			[Name in keyof Broken]: Broken[Name] extends { type: Name }
+				? never
+				: Name;
+		}[keyof Broken];
+		expectTypeOf<Detected>().toEqualTypeOf<"app.record.detail.show">();
 	});
 });
