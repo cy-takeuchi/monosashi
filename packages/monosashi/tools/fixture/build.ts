@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { log } from "@jissoku/rig/client";
+import { runScript } from "@jissoku/rig/run";
 import type { ProbeStore } from "../../src/probe/store";
 import { normalize } from "./normalize";
 
@@ -18,14 +19,18 @@ import { normalize } from "./normalize";
 const IN = process.argv[2] ?? "fixtures/live/raw.json";
 const OUT = process.argv[3] ?? "fixtures/measured.json";
 
-const store = JSON.parse(readFileSync(IN, "utf8")) as ProbeStore;
-const normalized = normalize(store);
+const main = (): void => {
+	const store = JSON.parse(readFileSync(IN, "utf8")) as ProbeStore;
+	const normalized = normalize(store);
 
-// 差分を行単位で読めるように整形して書く。
-// 1 行の巨大な JSON だと diff が「1 行変わった」としか言わない
-writeFileSync(OUT, `${JSON.stringify(normalized, null, "\t")}\n`);
+	// 差分を行単位で読めるように整形して書く。
+	// 1 行の巨大な JSON だと diff が「1 行変わった」としか言わない
+	writeFileSync(OUT, `${JSON.stringify(normalized, null, "\t")}\n`);
 
-log(`${IN} (${store.samples.length} サンプル) → ${OUT}`);
-if (normalized.setBehavior !== undefined) {
-	log(`set() の受け入れ: ${normalized.setBehavior.length} ケース`);
-}
+	log(`${IN} (${store.samples.length} サンプル) → ${OUT}`);
+	if (normalized.setBehavior !== undefined) {
+		log(`set() の受け入れ: ${normalized.setBehavior.length} ケース`);
+	}
+};
+
+runScript(main);

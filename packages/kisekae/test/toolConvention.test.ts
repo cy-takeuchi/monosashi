@@ -8,7 +8,11 @@
  * （7 本のうち 1 本だけ `describeError` ではなく `String(error)` だった）。
  */
 
-import { scriptsCallingMainDirectly } from "@jissoku/rig/toolConvention";
+import {
+	entriesWithoutRunScript,
+	scriptsCallingMainDirectly,
+	tsxEntries,
+} from "@jissoku/rig/toolConvention";
 import { describe, expect, test } from "vitest";
 
 describe("実行スクリプトの入口", () => {
@@ -18,5 +22,17 @@ describe("実行スクリプトの入口", () => {
 			offenders,
 			`runScript を通していない入口がある: ${offenders.join(", ")}`,
 		).toEqual([]);
+	});
+
+	test("package.json が叩く入口が全て runScript を通す", () => {
+		const offenders = entriesWithoutRunScript();
+		expect(
+			offenders,
+			`package.json から叩かれるのに runScript を通していない: ${offenders.join(", ")}`,
+		).toEqual([]);
+	});
+
+	test("入口の探索が空振りしていない", () => {
+		expect(tsxEntries().length).toBeGreaterThan(1);
 	});
 });
