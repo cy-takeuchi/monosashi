@@ -13,7 +13,8 @@
 		"./repoRoot": "./src/repoRoot.ts",
 		"./run": "./src/run.ts",
 		"./sources": "./src/sources.ts",
-		"./toolConvention": "./src/toolConvention.ts"
+		"./toolConvention": "./src/toolConvention.ts",
+		"./typecheckScope": "./src/typecheckScope.ts"
 	},
 	"scripts": {
 		"check": "pnpm run tsc && pnpm run test",

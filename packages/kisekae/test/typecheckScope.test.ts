@@ -4,13 +4,15 @@
  * 走査は `@jissoku/rig` が持つ（理由はそちらの JSDoc）。
  * ここは自分のツリーに適用するだけ。
  *
- * この漏れが実際に起きたのはこのパッケージ（`e2e/` が長期間、型を
- * 誰にも見られていなかった）。
+ * **このファイルは無かった。** それでも `tsconfig.json` と
+ * `vitest.config.ts` には「test/typecheckScope.test.ts が縛っている」と
+ * 書いてあった。kisekae は型の主張の大半を `*.test-d.ts` に置いている
+ * （`raw.test-d.ts` / `field.test-d.ts` / `rawKeys.test-d.ts`）ので、
+ * `typecheck.enabled` が false になればそれが丸ごと黙って消える。
  */
 
 import {
 	dirsMissingFromInclude,
-	tsconfigInclude,
 	typeTestFiles,
 	typeTestsNotCovered,
 } from "@jissoku/rig/typecheckScope";
@@ -25,17 +27,11 @@ describe("tsconfig.json の include", () => {
 			`include に無い: ${missing.join(", ")}（型チェックの対象外になっている）`,
 		).toEqual([]);
 	});
-
-	test("e2e が対象に入っている", () => {
-		// 上のテストに含まれるが、この漏れが実際に起きた場所なので単独でも縛る
-		expect(tsconfigInclude()).toContain("e2e/**/*");
-	});
 });
 
 describe("vitest の typecheck", () => {
 	const typecheck = vitestConfig.test?.typecheck;
 
-	// **false にすると落ちずに消える。** ここが一番危ない
 	test("有効になっている", () => {
 		expect(
 			typecheck?.enabled,
