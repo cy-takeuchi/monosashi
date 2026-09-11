@@ -1,5 +1,19 @@
 name: Release tsumekae
 
+# ============================================================================
+# **このファイルは 0.1.0 の初回公開のための一時的な状態です。**
+#
+# tsumekae は npm にまだ存在せず、npm はパッケージが無いと Trusted Publisher
+# を設定できない（設定画面がパッケージの下にしかない / npm/cli#8544）。
+# stage は既存パッケージ専用なので、OIDC でも stage でも新しい名前を作れない。
+#
+# **公開したら必ず戻すこと。**
+#
+#   git revert <このコミット>
+#
+# 手順は docs/TOOLCHAIN.md「初回公開の手順」。
+# ============================================================================
+#
 # `tsumekae-v*` タグを打つと npm に置く（公開はしない）。
 #
 # **kisekae とワークフローを分ける。** npm の Trusted Publishing は
@@ -30,9 +44,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      # pnpm / Node / 依存の導入は 4 つのワークフローで同じ。
-      # registry-url を書かない理由もそこに置いてある
-      - uses: ./.github/actions/setup
+
+      # **一時変更（初回公開のみ）。** 普段は `./.github/actions/setup` を使う。
+      # ここで展開しているのは、`registry-url` を足す必要があるのに、
+      # あの composite は 4 つのワークフローで共有していて
+      # kisekae 側にも効いてしまうため。
+      #
+      # `registry-url` は setup-node に .npmrc へ
+      # `_authToken=${NODE_AUTH_TOKEN}` を書かせる。トークン経路で publish
+      # するにはこれが要る。**OIDC に戻したら必ず消すこと。**
+      # 残っていると、OIDC が失敗したときにそのプレースホルダで publish して
+      # 401 になり、本当の失敗理由が隠れる。
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
 
       - name: タグと package.json の version が一致するか
         uses: ./.github/actions/check-tag-version
@@ -50,23 +79,32 @@ jobs:
       # prepublishOnly が build を走らせる（check の pack:check でも走っているが、
       # 出荷される dist はこちらが作ったものになる）
       #
-      # **CI は公開しない。npm に置くだけ。**
-      # publish ではなく stage publish なので、この時点では誰からも見えない。
-      # 人間が npmjs.com で 2FA を通して承認して初めて公開される。
-      # npmjs.com 側の Allowed actions で直接 publish を禁止してあるので、
-      # ここを pnpm publish に戻すとワークフローが落ちる（それが狙い）。
+      # **一時変更（初回公開のみ）。本来は `pnpm stage publish`。**
+      # stage は Trusted Publishing の機能で、既存パッケージにしか使えない。
+      # tsumekae はまだ存在しないので、初回だけトークンで直接 publish する。
       #
-      # 認証はトークンではなく **OIDC Trusted Publishing**。
-      # pnpm が id-token から npm 向けのトークンを自分で交換するので、
-      # NODE_AUTH_TOKEN も NPM_TOKEN も要らない。
+      # **初回だけ即時公開になる。** stage を通れないので、人間が 2FA で
+      # 承認する関門が無いまま出る。一度きりの例外として受け入れる。
+      #
+      # トークンは granular access token で、
+      # **`Bypass two-factor authentication` にチェックが要る**。
+      # 入れないと CI に対話の 2FA が無くて direct publish が落ち、
+      # `403 E_STAGE_REQUIRED` になる（kisekae 0.1.0 の 1 回目がこれ）。
+      # `tsumekae` はまだ存在しないので `Only select packages` では選べず、
+      # `All packages` が要る。
       #
       # --no-git-checks: タグの checkout は detached HEAD なので、
       #   pnpm の「publish ブランチにいるか」の確認が必ず落ちる
-      # --provenance: pnpm 12 以降のフラグ。id-token: write と対で効く
-      - name: npm に置く（公開はしない）
+      # --provenance: トークン経路でも効くので初回から署名が付く
+      #   （package.json の repository.url が実リポジトリと一致しているのが条件）
+      - name: npm に公開する（初回のみ・即時公開）
         working-directory: packages/tsumekae
-        run: pnpm stage publish --provenance --no-git-checks
+        run: pnpm publish --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 承認の案内
+      - name: 次にやることの案内
         run: |
-          echo "::notice::tsumekae@${GITHUB_REF_NAME#tsumekae-v} を stage した。npmjs.com で 2FA を通して承認すると公開される"
+          echo "::notice::tsumekae@${GITHUB_REF_NAME#tsumekae-v} を公開した"
+          echo "::notice::1) npmjs.com で Trusted Publisher を作る（cy-takeuchi/jissoku / release-tsumekae.yml / Allowed actions は未チェック）"
+          echo "::notice::2) このコミットを git revert 3) NPM_TOKEN を削除しトークンを revoke 4) npm deprecate monosashi"
