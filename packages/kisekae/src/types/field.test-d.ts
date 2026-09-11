@@ -219,4 +219,26 @@ describe("バケツの中身", () => {
 			"fields" | "tables" | "groups" | "elements" | "unplaced"
 		>();
 	});
+
+	/**
+	 * **`Unplaced` は `Property.OneOf` を 26 メンバ書き写している。**
+	 * `Raw` に種別が増えたときに書き忘れると、その種別だけ
+	 * 「レイアウトに無いと消える」ことになるが、型は通る。
+	 *
+	 * 種別を絞っていないことが `Unplaced` の設計なので
+	 * （「値を持つフィールドは必ずレイアウトに現れる」は測っていない）、
+	 * **絞られていないことを機械で見る。**
+	 *
+	 * ルックアップとサブテーブルは形を変えて入れるので除く
+	 * （`LookupSingleLineTextProperty` / `LookupNumberProperty` と `Table`）。
+	 */
+	test("ルックアップとサブテーブル以外の全プロパティを unplaced が受ける", () => {
+		expectTypeOf<
+			Exclude<
+				Property.OneOf,
+				| Property.Lookup
+				| Property.Subtable<{ [fieldCode: string]: Property.InSubtable }>
+			>
+		>().toMatchTypeOf<Unplaced>();
+	});
 });
