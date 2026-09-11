@@ -180,7 +180,7 @@ const fieldTypeOf = (
 /**
  * Probed の木をたどって伏せる。
  *
- * フィールド（type と value を持つ객体）は type で分岐し、
+ * フィールド（type と value を持つオブジェクト）は type で分岐し、
  * それ以外のキーは名前で分岐する（envelope の viewId など）。
  */
 const maskProbed = (node: Probed): Probed => {
@@ -262,7 +262,11 @@ const maskSample = (sample: Sample): Sample => ({
  *
  * `sent` / `before` / `after` は実データを含むので、
  * サンプルと同じ規則で伏せる。
- * ケースの `id` と `question`、`threw` は環境に依らないのでそのまま。
+ * ケースの `id` / `question` / `errorShown` / `rowIdsPreserved` /
+ * `observable` は環境に依らないのでそのまま。
+ *
+ * （以前ここは `threw` を挙げていた。`set()` の失敗は例外にならないと
+ * 分かって `errorShown` に置き換わったが、この記述だけ残っていた）
  */
 const maskSetCase = (result: SetCaseResult): SetCaseResult => ({
 	...result,

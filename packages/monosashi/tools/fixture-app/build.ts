@@ -36,6 +36,26 @@ import {
  *   CATEGORY ... REST API が存在しない。verify.ts が未設定を検出して警告する。
  */
 
+/**
+ * 進捗の見出し。**番号を手で書かない。**
+ *
+ * 以前は `[1/6]`〜`[5/6]` を各所に直接書いていて、`[6/6]` はどこにも無く、
+ * 再利用の経路だけ `[1-2/6]` になっていた。分母も合っていない。
+ * 手順を足し引きするたびに全部を数え直すことになるので、一覧から引く。
+ */
+const STEPS = [
+	"ルックアップ参照先アプリを作成",
+	"ルックアップ元のレコードを投入",
+	"測定用アプリを作成",
+	"プロセス管理を有効化 (STATUS / STATUS_ASSIGNEE を作る)",
+	"一覧とレイアウトを設定",
+	"テストレコードを投入",
+] as const;
+
+/** `[3/6] 測定用アプリを作成` の形にする。名前で引くので番号がずれない */
+const step = (name: (typeof STEPS)[number], note = ""): string =>
+	`[${STEPS.indexOf(name) + 1}/${STEPS.length}] ${name}${note}`;
+
 const createApp = async (
 	client: KintoneRestAPIClient,
 	name: string,
@@ -57,7 +77,7 @@ const buildLookupApp = async (
 	client: KintoneRestAPIClient,
 	space: string | undefined,
 ): Promise<string> => {
-	log("[1/6] ルックアップ参照先アプリを作成");
+	log(step("ルックアップ参照先アプリを作成"));
 	const app = await createApp(
 		client,
 		"kintone-record 検証 (ルックアップ元)",
@@ -69,7 +89,7 @@ const buildLookupApp = async (
 	await waitForDeploy(client, [app]);
 	log("  デプロイ完了");
 
-	log("[2/6] ルックアップ元のレコードを投入");
+	log(step("ルックアップ元のレコードを投入"));
 	await client.record.addRecords({ app, records: lookupAppRecords });
 	log(`  ${lookupAppRecords.length} 件投入`);
 	return app;
@@ -137,7 +157,7 @@ const rebuildFixtureAppForm = async (
 		throw new Error("作成者フィールドのコードを解決できません");
 	}
 
-	log("[4/6] プロセス管理を有効化 (STATUS / STATUS_ASSIGNEE を作る)");
+	log(step("プロセス管理を有効化 (STATUS / STATUS_ASSIGNEE を作る)"));
 	await client.app.updateProcessManagement({
 		app,
 		enable: true,
@@ -249,7 +269,7 @@ const rebuildFixtureAppForm = async (
 			},
 		},
 	});
-	log("  一覧を設定");
+	log(`  ${step("一覧とレイアウトを設定")}`);
 
 	await client.app.deployApp({ apps: [{ app }] });
 	await waitForDeploy(client, [app]);
@@ -261,7 +281,7 @@ const buildFixtureApp = async (
 	lookupAppId: string,
 	space: string | undefined,
 ): Promise<string> => {
-	log("[3/6] 測定用アプリを作成");
+	log(step("測定用アプリを作成"));
 	const app = await createApp(client, "kintone-record 検証 (測定用)", space);
 	writeEnvKey("FIXTURE_APP_ID", app);
 
@@ -273,7 +293,7 @@ const addTestRecords = async (
 	client: KintoneRestAPIClient,
 	app: string,
 ): Promise<void> => {
-	log("[5/6] テストレコードを投入");
+	log(step("テストレコードを投入"));
 
 	// 再実行に耐えるよう既存レコードを消す。
 	// singleLineTextUnique が重複禁止なので、消さないと 2 回目が必ず失敗する。
@@ -382,7 +402,9 @@ const main = async (): Promise<void> => {
 		lookupAppId = await buildLookupApp(client, space?.id);
 	} else {
 		lookupAppId = existingLookup;
-		log(`[1-2/6] ルックアップ参照先アプリを再利用 (app=${lookupAppId})`);
+		log(
+			step("ルックアップ参照先アプリを作成", ` … 再利用 (app=${lookupAppId})`),
+		);
 	}
 
 	let fixtureAppId: string;
@@ -390,7 +412,7 @@ const main = async (): Promise<void> => {
 		fixtureAppId = await buildFixtureApp(client, lookupAppId, space?.id);
 	} else {
 		fixtureAppId = existingFixture;
-		log(`[3/6] 測定用アプリを再利用 (app=${fixtureAppId})`);
+		log(step("測定用アプリを作成", ` … 再利用 (app=${fixtureAppId})`));
 		await rebuildFixtureAppForm(client, fixtureAppId, lookupAppId);
 	}
 
