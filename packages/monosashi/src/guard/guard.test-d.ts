@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "vitest";
 import type { Editing, FileInformation, Rest, Saved } from "../types/field.js";
-import type { LooseRecord } from "../types/loose.js";
+import type { LooseField, LooseRecord } from "../types/loose.js";
 import type { EditingRecord, SavedRecord, SetRecord } from "../types/record.js";
 import type { RestRecord } from "../types/rest.js";
 import type * as guards from "./record.js";
@@ -167,14 +167,38 @@ describe("undefined と null を受け付ける", () => {
 });
 
 /**
+ * ガードの形。**`R` に制約を付けるためだけに名前を付ける。**
+ *
+ * ## なぜ名前を付けるのか
+ *
+ * 絞り込み先を取り出すだけなら
+ * `F extends (field: ...) => field is infer R ? R : never` と書きたいが、
+ * そのままでは TS2677（A type predicate's type must be assignable to its
+ * parameter's type）で落ちる。`infer R` に制約が無いので、TypeScript が
+ * 「R は引数の型に代入できる」と言えないため。
+ * **以前はここを `any` にして黙らせていた。**
+ *
+ * `field is infer R extends LooseField` と書けば tsc は通る。
+ * ただし条件型の中では末尾の `extends` が曖昧になるので関数型を括弧でくくる
+ * 必要があり、**biome のフォーマッタがその括弧を外してしまう**
+ * （外れると `expected ? but instead found ;` で構文エラー）。
+ *
+ * 型引数の制約として書けば括弧が要らず、tsc も biome も通る。
+ *
+ * 引数を `unknown` にする手も試したが、**`hasValue` だけ拾えなくなる**
+ * （関数の引数は反変なので、`unknown` を受ける関数としては扱えない）。
+ */
+type GuardShape<R extends LooseField> = (
+	field: LooseField | undefined | null,
+) => field is R;
+
+/**
  * ガードの型述語から、絞り込み先の型を取り出す。
  *
  * ジェネリックなガード（`<T extends LooseField>(f: T) => f is Narrow<T, ...>`）は
  * `T` が制約（`LooseField`）で具体化されるので、**緩い入力での絞り込み結果**が取れる。
  */
-// 引数は `any` でないといけない。`never` にすると
-// 「A type predicate's type must be assignable to its parameter's type」（TS2677）で落ちる
-type NarrowedBy<F> = F extends (field: any) => field is infer R ? R : never;
+type NarrowedBy<F> = F extends GuardShape<infer R> ? R : never;
 
 /**
  * `src/guard/record.ts` が出している型述語**すべて**。
@@ -184,10 +208,8 @@ type NarrowedBy<F> = F extends (field: any) => field is infer R ? R : never;
  * 表を作ると、足したのに書き忘れて素通りする道が残る。
  */
 type GuardName = {
-	// 引数を `any` にする理由は NarrowedBy と同じ
-	[K in keyof typeof guards]: (typeof guards)[K] extends (
-		field: any,
-	) => field is any
+	// 形は NarrowedBy と同じ。絞り込み先は使わないので名前だけ取る
+	[K in keyof typeof guards]: (typeof guards)[K] extends GuardShape<infer _R>
 		? K
 		: never;
 }[keyof typeof guards];
@@ -217,8 +239,11 @@ type LeftUnknown = {
 }[Exclude<GuardName, "hasValue">];
 
 describe("全ガードを総当たりする", () => {
-	test("型述語を出しているガードを拾えている", () => {
-		expectTypeOf<GuardName>().not.toBeNever();
+	// **`not.toBeNever()` では弱い。** 1 つでも拾えていれば通るので、
+	// 絞り込みの書き方を変えたときに「29 個中 28 個しか拾えていない」状態を
+	// 見逃す。`record.ts` の export は全部が型述語なので、全件と一致するはず
+	test("record.ts の型述語を 1 つ残らず拾えている", () => {
+		expectTypeOf<GuardName>().toEqualTypeOf<keyof typeof guards>();
 	});
 
 	// 緩い入力で value が絞れないガードがあれば、ここに名前が出て落ちる。
