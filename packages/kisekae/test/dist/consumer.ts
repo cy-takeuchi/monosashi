@@ -29,6 +29,16 @@ import {
 	toForm,
 } from "../../dist/index";
 
+/**
+ * 値を使うためだけの受け口。
+ *
+ * **`console` を使わない。** `pack:check` はこのファイルを
+ * `lib: ["ES2022"]`（DOM 無し・`types: []`）でも検査する。
+ * ブラウザ / Node の型を前提にすると、そこで `console` が見つからずに落ちる。
+ * kisekae は DOM を参照しないので、その検査自体が主張の 1 つ。
+ */
+declare const sink: (...values: unknown[]) => void;
+
 declare const properties: Properties;
 declare const layout: Layout.OneOf[];
 
@@ -40,27 +50,27 @@ const numbers = form.fields.filter((f) => f.type === "NUMBER");
 for (const field of numbers) {
 	if ("lookup" in field) {
 		const app: string = field.lookup.relatedApp.app;
-		console.log(app);
+		sink(app);
 		continue;
 	}
 	// ルックアップを除いたので数値固有のプロパティに触れる
 	const unit: string = field.unit;
 	const position: "BEFORE" | "AFTER" = field.unitPosition;
-	console.log(unit, position);
+	sink(unit, position);
 }
 
 // ルックアップになれない種別は 1 段で絞れる
 const checkBoxes = form.fields.filter((f) => f.type === "CHECK_BOX");
 for (const field of checkBoxes) {
 	const align: "HORIZONTAL" | "VERTICAL" = field.align;
-	console.log(Object.keys(field.options), align);
+	sink(Object.keys(field.options), align);
 }
 
 // 合成条件でも絞れる
 const choices = form.fields.filter(
 	(f) => f.type === "RADIO_BUTTON" || f.type === "DROP_DOWN",
 );
-console.log(choices.map((f) => Object.keys(f.options)));
+sink(choices.map((f) => Object.keys(f.options)));
 
 // --- 所属 ---
 // 親のラベルを直接引ける（コードから引き直さなくて済む）
@@ -76,7 +86,7 @@ const nulls: null[] = topLevel.map((f) => f.parent);
 
 // レイアウト要素にも効く
 const spacersInGroup = form.elements.filter(guard.isInGroup);
-console.log(spacersInGroup.map((e) => e.parent.code));
+sink(spacersInGroup.map((e) => e.parent.code));
 
 // --- バケツ ---
 const tableLabels: string[] = form.tables.map((t) => t.label);
@@ -100,11 +110,11 @@ try {
 } catch (error) {
 	if (error instanceof FormDefinitionError) {
 		const message: string = error.message;
-		console.log(message);
+		sink(message);
 	}
 }
 
-console.log(
+sink(
 	groupings,
 	tableCodes,
 	groupCodes,

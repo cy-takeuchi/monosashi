@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { log } from "@jissoku/rig/client";
+import { writeJson } from "@jissoku/rig/json";
 import { runScript } from "@jissoku/rig/run";
 import type { ProbeStore } from "../../src/probe/store";
 import { normalize } from "./normalize";
@@ -23,9 +24,8 @@ const main = (): void => {
 	const store = JSON.parse(readFileSync(IN, "utf8")) as ProbeStore;
 	const normalized = normalize(store);
 
-	// 差分を行単位で読めるように整形して書く。
-	// 1 行の巨大な JSON だと diff が「1 行変わった」としか言わない
-	writeFileSync(OUT, `${JSON.stringify(normalized, null, "\t")}\n`);
+	// 整形と末尾改行の理由は writeJson の JSDoc
+	writeJson(OUT, normalized);
 
 	log(`${IN} (${store.samples.length} サンプル) → ${OUT}`);
 	if (normalized.setBehavior !== undefined) {

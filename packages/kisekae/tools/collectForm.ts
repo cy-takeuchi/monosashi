@@ -1,7 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
 import { createClient, log } from "@jissoku/rig/client";
 import { env } from "@jissoku/rig/env";
+import { writeJson } from "@jissoku/rig/json";
 import { runScript } from "@jissoku/rig/run";
 import type {
 	KintoneFormFieldProperty,
@@ -98,8 +97,8 @@ const main = async (): Promise<void> => {
 		apps,
 	};
 
-	mkdirSync(dirname(OUT), { recursive: true });
-	writeFileSync(OUT, `${JSON.stringify(captured, null, "\t")}\n`);
+	// ディレクトリの作成・整形・末尾改行は writeJson がまとめて持つ
+	writeJson(OUT, captured);
 	log("");
 	log(`${OUT} に書きました。`);
 	log("pnpm run fixture:form で正規化してください。");
