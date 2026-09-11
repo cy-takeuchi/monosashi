@@ -1,0 +1,30 @@
+name: セットアップ
+description: pnpm と Node を用意して依存を入れる。4 つのワークフローで同じ
+
+# **ワークフローのファイル名は変えていない。**
+# npm の Trusted Publishing は owner / repository / workflow filename に
+# 紐づくので、release-*.yml の名前は動かせない（ルートの CLAUDE.md）。
+# composite action はワークフローから呼ばれるだけで、その紐づけに影響しない。
+#
+# checkout はここに入れない。呼ぶ側の最初のステップとして見えていたほうが、
+# 何をチェックアウトしているかが読める。
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: pnpm
+        # **registry-url は書かない。** 書くと setup-node が .npmrc に
+        # `_authToken=${NODE_AUTH_TOKEN}` を仕込む。OIDC が失敗したときに
+        # そのプレースホルダで publish しようとして 401 になり、
+        # 本当の失敗理由が隠れる。
+        # 公開先は package.json の publishConfig.registry が決める。
+        #
+        # **この注意は 4 つのワークフローのうち release の 2 本にしか
+        # 書かれていなかった。** セットアップを 1 箇所にするなら、
+        # 理由も 1 箇所に置く
+    - run: pnpm install --frozen-lockfile
+      shell: bash

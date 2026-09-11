@@ -1,0 +1,33 @@
+name: タグと version の一致
+description: タグの前置を外した値が package.json の version と一致するか確かめる
+
+# タグだけ進めて version を上げ忘れる事故を止める。
+# npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い。
+#
+# **release-monosashi.yml と release-kisekae.yml に同じ 8 行があった。**
+# ワークフロー自体は分けたままにする（Trusted Publishing がファイル名に
+# 紐づく。ルートの CLAUDE.md）が、中身の写しは分ける理由が無い。
+
+inputs:
+  package:
+    description: packages/ 配下のディレクトリ名
+    required: true
+  prefix:
+    description: タグの前置（monosashi-v / kisekae-v）
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        PREFIX: ${{ inputs.prefix }}
+      run: |
+        TAG="${GITHUB_REF_NAME#$PREFIX}"
+        PKG="$(node -p "require('./packages/$PACKAGE/package.json').version")"
+        if [ "$TAG" != "$PKG" ]; then
+          echo "::error::タグ $PREFIX$TAG と package.json の version $PKG が食い違っている"
+          exit 1
+        fi
+        echo "version $PKG を公開する"
