@@ -1,15 +1,15 @@
 # CLAUDE.md
 
-kintone **レコード**の型・変換関数・型ガードを提供する npm パッケージ `monosashi`。
+kintone **レコード**の型・変換関数・型ガードを提供する npm パッケージ `tsumekae`。
 
 **共通のルールはリポジトリのルートの `CLAUDE.md`**（日本語で書く / 型に書く前に測る /
-実行してはいけないこと / コミット規約）。ここには monosashi 固有のことだけを書く。
+実行してはいけないこと / コミット規約）。ここには tsumekae 固有のことだけを書く。
 
 | | |
 |---|---|
 | kintone 自体の挙動 | `../../docs/KINTONE.md` |
 | 環境とツールチェーン | `../../docs/TOOLCHAIN.md` |
-| monosashi の設計判断 | `docs/DECISIONS.md` |
+| tsumekae の設計判断 | `docs/DECISIONS.md` |
 
 ## 実測の根拠
 
@@ -105,12 +105,12 @@ biome はリポジトリのルートで 1 回だけ回すので、ここには�
 `src/types/rest.ts` の等価性検証（`src/types/rest.test-d.ts`）にだけ使う。
 `src/` から import しない。
 
-`Rest` / `RestRecord` / `RestRecordWithMeta` はルート（`monosashi`）から出る。
+`Rest` / `RestRecord` / `RestRecordWithMeta` はルート（`tsumekae`）から出る。
 サブパスの `exports` は `.` と `./kintone` の 2 つだけ。
 
 ## グローバル型は副作用 import でだけ有効にする
 
-`src/kintone.ts`（`monosashi/kintone`）が `kintone` グローバルを宣言する。
+`src/kintone.ts`（`tsumekae/kintone`）が `kintone` グローバルを宣言する。
 **本体（`src/index.ts`）から `declare global` を生やさない。**
 サーバサイドで使ったときに、存在しない `kintone` をコンパイルが通してしまう。
 
@@ -137,7 +137,7 @@ biome はリポジトリのルートで 1 回だけ回すので、ここには�
 
 ## 判断を記録する
 
-monosashi の設計判断と**測り方を間違えた記録**は
+tsumekae の設計判断と**測り方を間違えた記録**は
 [`docs/DECISIONS.md`](docs/DECISIONS.md) に残す。
 kintone 自体の挙動は [`../../docs/KINTONE.md`](../../docs/KINTONE.md)、
 環境とツールチェーンは [`../../docs/TOOLCHAIN.md`](../../docs/TOOLCHAIN.md)。

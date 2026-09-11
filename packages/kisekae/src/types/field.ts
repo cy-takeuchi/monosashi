@@ -19,7 +19,7 @@ import type { Layout, LookupConfig, Property } from "./raw.js";
  * 全種別を書き下すと `Raw` と二重管理になり、しかも
  * **どちらが正か機械で言えなくなる**（`Raw` は公式と実測の両方で縛られている）。
  *
- * 条件型で導出はしない。monosashi の CLAUDE.md が禁じている
+ * 条件型で導出はしない。tsumekae の CLAUDE.md が禁じている
  * 「ホバー表示とエラーメッセージが壊れる導出」（kintone-typeguard が
  * `FFF<A,B,C,D>` で失敗した道）に当たる。交差型はそれには当たらない。
  *

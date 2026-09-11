@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
  * 型宣言は tsc が出す（tsconfig.build.json）。
  * vite はランタイムのコードだけを担当する。
  *
- * 入口は 1 つ。monosashi と違って `declare global` を持たないので、
+ * 入口は 1 つ。tsumekae と違って `declare global` を持たないので、
  * グローバル拡張のためのサブパスが要らない。
  *
  * **external を置かない。** 実行時依存がゼロなので外に出すものが無い。

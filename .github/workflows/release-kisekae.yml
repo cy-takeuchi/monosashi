@@ -2,13 +2,13 @@ name: Release kisekae
 
 # `kisekae-v*` タグを打つと npm に置く（公開はしない）。
 #
-# **monosashi とワークフローを分ける。** npm の Trusted Publishing は
+# **tsumekae とワークフローを分ける。** npm の Trusted Publishing は
 # owner / repository / **workflow filename** の 3 つに紐づき、
 # 接続は作ったあと編集できない（削除して作り直すしかない）。
 # 1 つのワークフローで両方を publish すると、片方の接続を触るために
 # もう片方も貼り直すことになる。
 #
-# タグの前置も分ける。`v*` は monosashi のもの（既存の接続がそれに紐づいている）。
+# タグの前置も分ける。`v*` は tsumekae のもの（既存の接続がそれに紐づいている）。
 on:
   push:
     tags: ["kisekae-v*"]

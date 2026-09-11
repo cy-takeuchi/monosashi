@@ -11,7 +11,7 @@ kintone のフォーム定義（`getFormFields` / `getFormLayout`）を、
 これは実装前に決めたことの記録で、
 [12. 作業順序](#12-作業順序)のとおり**実測が先**。
 実測は 2026-09-10 に 1 回目を採り終えた
-（`fixtures/form/definition.json` / monosashi の DECISIONS
+（`fixtures/form/definition.json` / tsumekae の DECISIONS
 「フォーム定義の実測でわかったこと」）。**未確定は無い。**
 
 ---
@@ -128,8 +128,8 @@ enabled=false → [文字列]                          ← 落とす
 | 等価性テスト | **入力側**（生のフォーム定義）を縛る |
 | ガード | `type` で判別できないものだけ 3 個（`isInSubtable` / `isInGroup` / `isTopLevel`） |
 | 実行時依存 | ゼロ。`pack:check` が縛る |
-| monosashi | **依存しない**。受け渡しの通貨は素の値 |
-| 根拠 | 実測。monosashi の検証アプリを共有する |
+| tsumekae | **依存しない**。受け渡しの通貨は素の値 |
+| 根拠 | 実測。tsumekae の検証アプリを共有する |
 
 ---
 
@@ -139,7 +139,7 @@ enabled=false → [文字列]                          ← 落とす
 
 **捨てた選択肢**
 
-- **フォーム定義版 monosashi**（型とガードが中心で、生の形にもガードを効かせる） ──
+- **フォーム定義版 tsumekae**（型とガードが中心で、生の形にもガードを効かせる） ──
   生の `getFormFields` の形を判別する需要が実際に無い。消費側は整形後だけを扱う。
   `kintone-typeguard` の `guardFormField` / `guardFormLayout`（各 29 個）は引き取らない
 - **2 層を別サブパスで出す** ── 使われるか分からない入口を先に 2 つ作ることになる
@@ -217,7 +217,7 @@ export type InSubtable = Exclude<OneOf, RecordNumber | ... | ReferenceTable | La
   `{ table: "t", group: "g" }` という**あり得ない状態が型として通る**。
   型が実際より緩いことが unsound な型述語を生んだので、そこは締める
 - **フィールド型自体を所属で分ける**（`InTableField` など） ── 28 種別 × 3 で
-  union が膨らみ、monosashi の CLAUDE.md が禁じている
+  union が膨らみ、tsumekae の CLAUDE.md が禁じている
   「ホバー表示とエラーメッセージが壊れる」状態になる
 - **`{ kind: "none" } | { kind: "table" } | ...`** ── `kind: "none"` は語彙の発明。
   判別子は kintone の `type` 文字列で揃える
@@ -244,7 +244,7 @@ export type InSubtable = Exclude<OneOf, RecordNumber | ... | ReferenceTable | La
 - **一切参照しない** ── 乖離に気づけない。利用者は結局
   `client.app.getFormFields()` の結果を渡すので、壊れるのは**利用者の手元**
 
-`pack:check`（monosashi と共有）が、tarball を空のプロジェクトに入れて
+`pack:check`（tsumekae と共有）が、tarball を空のプロジェクトに入れて
 `node_modules` に他が 1 つも現れないことを確かめる。
 `@kintone/rest-api-client` を入れていない利用者のシナリオも検査するので、
 **公開する `.d.ts` はこれを参照できない**。この機械が kisekae の設計の要になる。
@@ -254,7 +254,7 @@ export type InSubtable = Exclude<OneOf, RecordNumber | ... | ReferenceTable | La
 **決定**: 生のフォーム定義の型を `expectTypeOf().toEqualTypeOf()` で公式と等価にする。
 整形後の型は縛らない。生の型も公開する。
 
-**理由**: monosashi とは向きが逆。monosashi の `RestRecord` は利用者が
+**理由**: tsumekae とは向きが逆。tsumekae の `RestRecord` は利用者が
 `client.record.addRecord()` に**渡す**ものなので出力を縛る必要があった。
 kisekae は `getFormFields` の結果を**受け取る**側で、
 整形後（`parent` 必須、`Lookup` の作り替え）は設計どおり公式と等価でない。
@@ -263,7 +263,7 @@ kisekae は `getFormFields` の結果を**受け取る**側で、
 **捨てた選択肢**
 
 - **種別ごとに `Omit<Pretty, "parent">` で突き合わせ、`Lookup` は例外にする** ──
-  monosashi の `rest.test-d.ts` が明確に禁じている。
+  tsumekae の `rest.test-d.ts` が明確に禁じている。
   「逃げ道は作らない。許容リストを作ると『とりあえず載せる』が起きる」
 - **縛らない** ── 乖離の検出という目的そのものが無くなる
 
@@ -284,7 +284,7 @@ kisekae は `getFormFields` の結果を**受け取る**側で、
 落ちたときは「どちらが正しいか」を①で決め、
 決めた結果を③の式に書く。
 
-monosashi はすでにこの形になっている。`Rest` は
+tsumekae はすでにこの形になっている。`Rest` は
 `src/types/field.test.ts`（`isRestContext` で 6 箇所）が実測で縛り、
 `src/types/rest.test-d.ts` が公式の型との等価性で縛っている。
 **同じ型を 2 つの機構が縛っていて、いまは一致しているので緑。**
@@ -296,7 +296,7 @@ monosashi はすでにこの形になっている。`Rest` は
 （[9](#9-レイアウトに現れないフィールド)の実測）。
 
 **素の等価性で書くと初日から赤になる。**
-main が赤いままの検査は、monosashi が繰り返し記録している失敗そのもの
+main が赤いままの検査は、tsumekae が繰り返し記録している失敗そのもの
 （「毎回差分が出て、やがて誰も見なくなる」）。
 
 ```ts
@@ -351,7 +351,7 @@ Raw の型  ←→  キーの表  ←→  fixtures/form/definition.json
 **決定**: `type` で判別**できないもの**だけ出す。`isInSubtable` / `isInGroup` / `isTopLevel`。
 `export * as guard` で名前空間に入れる。
 
-**理由**: TypeScript 7.0.2（monosashi と kintone-plugins の双方が使用中）の
+**理由**: TypeScript 7.0.2（tsumekae と kintone-plugins の双方が使用中）の
 型述語推論で、種別ごとのガードは不要になる。実測した。
 
 | 書き方 | 結果 |
@@ -369,12 +369,12 @@ Raw の型  ←→  キーの表  ←→  fixtures/form/definition.json
 
 **捨てた選択肢**
 
-- **monosashi 方式で全種別を書き下す（約 33 個）** ── monosashi が
+- **tsumekae 方式で全種別を書き下す（約 33 個）** ── tsumekae が
   `is(type)` ファクトリと `Narrow<T, Type>` を持つ理由は、
   `Saved` / `Editing` / `Rest` の **3 文脈**をまたぐことと、
   `LooseField`（`value: unknown`）入力で `Extract` が `never` に落ちるのを救うこと。
   kisekae は文脈が 1 つで `value` を持たないので、この複雑さの根拠がまるごと無い。
-  monosashi を参考にするのは実装ではなく**判断の立て方**
+  tsumekae を参考にするのは実装ではなく**判断の立て方**
 - **`isType(["NUMBER", "RADIO_BUTTON"])` のようなパラメータ化ガード** ──
   `f.type === "A" || f.type === "B"` が絞れると分かった時点で不要
 
@@ -491,7 +491,7 @@ draft[tableField.code].value = initialValue;
 4. 需要が弱い。6 本のうち floor-map-3 の 1 本だけ
 
 **継ぎ目はどちらのパッケージにも何も足さずに閉じる。**
-monosashi の `setRowValue(row, code, value: unknown)` が実行時に
+tsumekae の `setRowValue(row, code, value: unknown)` が実行時に
 `VALUE_SHAPE` と突き合わせるので、
 
 ```ts
@@ -518,7 +518,7 @@ setRowValue(newRow, tableField.code, await getInitialValue(tableField));
    `!isStatus(f) && !isStatusAssignee(f)` で除外し、`hideFields` は
    全フィールドに `setFieldShown(code, false)` を呼ぶ（`CATEGORY` に呼ぶと失敗する）
 3. `enabled` を返してしまえば、`enabled` の値が信頼できるかという
-   [実測待ちの問題](../../monosashi/docs/DECISIONS.md#enabled-は使える判定できないは測っていないことを書いていた)が
+   [実測待ちの問題](../../tsumekae/docs/DECISIONS.md#enabled-は使える判定できないは測っていないことを書いていた)が
    どちらに転んでも kisekae は正しい。pretty-fields は絞っていたが、
    それは `enabled` が信頼できる場合にのみ正しい挙動
 
@@ -592,14 +592,14 @@ export type { Field, Form, Raw } from "./types.js";
   `Field.OneOf[]` が主要な語彙になる。単純置換で移行できる
 - **ルートから `OneOf` を直接出さない。** 消費側は複数の型ソースを同じファイルで
   併用している（`shared/src/clients/kintoneClient.ts` は `kintoneRecordFieldGet` と
-  `kintonePrettyType` を同時に import）。monosashi も `Rest.OneOf` を持つ
+  `kintonePrettyType` を同時に import）。tsumekae も `Rest.OneOf` を持つ
 - `Pretty` は使わない。pretty-fields を作り直す動機はあの設計を捨てることなので、
   名前に残すと「整形後 = pretty-fields と同じもの」と読まれる
 
 `from(properties, layout)` は使わない。呼び出し側が `from(f.properties, l.layout)` になり、
-**「何から何へ」が読めない**。monosashi の DECISIONS「型の名前」が
+**「何から何へ」が読めない**。tsumekae の DECISIONS「型の名前」が
 `Live` を捨てた理由と同じ（「読んで分からない」）。
-`to*` は monosashi の規約（`toRestWrite` / `toSetRecord` / `toAddParams`）。
+`to*` は tsumekae の規約（`toRestWrite` / `toSetRecord` / `toAddParams`）。
 返り値に `Form` という名前を与えるのは、消費側がこれを引数に取る関数を必ず書くため。
 
 `guard` を名前空間に入れるのは、`isInSubtable` のような一般的な名前をルートに置くと
@@ -624,7 +624,7 @@ CI とリリースの配線はそちらにある。
 
 kisekae 固有なのは 1 点だけ。**`pack:check` のシナリオは自前に持つ。**
 土台（pack → 空プロジェクトへ install → 依存の実体を確かめる →
-2 モード × 2 バージョンで型検査）は monosashi と共通だが、
+2 モード × 2 バージョンで型検査）は tsumekae と共通だが、
 kisekae には `declare global` も `/kintone` サブパスも無いのでシナリオが別物になる。
 
 代わりに kisekae のシナリオが確かめるのは、この設計の中心そのもの。
@@ -656,26 +656,26 @@ kisekae には `declare global` も `/kintone` サブパスも無いのでシナ
 2. 測るのに要る変更が小さく、モノレポ化と独立している
 3. **ドキュメント分割を先にやると、間違った場所に固定してしまう。**
    どの記述が共有なのかは kisekae 側の実測が出てから正確に判断できる。
-   `enabled` のように「monosashi の結論が kisekae の実測で覆る」ものがある
-4. 先に型を書くのは monosashi が最も強く禁じていること
+   `enabled` のように「tsumekae の結論が kisekae の実測で覆る」ものがある
+4. 先に型を書くのは tsumekae が最も強く禁じていること
    （CLAUDE.md「型に書く前に測る」「根拠のない型を書いてはいけない」）。
    フォーム定義については、ドキュメントを読んで書いた型の怪しい箇所が
    すでに 2 件出ている（`Lookup` の 6 プロパティ、`enabled`）
 
-## monosashi に依存しない
+## tsumekae に依存しない
 
 **決定**: 依存しない。受け渡しの通貨は**素の値**。
 
-monosashi の `setRowValue(row, code, value: unknown)` が `unknown` を受けて
+tsumekae の `setRowValue(row, code, value: unknown)` が `unknown` を受けて
 実行時に検証する設計なので、型で繋ぐ必要がない（[8](#8-初期値の生成は持たない)）。
 
 **捨てた選択肢**
 
-- **kisekae が monosashi に依存する** ── monosashi は実行時依存ゼロを
+- **kisekae が tsumekae に依存する** ── tsumekae は実行時依存ゼロを
   `pack:check` で毎回縛っている。kisekae の利用者は `@kintone/dts-gen` の型を
   使っているかもしれないので、型の世界を 2 つ引き込ませることになる
-- **monosashi が kisekae に依存する** ── 論外。
-  monosashi の DECISIONS が「フォーム定義は守備範囲に入れない」と決めている
+- **tsumekae が kisekae に依存する** ── 論外。
+  tsumekae の DECISIONS が「フォーム定義は守備範囲に入れない」と決めている
 
 ## 移行
 
@@ -697,4 +697,4 @@ monosashi の `setRowValue(row, code, value: unknown)` が `unknown` を受け�
 `shared/src/utils/options.ts` が全プラグイン共通なので、
 移行は kintone-plugins 側の 1 つの PR にまとまる（41 ファイル）。
 
-**deprecated エイリアスは作らない**（monosashi の「10. 移行」と同じ方針）。
+**deprecated エイリアスは作らない**（tsumekae の「10. 移行」と同じ方針）。

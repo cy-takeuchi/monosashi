@@ -3,7 +3,7 @@
 	// ここにはこのパッケージ固有のことだけを書く
 	"extends": "../../tsconfig.base.json",
 	// **`.ts` を置いた場所を全部含める。**
-	// 漏れを test/typecheckScope.test.ts が縛っている（monosashi と同じ）
+	// 漏れを test/typecheckScope.test.ts が縛っている（tsumekae と同じ）
 	"include": ["src/**/*", "*.config.ts"],
 	"exclude": []
 }

@@ -1,6 +1,6 @@
 # 設計判断の記録
 
-`monosashi` の設計を決めるにあたって検討した内容と、その根拠。
+`tsumekae` の設計を決めるにあたって検討した内容と、その根拠。
 
 このドキュメントの目的は「何を決めたか」より **「何を捨てたか、なぜ捨てたか」** を残すこと。
 決定だけならコードを読めば分かるが、却下した選択肢は消えてしまうため、同じ検討を繰り返すことになる。
@@ -20,7 +20,7 @@
 | 環境とツールチェーン（publish / ncu / pnpm / Secret / Actions / TypeScript 2 版検査 / ライブ検証の判定場所） | [`docs/TOOLCHAIN.md`](../../../docs/TOOLCHAIN.md) |
 
 **判断の記録はここ、事実は上。** ここに残っているのは
-「monosashi がなぜそう作られているか」だけ。
+「tsumekae がなぜそう作られているか」だけ。
 kintone がどう振る舞うかは、kisekae にも次のパッケージにも要るので上に置く。
 
 
@@ -78,7 +78,7 @@ kintone のレコードには3つの取得・更新経路があり、それぞ�
 
 - **型定義のみ**（変換関数を持たない） — 上記の理由で `FILE` / `SUBTABLE` の `as` が原理的に消えない
 - **ラッパー API**（`kintone` グローバルを直接触らせない） — kintone の API 面積（`getFieldElement`、`setFieldShown`、mobile 系、一覧画面…）まで抱えることになり維持コストが見合わない。レコードだけラップして他は生 kintone、という混在も学習コストが高い
-- **typeguard を別パッケージに残す** — 「型は monosashi、絞り込みは kintone-typeguard」だと依存が循環的になり、`FFF<A,B,C,D>` のような無理な型合成が再発する。型と絞り込みは同じ場所で定義すべき
+- **typeguard を別パッケージに残す** — 「型は tsumekae、絞り込みは kintone-typeguard」だと依存が循環的になり、`FFF<A,B,C,D>` のような無理な型合成が再発する。型と絞り込みは同じ場所で定義すべき
 
 **kintone-pretty-fields は統合対象外**。フィールド**定義**（`getFormFields`）を扱うもので、
 レコード**値**を扱う本パッケージとは責務が分かれている。
@@ -448,7 +448,7 @@ portal / space / report は公式ドキュメント準拠で書き、
 
 綴りが違うのは 3 つだけで、**コンパイルエラーになるので黙って壊れない**。
 
-| kintone-typeguard | monosashi |
+| kintone-typeguard | tsumekae |
 |---|---|
 | `guardRecord.isDatetime` | `guard.isDateTime` |
 | `guardRecord.isDropDown` | `guard.isDropdown` |
@@ -459,7 +459,7 @@ portal / space / report は公式ドキュメント準拠で書き、
 
 型は 1 対 1 にならない。**ここが移行の見積りを決める。**
 
-| kintone-typeguard | monosashi |
+| kintone-typeguard | tsumekae |
 |---|---|
 | `kintoneRecordFieldGet.Record` | **`SavedRecord` / `EditingRecord` / `RestRecord` の 3 つに割れる** |
 | `kintoneRecordFieldEvent.*` | `EventOf<"app.record.detail.show">` など |
@@ -470,7 +470,7 @@ portal / space / report は公式ドキュメント準拠で書き、
 
 `Get` の 1 型が 3 つに割れるので、**呼び出しごとに「どの文脈のレコードか」を
 判断する必要がある**。3 つを 1 つに潰していたことが kintone-typeguard の
-緩さの正体で、分かれていること自体が monosashi の存在理由でもある。
+緩さの正体で、分かれていること自体が tsumekae の存在理由でもある。
 
 ---
 
@@ -574,8 +574,8 @@ kintone に種別が増えたときは、フィクスチャを採り直す → �
 
 ## グローバル型の拡張を import の副作用にしない
 
-`monosashi` を import してもグローバルは変わらない。
-有効にするには `monosashi/kintone` を明示的に import する。
+`tsumekae` を import してもグローバルは変わらない。
+有効にするには `tsumekae/kintone` を明示的に import する。
 
 **理由**: `toRestWrite` / `field.*` は rest-api-client と組み合わせて
 サーバサイドでも使える。そこで `kintone` グローバルが生えていると
@@ -605,7 +605,7 @@ kintone に種別が増えたときは、フィクスチャを採り直す → �
 突き合わせると、`tsconfig` の `files` の並びだけで勝敗が入れ替わる。
 
 ```
-files: ["own-any.d.ts", "probe.ts"]   → monosashi が勝つ（TS2339 が出る）
+files: ["own-any.d.ts", "probe.ts"]   → tsumekae が勝つ（TS2339 が出る）
 files: ["probe.ts", "own-any.d.ts"]   → 自前の any が勝つ（診断ゼロ）
 ```
 
@@ -619,19 +619,19 @@ files: ["probe.ts", "own-any.d.ts"]   → 自前の any が勝つ（診断ゼロ
 「順に関わらず」と書いていた。**一度の確認を、確かめていない範囲まで広げていた。**
 
 **決定**: 自前の `kintone.d.ts` を持つプロジェクトには
-`monosashi/kintone` を使わせない。向きを逆にして、
+`tsumekae/kintone` を使わせない。向きを逆にして、
 利用者の `declare global` の中で `EditingRecord` / `SetRecord` / `EventOf` を参照させる。
 マージが起きないので順序に依存しない。
 
 そのために `SetRecord` をルートから export する。
 `kintone.app.record.set()` の引数の型は
-`monosashi/kintone` の中のグローバル型としてしか存在せず、
+`tsumekae/kintone` の中のグローバル型としてしか存在せず、
 **ルートからは取れなかった**。導入先で最多の語彙が `Set` 系
 （`kintoneRecordFieldSet` 92 箇所）なので、ここが塞がっていると併用できない。
 
 **エントリを分ける案は採らない。** ぶつかるのは
 `kintone.app.record.get` という宣言箇所そのものなので、
-`monosashi/kintone-record` を作っても同じことが起きる。
+`tsumekae/kintone-record` を作っても同じことが起きる。
 
 順序を入れ替えた 2 通りを `pack:check` のシナリオとして固定した。
 **「自前の any が黙って勝つ」ほうも、その結果を期待値として書いている。**
@@ -861,13 +861,13 @@ kintone の仕様ではない。実アプリのサブテーブルがこの名前
 
 ## kintone グローバルは公式一覧の 166 個すべてを宣言する
 
-**2026-09-08。** それまで `monosashi/kintone` は **9 個**しか宣言していなかった。
+**2026-09-08。** それまで `tsumekae/kintone` は **9 個**しか宣言していなかった。
 
 | | 宣言している数 |
 |---|--:|
 | 公式ドキュメント | 166 |
 | `@kintone/dts-gen` 9.0.8 | 51（31%） |
-| `monosashi/kintone`（当時） | **9（5%）** |
+| `tsumekae/kintone`（当時） | **9（5%）** |
 
 `kintone.app.getId()` も `kintone.api()` も `getLoginUser()` も
 `plugin.app.getConfig()` も無い。**実プラグインは 1 つも書けない。**
@@ -895,7 +895,7 @@ dts-gen の 51 個を含むことも別に確かめている（狭くなった�
 dts-gen を読み込み、レコード周りだけ上書きする案を試して捨てた。
 
 参照が**自分のファイルの中**にあるので、順序は自分で決められる。
-名前空間のマージは後勝ちなので、`get()` は monosashi が勝つ。ここまでは狙いどおり。
+名前空間のマージは後勝ちなので、`get()` は tsumekae が勝つ。ここまでは狙いどおり。
 
 **引数の位置で全部漏れた。**
 
@@ -917,7 +917,7 @@ kintone.events.on("app.record.detial.show", (e) => e);    // タイポも通る
 依存として入れる案も採らない。dts-gen は CLI パッケージで
 `axios` / `lodash` / `commander` / `form-data` / `eslint` / `prettier` を持つ。
 加えて導入先（kintone-plugins）は TypeScript 7 のために dts-gen を捨てており、
-monosashi 経由で戻すことになる。
+tsumekae 経由で戻すことになる。
 
 引き写す案も採らない。51 個は 166 個の真部分集合なので、
 **書けば要らなくなる**。MIT の著作権表示を持ち回る理由が無い。
@@ -1269,7 +1269,7 @@ Type 'SubtableRow<...>[] | SubtableRow<...>[] | SubtableRow<...>[]'
 **2026-09-08。** `Api.DialogConfig` の `body?: Element` と
 `Api.ProxyUploadData` の `value: Blob` が **DOM の型を直接参照していた**。
 
-ルート（`monosashi`）から `Api` を出しているので、
+ルート（`tsumekae`）から `Api` を出しているので、
 `dist/types/jsApi.d.ts` がそれを参照する。
 `lib` に DOM を入れていない利用者（AWS Lambda など）では
 
@@ -1294,7 +1294,7 @@ export type DomElement = typeof globalThis extends {
 最小形でも `document.createElement()` の戻りは構造的に代入できるので、
 ブラウザ側の書き味は変わらない。
 
-**型を隠す案は採らなかった。** `DialogConfig` を `monosashi/kintone` 側に
+**型を隠す案は採らなかった。** `DialogConfig` を `tsumekae/kintone` 側に
 移せばルートは DOM から切れるが、
 自前ヘルパの引数に使いたい利用者がサブパスを import することになる。
 `createDialog` はブラウザ専用 API だが、**その型を扱うコードは Node でも書ける**
@@ -1302,18 +1302,18 @@ export type DomElement = typeof globalThis extends {
 
 検査は `pack:check` の「Node（AWS SAM 相当）」シナリオ。
 `lib: ["ES2022"]`（DOM 無し）かつ `skipLibCheck: false` で、
-`monosashi/kintone` を import しない利用者を通す。
+`tsumekae/kintone` を import しない利用者を通す。
 `Element` を直接書く形に戻すと TS2304 で落ちることを確認した。
 
 ## フォーム定義は守備範囲に入れない
 
 **2026-09-08。** `kintone-typeguard` を閉じるにあたって、
 その `guardFormField`（29 個）と `guardFormLayout`（29 個）を
-monosashi が引き取るべきかを検討した。**引き取らない。**
+tsumekae が引き取るべきかを検討した。**引き取らない。**
 
 **別の対象を判別している。** こちらは `getFormFields` / `getFormLayout` が返す
 **フォームの設定**で、レコードの値ではない。`value` が無いので、
-monosashi のガードは引数の時点で受け取れない（実際に試した）。
+tsumekae のガードは引数の時点で受け取れない（実際に試した）。
 
 ```
 error TS2345: Argument of type 'OneOf' is not assignable to parameter of
@@ -1321,7 +1321,7 @@ type 'LooseField | null | undefined'.
   Property 'value' is missing in type 'Calc' but required in type 'LooseField'.
 ```
 
-**種別の集合も違う。** monosashi は `GROUP` と `REFERENCE_TABLE` を
+**種別の集合も違う。** tsumekae は `GROUP` と `REFERENCE_TABLE` を
 「レコードには現れない」と**実測で確かめて除外**している。
 フォーム定義にはどちらも存在し、さらに `LABEL` / `SPACER` / `HR` という
 フィールドですらないレイアウト要素がある。
@@ -1337,13 +1337,13 @@ type 'LooseField | null | undefined'.
 
 > **2026-09-10 追記: その「別のパッケージ」を作ることにした。**
 > `kisekae`（`kintone-pretty-fields` の作り直し）が引き取る。
-> この節の結論は変わらない ── monosashi はフォーム定義を守備範囲に入れない。
+> この節の結論は変わらない ── tsumekae はフォーム定義を守備範囲に入れない。
 >
 > ただし**検証アプリは共有する**。フォーム定義を測る対象は、
-> monosashi がすでに建てた検証アプリそのもので、二重に建てる理由がない。
+> tsumekae がすでに建てた検証アプリそのもので、二重に建てる理由がない。
 > そのため `tools/fixture-app/layout.ts` に `SPACER` / `LABEL` / `HR` を足した
 > （[フォーム定義を測れる状態にする](#フォーム定義を測れる状態にする)）。
-> これらはレコードに現れないので monosashi の実測には影響しない。
+> これらはレコードに現れないので tsumekae の実測には影響しない。
 >
 > 実測データの所有は分ける。レコードの実測は `fixtures/measured.json`、
 > フォーム定義の実測は `fixtures/form/definition.json`。
@@ -1353,7 +1353,7 @@ type 'LooseField | null | undefined'.
 ## get() → set() の変換はまだ書けない
 
 **2026-09-08。** `kintone-typeguard` の `guardUtils.converterGetToSet` に
-相当するものが monosashi に無い。Q8 の計画には `forJsSet` として書かれていたが、
+相当するものが tsumekae に無い。Q8 の計画には `forJsSet` として書かれていたが、
 実装されないまま残っていた。
 
 **書けない理由は、測っていないから。**
@@ -2342,8 +2342,8 @@ Vite / esbuild minify / tree-shaking 有効。
 
 `import` して使う形の入口にすると、**入口自身のコードが混ざる**。
 最初にそう書いて「型だけ」が 0 B にならず 73 B と出た。
-再輸出だけ（`export * from "monosashi"`）にすれば、
-出た量がそのまま monosashi の分になる。
+再輸出だけ（`export * from "tsumekae"`）にすれば、
+出た量がそのまま tsumekae の分になる。
 
 `sourcemap` も切る。`//# sourceMappingURL=` の 33 B が混ざる。
 この 2 つを直して初めて「型だけ = 0 B」が**基準と一致する形で**出た。
@@ -2397,7 +2397,7 @@ Vite / esbuild minify / tree-shaking 有効。
 変えないまま、**測る足場だけをこのリポジトリに置く**ことにした。
 使うのは `kisekae`（`kintone-pretty-fields` の作り直し）。
 
-### なぜ monosashi のリポジトリに置くのか
+### なぜ tsumekae のリポジトリに置くのか
 
 測る対象が**この検証アプリそのもの**だから。
 `tools/fixture-app/fields.ts` は全 28 種別＋ルックアップ（キー / コピー先 2 つ）＋
@@ -2418,7 +2418,7 @@ Vite / esbuild minify / tree-shaking 有効。
 
 **ブラウザは使わない。** レコードの値は JS API / event / REST の 3 経路で形が違い、
 それを測るために Playwright が要った。フォーム定義は REST の 1 経路しかないので
-Node から素直に採れる。`e2e/` は monosashi のものとして残る。
+Node から素直に採れる。`e2e/` は tsumekae のものとして残る。
 
 レイアウト要素は**1 行に 1 種類ずつ**置いた。混ぜると `updateFormLayout` に
 弾かれたときにどれが原因か分からない。
@@ -2493,7 +2493,7 @@ kintone の関数名そのもので、個人情報ではなく測定の対象。
 
 `kintone-pretty-fields` の実装が正しく、こちらの記述が間違っていた。
 
-### monosashi 側の対応は変えない
+### tsumekae 側の対応は変えない
 
 `tools/fixture-app/verify.ts` はレコードの `type` から検証している。
 これはそのままで正しい（レコードに現れるかどうかは、`enabled` とは別の事実）。

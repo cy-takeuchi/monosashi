@@ -8,7 +8,7 @@
  * | 場所 | 何に対して解決するか |
  * |---|---|
  * | `docRefs.test.ts` | リポジトリの中 |
- * | monosashi の `packCheck.ts` | tarball の中 |
+ * | tsumekae の `packCheck.ts` | tarball の中 |
  * | kisekae の `packCheck.ts` | tarball の中 |
  *
  * **解決先は違うが、抽出は同じ。** 3 つとも同じ正規表現と同じ除外条件

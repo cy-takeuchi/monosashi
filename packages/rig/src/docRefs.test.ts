@@ -12,7 +12,7 @@
  *
  * | 内訳 | |
  * |---|---|
- * | 移動した見出しを古いファイルで指していた | 3 件（`live.yml` / `release-monosashi.yml` / monosashi の CONTRIBUTING） |
+ * | 移動した見出しを古いファイルで指していた | 3 件（`live.yml` / `release-tsumekae.yml` / tsumekae の CONTRIBUTING） |
  * | 存在しない見出し名を指していた | 2 件（kisekae の `toForm.ts` / `packCheck.ts`） |
  * | 移動したファイルを古いパスで指していた | 1 件（kisekae の `collectForm.ts`） |
  *
@@ -212,7 +212,7 @@ describe("パッケージのドキュメントが揃っている", () => {
 	});
 
 	test("公開するパッケージが 2 つある", () => {
-		expect(published.sort()).toEqual(["kisekae", "monosashi"]);
+		expect(published.sort()).toEqual(["kisekae", "tsumekae"]);
 	});
 
 	/** 走査が空振りしていないことの当たり。0 件だと以下が全部素通りする */
@@ -222,7 +222,7 @@ describe("パッケージのドキュメントが揃っている", () => {
 
 	/**
 	 * 公開するパッケージには同じ 4 つを置く。
-	 * kisekae に CONTRIBUTING.md が無く、共通の手順が monosashi の中にだけ
+	 * kisekae に CONTRIBUTING.md が無く、共通の手順が tsumekae の中にだけ
 	 * 書かれていた状態を繰り返さないため
 	 */
 	test.each(["README.md", "CLAUDE.md", "CONTRIBUTING.md", "docs/DECISIONS.md"])(
@@ -242,7 +242,7 @@ describe("パッケージのドキュメントが揃っている", () => {
 	/**
 	 * 各パッケージの CONTRIBUTING がルートを指していること。
 	 *
-	 * **`published` を使う。** 以前はここだけ `["kisekae", "monosashi"]` と
+	 * **`published` を使う。** 以前はここだけ `["kisekae", "tsumekae"]` と
 	 * 書き直していて、3 つめの公開パッケージが増えても検査が追従しなかった。
 	 * 上で計算したものがあるのに書き写すのは、このリポジトリが何度も
 	 * 塞いできた形そのもの

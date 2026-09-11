@@ -653,7 +653,7 @@ declare global {
 	/**
 	 * `kintone.app.record.set()` に渡せるレコード。
 	 *
-	 * 実体は `monosashi` のルートから出ている {@link SetRecord}。
+	 * 実体は `tsumekae` のルートから出ている {@link SetRecord}。
 	 * ここではグローバルな別名として置くだけで、定義を二重に持たない
 	 * （自前の `kintone.d.ts` を持つプロジェクトは、
 	 * ルートから `SetRecord` を import して同じ型を使える）。
@@ -667,7 +667,7 @@ declare global {
 // index.ts からは import しない。ライブラリが利用者のグローバルスコープを
 // 勝手に書き換えないため。使う側が明示的に取り込む。
 //
-//   import "monosashi/kintone";
+//   import "tsumekae/kintone";
 //
 // サーバサイドで toRestWrite などだけを使う利用者に kintone グローバルを
 // 生やすと、実行時に存在しないものをコンパイルが通してしまう。

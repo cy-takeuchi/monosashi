@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| [monosashi](packages/monosashi/CONTRIBUTING.md) | レコードの実測。検証アプリの構築と採取カスタマイズ |
+| [tsumekae](packages/tsumekae/CONTRIBUTING.md) | レコードの実測。検証アプリの構築と採取カスタマイズ |
 | [kisekae](packages/kisekae/CONTRIBUTING.md) | フォーム定義の実測 |
 
 このプロジェクトの原則は 1 つ。**型に書く前に測る。**
@@ -142,7 +142,7 @@ pnpm run check
 パッケージ 1 つだけを回すこともできる。
 
 ```sh
-pnpm --filter monosashi run check
+pnpm --filter tsumekae run check
 pnpm --filter kisekae run check
 ```
 
@@ -180,7 +180,7 @@ publish はタグを打ったときのワークフローだけが行う。**手�
 
 | パッケージ | タグ | ワークフロー |
 |---|---|---|
-| monosashi | `monosashi-v*` | `.github/workflows/release-monosashi.yml` |
+| tsumekae | `tsumekae-v*` | `.github/workflows/release-tsumekae.yml` |
 | kisekae | `kisekae-v*` | `.github/workflows/release-kisekae.yml` |
 
 **ワークフローのファイル名を変えない。** npm の Trusted Publishing は

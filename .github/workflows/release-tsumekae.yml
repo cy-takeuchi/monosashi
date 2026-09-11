@@ -1,6 +1,6 @@
-name: Release monosashi
+name: Release tsumekae
 
-# `monosashi-v*` タグを打つと npm に置く（公開はしない）。
+# `tsumekae-v*` タグを打つと npm に置く（公開はしない）。
 #
 # **kisekae とワークフローを分ける。** npm の Trusted Publishing は
 # owner / repository / **workflow filename** の 3 つに紐づき、
@@ -14,7 +14,7 @@ name: Release monosashi
 # 手元から実行しない」）。CI から公開すれば、その事故が構造的に起きない。
 on:
   push:
-    tags: ["monosashi-v*"]
+    tags: ["tsumekae-v*"]
 
 permissions:
   contents: read
@@ -37,8 +37,8 @@ jobs:
       - name: タグと package.json の version が一致するか
         uses: ./.github/actions/check-tag-version
         with:
-          package: monosashi
-          prefix: monosashi-v
+          package: tsumekae
+          prefix: tsumekae-v
 
       # **ここでステップを並べない。** 理由は check.yml と同じで、
       # 定義は package.json の check ひとつに置く。
@@ -64,9 +64,9 @@ jobs:
       #   pnpm の「publish ブランチにいるか」の確認が必ず落ちる
       # --provenance: pnpm 12 以降のフラグ。id-token: write と対で効く
       - name: npm に置く（公開はしない）
-        working-directory: packages/monosashi
+        working-directory: packages/tsumekae
         run: pnpm stage publish --provenance --no-git-checks
 
       - name: 承認の案内
         run: |
-          echo "::notice::monosashi@${GITHUB_REF_NAME#monosashi-v} を stage した。npmjs.com で 2FA を通して承認すると公開される"
+          echo "::notice::tsumekae@${GITHUB_REF_NAME#tsumekae-v} を stage した。npmjs.com で 2FA を通して承認すると公開される"

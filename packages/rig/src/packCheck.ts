@@ -17,7 +17,7 @@ import { relativeLinks } from "./markdown";
  * **2 つ書き終わったので、いま引ける。** そして 2 本を並べた時点で、
  * すでに 4 つ食い違っていた。
  *
- * | | monosashi | kisekae |
+ * | | tsumekae | kisekae |
  * |---|---|---|
  * | TS 7 の bin | `node_modules/typescript/bin/tsc` | `node_modules/.bin/tsc` |
  * | 診断の出力 | 先頭 8 行で切る | 全部出す |
@@ -257,7 +257,7 @@ export const runPackCheck = ({
 						`      出るはずの診断が出ていない: ${missing.join(", ")}`,
 					);
 				}
-				// **切らずに全部出す。** 以前 monosashi 側は先頭 8 行で切っていた。
+				// **切らずに全部出す。** 以前 tsumekae 側は先頭 8 行で切っていた。
 				// CI で落ちたときに読めないと直せないので、この検査の意味が無くなる
 				if (output.trim() !== "") {
 					console.log(

@@ -13,7 +13,7 @@ import type { Layout, Properties } from "../src/types/raw.js";
  * `toForm` は同期の純粋関数なので、**実 kintone が返した実物をそのまま
  * 入力にできる**。手で作った入力だと「自分が想定した形」しか通らず、
  * kintone が実際に返す形とずれても気づけない
- * （monosashi の DECISIONS「手で作ったオブジェクトは
+ * （tsumekae の DECISIONS「手で作ったオブジェクトは
  * 『他種別の混入』を捕まえられない」と同じ話）。
  *
  * ## パスは cwd 相対

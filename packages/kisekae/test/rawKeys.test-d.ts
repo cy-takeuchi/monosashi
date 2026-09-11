@@ -27,7 +27,7 @@ import type {
  * 縛ったうえで、全件の突き合わせを 1 式で行う。
  * **表に足して対応表に書き忘れると、そこで落ちる。**
  *
- * monosashi の `test/fieldTypes.ts` + `coverage.test.ts` と同じ手口
+ * tsumekae の `test/fieldTypes.ts` + `coverage.test.ts` と同じ手口
  * （あちらは `Record<ObservedFieldType, ...>` で 28 種別を縛っている）。
  */
 

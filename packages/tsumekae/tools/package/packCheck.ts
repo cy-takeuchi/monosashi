@@ -28,7 +28,7 @@ import { runScript } from "@jissoku/rig/run";
  * `exports` が壊れていても build:check は緑のままになる。
  *
  * ここでは `pnpm pack` した tarball を空のプロジェクトに入れ、
- * `monosashi` という名前で読む。利用者と同じ経路になる。
+ * `tsumekae` という名前で読む。利用者と同じ経路になる。
  *
  * kintone に接続しないので、認証情報なしでいつでも回せる。
  */
@@ -41,7 +41,7 @@ import { runScript } from "@jissoku/rig/run";
  * TypeScript 7 の宣言出力で実際に壊れた箇所なので、
  * 解決経路を変えても保たれることを見る。
  */
-const SHIPPED_CONSUMER = shippedConsumer("monosashi");
+const SHIPPED_CONSUMER = shippedConsumer("tsumekae");
 
 /**
  * `@kintone/rest-api-client` を入れていない利用者。
@@ -51,7 +51,7 @@ const SHIPPED_CONSUMER = shippedConsumer("monosashi");
  */
 const CONSUMER = `
 // グローバル拡張はこの副作用 import でのみ有効になる
-import "monosashi/kintone";
+import "tsumekae/kintone";
 import {
 	type Api,
 	type EventOf,
@@ -66,7 +66,7 @@ import {
 	setValue,
 	toSetRecord,
 	toUpdateParams,
-} from "monosashi";
+} from "tsumekae";
 
 // REST で取ったレコードを画面に反映する経路。set() は REST と除く対象が違う
 declare const restRecord2: RestRecord;
@@ -131,13 +131,13 @@ console.log(forSet, forSetCell, catRejected);
 
 /**
  * 自前の `kintone.d.ts` を持つプロジェクトが、
- * **JS API の宣言はそのまま使い、レコードの値の型だけ monosashi から取る**形。
+ * **JS API の宣言はそのまま使い、レコードの値の型だけ tsumekae から取る**形。
  *
- * `monosashi/kintone` は import しない。代わりに自分の `declare global` の中で
+ * `tsumekae/kintone` は import しない。代わりに自分の `declare global` の中で
  * `EditingRecord` / `SetRecord` / `EventOf` を参照する。
  * 名前空間のマージが起きないので、順序に依存しない。
  *
- * `getFormFields` は monosashi 側に無い宣言で、
+ * `getFormFields` は tsumekae 側に無い宣言で、
  * **併用しても自前の宣言を失わない**ことの証拠として置いている。
  */
 const OWN_AMBIENT = `
@@ -146,7 +146,7 @@ import type {
 	EventOf,
 	KintoneEventName,
 	SetRecord,
-} from "monosashi";
+} from "tsumekae";
 
 declare global {
 	namespace kintone {
@@ -187,14 +187,14 @@ declare global {
 }
 `;
 
-/** 自前 ambient に monosashi の型を差し込んだプロジェクトの利用コード */
+/** 自前 ambient に tsumekae の型を差し込んだプロジェクトの利用コード */
 const OWN_AMBIENT_CONSUMER = `
-import { guard } from "monosashi";
+import { guard } from "tsumekae";
 
 // 自前にしか無い宣言が生きている
 const fields = kintone.app.getFormFields();
 
-// get() の値の型は monosashi から来ている
+// get() の値の型は tsumekae から来ている
 const got = kintone.app.record.get();
 if (got !== null) {
 	const cell = got.record.text;
@@ -219,14 +219,14 @@ console.log(fields);
 `;
 
 /**
- * 名前空間がマージされたときに、monosashi 側が採用されたかを見る踏み台。
+ * 名前空間がマージされたときに、tsumekae 側が採用されたかを見る踏み台。
  *
- * monosashi が勝てば「そんなプロパティは無い」で落ちる。
+ * tsumekae が勝てば「そんなプロパティは無い」で落ちる。
  * 自前の any が勝てば **1 つも落ちない**。
  * `any` は TS2339 を出しようがないので、この 1 つで勝敗が決まる。
  */
 const MERGE_PROBE = `
-import "monosashi/kintone";
+import "tsumekae/kintone";
 
 const got = kintone.app.record.get();
 if (got === null) throw new Error("一覧画面では null");
@@ -237,7 +237,7 @@ export { value };
 /**
  * AWS SAM の Lambda 相当。**`kintone` グローバルも DOM も無い**。
  *
- * `monosashi/kintone` を import しない。ルートだけを使う。
+ * `tsumekae/kintone` を import しない。ルートだけを使う。
  * ここが通ることが、サーバサイドで本体だけ使えることの証拠になる。
  */
 const NODE_CONSUMER = `
@@ -248,7 +248,7 @@ import {
 	type RestRecord,
 	toRestWrite,
 	toUpdateParams,
-} from "monosashi";
+} from "tsumekae";
 
 declare const sink: (value: unknown) => void;
 declare const record: RestRecord;
@@ -266,7 +266,7 @@ sink([params, converted, upload, dialog]);
 
 const SCENARIOS: readonly Scenario[] = [
 	{
-		name: "monosashi/kintone をそのまま使う",
+		name: "tsumekae/kintone をそのまま使う",
 		files: { "consumer.ts": CONSUMER },
 		entries: ["consumer.ts"],
 		expected: [],
@@ -279,19 +279,19 @@ const SCENARIOS: readonly Scenario[] = [
 		note: "build:check が相対パスで見ているのと同じ主張を exports マップ経由でも確かめる。行 id と *WithMeta の交差型は TS 7 の宣言出力で実際に壊れた箇所",
 	},
 	{
-		name: "自前 ambient に monosashi の型を差し込む（推奨）",
+		name: "自前 ambient に tsumekae の型を差し込む（推奨）",
 		files: { "own.d.ts": OWN_AMBIENT, "own-consumer.ts": OWN_AMBIENT_CONSUMER },
 		entries: ["own.d.ts", "own-consumer.ts"],
 		expected: [],
 	},
 	{
-		name: "併用: 自前 ambient が先。monosashi が勝つ",
+		name: "併用: 自前 ambient が先。tsumekae が勝つ",
 		files: { "own-any.d.ts": OWN_ANY_AMBIENT, "probe.ts": MERGE_PROBE },
 		entries: ["own-any.d.ts", "probe.ts"],
 		expected: ["TS2339"],
 	},
 	{
-		name: "併用: monosashi が先。自前の any が黙って勝つ",
+		name: "併用: tsumekae が先。自前の any が黙って勝つ",
 		files: { "own-any.d.ts": OWN_ANY_AMBIENT, "probe.ts": MERGE_PROBE },
 		entries: ["probe.ts", "own-any.d.ts"],
 		expected: [],
@@ -329,5 +329,5 @@ const SCENARIOS: readonly Scenario[] = [
 ];
 
 runScript(() => {
-	runPackCheck({ packageName: "monosashi", scenarios: SCENARIOS });
+	runPackCheck({ packageName: "tsumekae", scenarios: SCENARIOS });
 });
