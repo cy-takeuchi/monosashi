@@ -7,10 +7,12 @@
 	"license": "MIT",
 	"exports": {
 		"./client": "./src/client.ts",
+		"./deadExports": "./src/deadExports.ts",
 		"./describeError": "./src/describeError.ts",
 		"./env": "./src/env.ts",
 		"./repoRoot": "./src/repoRoot.ts",
 		"./run": "./src/run.ts",
+		"./sources": "./src/sources.ts",
 		"./toolConvention": "./src/toolConvention.ts"
 	},
 	"scripts": {
