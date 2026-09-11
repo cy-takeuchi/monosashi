@@ -1,11 +1,17 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import {
+	runPackCheck,
+	type Scenario,
+	shippedConsumer,
+} from "@jissoku/rig/packCheck";
 import { runScript } from "@jissoku/rig/run";
 
 /**
  * 公開したときに利用者が本当に使えるかを、tarball を入れて確かめる。
+ * **シナリオだけを持つ。**
+ *
+ * 手順（pack → 空プロジェクトへ install → 依存の実体を確かめる →
+ * 2 モード × 2 バージョンで型検査 → 実行時に読み込む）は
+ * `@jissoku/rig/packCheck` にある。
  *
  * ## なぜ build:check では足りないか
  *
@@ -28,35 +34,14 @@ import { runScript } from "@jissoku/rig/run";
  */
 
 /**
- * 検査する解決方式。
+ * 出荷物の consumer を、パッケージ名で解決して読む。
  *
- * 利用者の tsconfig はまちまちで、`exports` マップの扱いが方式ごとに違う。
- * ここが食い違うと、こちらの `exports` が壊れていても片方だけ通ってしまう。
- *
- * `node10` は入れていない。**TypeScript 7 で削除された**
- * （`Option 'moduleResolution=node10' has been removed`）ので、
- * このパッケージが要求する TS では指定そのものができない。
+ * `build:check` が相対パスで見ているのと**同じ主張**を、`exports` マップ
+ * 経由でもう一度確かめる。サブテーブルの行 `id` と `*WithMeta` の交差型は
+ * TypeScript 7 の宣言出力で実際に壊れた箇所なので、
+ * 解決経路を変えても保たれることを見る。
  */
-/**
- * 検査する TypeScript の版。
- *
- * 導入先（kintone-plugins）は**型チェックが 7、エディタが 5.9**という二重構成。
- * さらに AWS SAM 側は 5 系の別プロジェクト。
- * **どちらか片方でしか通らない `.d.ts` を出すと、片方が黙って any に落ちる。**
- *
- * 5.9 は `typescript-5.9` という別名で devDependency に入れてある
- * （同じパッケージの 2 版を 1 つのプロジェクトに入れるため）。
- * 版を上げるときは両方を上げる。
- */
-const COMPILERS = [
-	{ name: "7", bin: "node_modules/typescript/bin/tsc" },
-	{ name: "5.9", bin: "node_modules/typescript-5.9/bin/tsc" },
-] as const;
-
-const MODES = [
-	{ name: "bundler", module: "ESNext", resolution: "bundler" },
-	{ name: "nodenext", module: "nodenext", resolution: "nodenext" },
-] as const;
+const SHIPPED_CONSUMER = shippedConsumer("monosashi");
 
 /**
  * `@kintone/rest-api-client` を入れていない利用者。
@@ -273,38 +258,19 @@ declare const dialog: Api.DialogConfig;
 sink([params, converted, upload, dialog]);
 `;
 
-type Scenario = {
-	readonly name: string;
-	readonly files: { readonly [fileName: string]: string };
-	/** tsconfig の files。**並び順に意味がある**（下の「順序で勝敗が変わる」を参照） */
-	readonly entries: readonly string[];
-	/**
-	 * 出てほしい診断コード。
-	 *
-	 * 空配列は「1 つも出ないこと」を意味する。
-	 * ぶつかる組み合わせでは**出ないことこそが問題**なので、
-	 * その旨を note に書く。
-	 */
-	readonly expected: readonly string[];
-	/**
-	 * 既定は true（TypeScript の既定に合わせる）。
-	 * false にすると `dist/*.d.ts` そのものが検査対象になる。
-	 */
-	readonly skipLibCheck?: boolean;
-	/**
-	 * 既定は `["ES2022", "DOM"]`。
-	 * DOM を外すと、ブラウザ前提の記述が型の解決に必須になっていないかを見られる。
-	 */
-	readonly lib?: readonly string[];
-	readonly note?: string;
-};
-
 const SCENARIOS: readonly Scenario[] = [
 	{
 		name: "monosashi/kintone をそのまま使う",
 		files: { "consumer.ts": CONSUMER },
 		entries: ["consumer.ts"],
 		expected: [],
+	},
+	{
+		name: "出荷物の consumer をパッケージ名で解決する",
+		files: { "shipped.ts": SHIPPED_CONSUMER },
+		entries: ["shipped.ts"],
+		expected: [],
+		note: "build:check が相対パスで見ているのと同じ主張を exports マップ経由でも確かめる。行 id と *WithMeta の交差型は TS 7 の宣言出力で実際に壊れた箇所",
 	},
 	{
 		name: "自前 ambient に monosashi の型を差し込む（推奨）",
@@ -356,176 +322,6 @@ const SCENARIOS: readonly Scenario[] = [
 	},
 ];
 
-const run = (command: string, args: string[], cwd: string): string =>
-	execFileSync(command, args, { cwd, encoding: "utf8", stdio: "pipe" });
-
-const main = (): void => {
-	const root = process.cwd();
-	const work = mkdtempSync(join(tmpdir(), "monosashi-pack-"));
-	console.log(`作業場所: ${work}`);
-
-	// pack は prepublishOnly を走らせない。dist が最新である前提
-	run("pnpm", ["pack", "--pack-destination", work], root);
-	const tarball = readdirSync(work).find((name) => name.endsWith(".tgz"));
-	if (tarball === undefined) throw new Error("tarball が作られていません");
-	console.log(`tarball: ${tarball}`);
-
-	// 中身を出す。files の入れ忘れはここで目に見える
-	const listed = run("tar", ["-tzf", join(work, tarball)], work)
-		.split("\n")
-		.filter((line) => line !== "")
-		.sort();
-	console.log(`\n同梱 ${listed.length} 件:`);
-	for (const entry of listed) console.log(`  ${entry}`);
-
-	// **出荷される README の相対リンクが tarball の中で解決すること。**
-	// README は npm のページにも、tarball を展開した人の手元にも出る。
-	// `[MIT](../../LICENSE)` はパッケージのルートより上を指していて
-	// **どちらでも解決しなかった**（各パッケージに LICENSE を置いて直した）。
-	// 出荷しないもの（docs/ や fixtures/）へのリンクは絶対 URL にする。
-	//
-	// リポジトリ内のリンク検査（`packages/rig/src/docRefs.test.ts`）は
-	// **リポジトリの中で**解決するかを見るので、ここは見えない。
-	const shipped = new Set(listed);
-	const readme = readFileSync("README.md", "utf8");
-	const dangling: string[] = [];
-	for (const [, link] of readme.matchAll(/\]\(([^)#][^)]*)\)/g)) {
-		if (link === undefined || /^(https?|mailto):/.test(link)) continue;
-		const target = link.split("#")[0] ?? "";
-		if (!shipped.has(join("package", target))) dangling.push(link);
-	}
-	if (dangling.length > 0) {
-		throw new Error(
-			`出荷される README のリンクが tarball の中で解決しません: ${dangling.join(", ")}\n` +
-				"出荷するものは相対リンク、出荷しないものは絶対 URL にしてください",
-		);
-	}
-	console.log(`\nREADME の相対リンク: すべて同梱物を指しています`);
-
-	writeFileSync(
-		join(work, "package.json"),
-		`${JSON.stringify(
-			{
-				name: "monosashi-consumer",
-				private: true,
-				type: "module",
-				dependencies: { monosashi: `file:./${tarball}` },
-			},
-			null,
-			"\t",
-		)}\n`,
-	);
-	console.log("\n利用者のプロジェクトに入れています…");
-	run("pnpm", ["install", "--ignore-workspace"], work);
-
-	// **外部依存がゼロであることを、依存の実体で確かめる。**
-	// REST の型を自前で持つようにした目的がこれ。
-	// うっかり dependencies や peerDependencies を足すと、利用者が
-	// 気づかないうちに実行時依存を背負う
-	const installed = readdirSync(join(work, "node_modules")).filter(
-		(name) => !name.startsWith("."),
-	);
-	console.log(`\n入った依存: ${installed.join(", ")}`);
-	const unexpected = installed.filter((name) => name !== "monosashi");
-	if (unexpected.length > 0) {
-		throw new Error(
-			`monosashi だけを入れたのに他のものが入った: ${unexpected.join(", ")}。` +
-				"REST の型を自前で持つことにした目的が崩れている",
-		);
-	}
-
-	const failures: string[] = [];
-	for (const scenario of SCENARIOS) {
-		console.log(`\n${scenario.name}`);
-		if (scenario.note !== undefined) console.log(`  ${scenario.note}`);
-		for (const [fileName, content] of Object.entries(scenario.files)) {
-			writeFileSync(join(work, fileName), content);
-		}
-
-		for (const mode of MODES) {
-			const configName = `tsconfig.${mode.name}.json`;
-			writeFileSync(
-				join(work, configName),
-				`${JSON.stringify(
-					{
-						compilerOptions: {
-							strict: true,
-							noEmit: true,
-							target: "ES2022",
-							module: mode.module,
-							moduleResolution: mode.resolution,
-							skipLibCheck: scenario.skipLibCheck ?? true,
-							lib: scenario.lib ?? ["ES2022", "DOM"],
-							// 導入先（kintone-plugins）に合わせる。
-							// TypeScript 7 は @types を暗黙に取り込まないので、
-							// 5 系でも同じ条件になるよう明示的に空にする
-							types: [],
-						},
-						files: scenario.entries,
-					},
-					null,
-					"\t",
-				)}\n`,
-			);
-
-			for (const compiler of COMPILERS) {
-				const label = `${mode.name} / TS ${compiler.name}`;
-				let output = "";
-				try {
-					run(join(root, compiler.bin), ["-p", configName], work);
-				} catch (error) {
-					output = String(
-						(error as { stdout?: string }).stdout ?? String(error),
-					);
-				}
-				const missing = scenario.expected.filter(
-					(code) => !output.includes(code),
-				);
-				const unexpected =
-					scenario.expected.length === 0 && output.trim() !== "";
-
-				if (missing.length === 0 && !unexpected) {
-					console.log(`  ✅ ${label}`);
-					continue;
-				}
-				console.log(`  ❌ ${label}`);
-				if (missing.length > 0) {
-					console.log(
-						`      出るはずの診断が出ていない: ${missing.join(", ")}`,
-					);
-				}
-				for (const line of output.split("\n").slice(0, 8)) {
-					if (line.trim() !== "") console.log(`      ${line}`);
-				}
-				failures.push(`${scenario.name} / ${label}`);
-			}
-		}
-	}
-
-	// 型が通っても読み込めなければ意味がない
-	console.log("\n実行時に読み込めるか:");
-	try {
-		const out = run(
-			"node",
-			[
-				"--input-type=module",
-				"-e",
-				"const m = await import('monosashi'); console.log(Object.keys(m).sort().join(', '));",
-			],
-			work,
-		);
-		console.log(`  ✅ ${out.trim()}`);
-	} catch (error) {
-		console.log(
-			`  ❌ ${String((error as { stderr?: string }).stderr ?? error)}`,
-		);
-		failures.push("実行時の読み込み");
-	}
-
-	if (failures.length > 0) {
-		throw new Error(`利用者の立場で失敗: ${failures.join(", ")}`);
-	}
-	console.log("\n利用者の立場から問題ありません。");
-};
-
-runScript(main);
+runScript(() => {
+	runPackCheck({ packageName: "monosashi", scenarios: SCENARIOS });
+});

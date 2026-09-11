@@ -36,6 +36,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix, relative } from "node:path";
 import { describe, expect, test } from "vitest";
+import { relativeLinks } from "./markdown";
 import { repoRoot } from "./repoRoot";
 
 const root = repoRoot();
@@ -111,19 +112,25 @@ const withoutCode = (text: string): string =>
 
 describe("Markdown のリンクが実在する", () => {
 	const broken: string[] = [];
+	let checkedLinks = 0;
 	for (const file of markdown) {
 		const text = withoutCode(readFileSync(join(root, file), "utf8"));
-		for (const [, link] of text.matchAll(/\]\(([^)#][^)]*)\)/g)) {
-			if (link === undefined || /^(https?|mailto):/.test(link)) continue;
-			const target = normalize(
-				posix.join(posix.dirname(file), link.split("#")[0] ?? ""),
-			);
+		// 抽出は `markdown.ts`。pack:check（tarball の中で解決するか）と
+		// 同じ形を 3 箇所に写していたので、抽出だけを 1 箇所にした
+		for (const link of relativeLinks(text)) {
+			checkedLinks += 1;
+			const target = normalize(posix.join(posix.dirname(file), link));
 			if (!existsSync(join(root, target))) broken.push(`${file} → ${link}`);
 		}
 	}
 
 	test("断リンクが無い", () => {
 		expect(broken).toEqual([]);
+	});
+
+	/** リンクが 0 件だと、この検査は何も見ずに緑になる */
+	test("リンクを実際に拾えている", () => {
+		expect(checkedLinks).toBeGreaterThan(15);
 	});
 });
 

@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { log } from "@jissoku/rig/client";
+import { writeJson } from "@jissoku/rig/json";
 import { runScript } from "@jissoku/rig/run";
 import { countFields, normalizeForm } from "./normalizeForm";
 
@@ -27,9 +28,8 @@ const main = (): void => {
 	const raw: unknown = JSON.parse(readFileSync(IN, "utf8"));
 	const normalized = normalizeForm(raw);
 
-	// 差分を行単位で読めるように整形して書く。
-	// 1 行の巨大な JSON だと diff が「1 行変わった」としか言わない
-	writeFileSync(OUT, `${JSON.stringify(normalized, null, "\t")}\n`);
+	// 整形と末尾改行の理由は writeJson の JSDoc
+	writeJson(OUT, normalized);
 
 	log(`${IN} (${normalized.apps.length} アプリ) → ${OUT}`);
 	for (const { role, count } of countFields(normalized)) {
