@@ -323,16 +323,21 @@ describe("ケースごとに画面を作り直す", () => {
 describe("測定用レコードの作り方", () => {
 	// **重複禁止フィールドをそのまま渡すと落ちる。**
 	// filledRecord は検証アプリの構築でも使っており、そこで作ったレコードが
-	// 同じ値を持っている。2 件目として作るときは差し替えが要る
+	// 値を持っている。2 件目として作るときは別の値が要る
 	// （2026-09-08 に [400] [CB_VA01] で踏んだ）。
 	//
-	// unique な種別が増えたら、ここが落ちて差し替え漏れに気づける
-	test("unique なフィールドは測定用レコードで差し替えている", () => {
+	// 値は `UniqueValues` で呼び出し側に渡させる形にしたので、
+	// **渡し忘れそのものは tsc が落とす**。ここが見るのは
+	// 「unique な種別が増えたのに UniqueValues に足していない」漏れ。
+	// 足し忘れると、その新しいフィールドだけまた決め打ちに戻る
+	test("unique なフィールドは UniqueValues が全部持っている", () => {
 		const fields = codeOf("tools/fixture-app/fields.ts", "unique: true");
-		const spec = codeOf("e2e/collect.spec.ts", "filledRecord(probeFileKeys");
-		const probeBlock = spec.slice(spec.indexOf("filledRecord(probeFileKeys"));
+		const records = codeOf("tools/fixture-app/records.ts", "UniqueValues");
+		const uniqueType = records.slice(
+			records.indexOf("export type UniqueValues"),
+		);
 
-		// アプリ本体の unique フィールドを拾う（参照先アプリの分は除く）
+		// アプリ本体の unique フィールドを拾う。
 		// 参照先アプリ（lookupAppFields）の unique は別アプリなので除く
 		const main = fields.slice(
 			fields.indexOf("export const fixtureAppBaseFields"),
@@ -343,7 +348,7 @@ describe("測定用レコードの作り方", () => {
 		expect(uniques.length).toBeGreaterThan(0);
 
 		const missing = uniques.filter(
-			(code) => code !== undefined && !probeBlock.includes(code),
+			(code) => code !== undefined && !uniqueType.includes(code),
 		);
 		expect(missing).toEqual([]);
 	});

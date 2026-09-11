@@ -5,6 +5,8 @@ import type {
 	FieldParent,
 	Form,
 	Group,
+	LookupNumberProperty,
+	LookupSingleLineTextProperty,
 	Parent,
 	Table,
 	Unplaced,
@@ -59,6 +61,30 @@ export class FormDefinitionError extends Error {
 /** サブテーブル所属。`Parent` から取り出す */
 type SubtableParent = Extract<Parent, { type: "SUBTABLE" }>;
 
+/**
+ * ルックアップのキーフィールドを種別ごとに分ける。
+ *
+ * **`type` を書き直す。** 実行時にやることは同じだが、
+ * `{ ...property }` のままだと `type` が
+ * `"NUMBER" | "SINGLE_LINE_TEXT"` の 2 値で残り、
+ * 利用者側で `filter` の推論が死ぬ（分けた理由そのもの）。
+ *
+ * 6 プロパティしか無いので書き下す（2026-09-10 実測）。
+ *
+ * **2 箇所にあった。** レイアウトに置かれたもの（`lookupField`）と
+ * `unplaced` 行きのもので同じ写しを持っていて、
+ * プロパティが増えたときに片方だけ直る形になっていた。
+ */
+const splitLookup = (
+	property: Property.Lookup,
+): LookupSingleLineTextProperty | LookupNumberProperty => {
+	const { code, label, noLabel, required, lookup } = property;
+	const common = { code, label, noLabel, required, lookup };
+	return property.type === "NUMBER"
+		? { type: "NUMBER", ...common }
+		: { type: "SINGLE_LINE_TEXT", ...common };
+};
+
 export const toForm = (
 	properties: Properties,
 	layout: readonly Layout.OneOf[],
@@ -81,24 +107,15 @@ export const toForm = (
 	};
 
 	/**
-	 * ルックアップのキーフィールド。
+	 * ルックアップのキーフィールド。所属を付けて返す。
 	 *
-	 * **`type` を書き直して種別ごとに分ける。**
-	 * 実行時にやることは同じだが、`{ ...property }` のままだと
-	 * `type` が `"NUMBER" | "SINGLE_LINE_TEXT"` の 2 値で残り、
-	 * 利用者側で `filter` の推論が死ぬ（分けた理由そのもの）。
-	 *
-	 * 6 プロパティしか無いので書き下す（2026-09-10 実測）。
+	 * 分割そのものは `splitLookup`。ここは `parent` を足すだけ。
 	 */
 	const lookupField = <P extends FieldParent>(
 		property: Property.Lookup,
 		parent: P,
 	): (Field.LookupSingleLineText | Field.LookupNumber) & { parent: P } => {
-		const { code, label, noLabel, required, lookup } = property;
-		const common = { code, label, noLabel, required, lookup, parent };
-		return property.type === "NUMBER"
-			? { type: "NUMBER", ...common }
-			: { type: "SINGLE_LINE_TEXT", ...common };
+		return { ...splitLookup(property), parent };
 	};
 
 	/** 行に置かれたフィールド。所属はトップレベル（`null`）かグループ */
@@ -220,13 +237,9 @@ export const toForm = (
 	for (const [code, property] of Object.entries(properties)) {
 		if (placed.has(code)) continue;
 		if ("lookup" in property) {
-			const { label, noLabel, required, lookup } = property;
-			const common = { code, label, noLabel, required, lookup };
-			unplaced.push(
-				property.type === "NUMBER"
-					? { type: "NUMBER", ...common }
-					: { type: "SINGLE_LINE_TEXT", ...common },
-			);
+			// 置かれていないルックアップも種別ごとに分ける。
+			// 分け方は `splitLookup` の 1 箇所（所属を付けないだけの違い）
+			unplaced.push(splitLookup(property));
 			continue;
 		}
 		if (property.type === "SUBTABLE") {

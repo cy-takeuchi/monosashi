@@ -28,11 +28,6 @@ export const emptyRecord = (): Record<string, { value: unknown }> => ({
 /**
  * 全項目入力済みレコード。
  *
- * **`singleLineTextUnique` は重複禁止（`unique: true`）。**
- * これを 2 件目として作るときは値を差し替えないと
- * `[400] [CB_VA01] 入力内容が正しくありません。` で落ちる
- * （2026-09-08 に踏んだ。set() の測定用レコードを追加で作ったとき）。
- *
  * fileKey は実行時にアップロードして差し込むため引数で受ける。
  * kintone の fileKey は 1 回しか使えないため、添付を置く箇所の数だけ必要。
  * ここでは本体の file と サブテーブル1行目の t_file で 2 つ使う。
@@ -41,13 +36,33 @@ export const emptyRecord = (): Record<string, { value: unknown }> => ({
  */
 export const FILE_SLOT_COUNT = 2;
 
+/**
+ * 重複禁止（`unique: true`）フィールドの値。
+ *
+ * **既定値を置かない。** 以前は `filledRecord` が `"unique-001"` を
+ * 決め打ちし、2 件目を作る呼び出し側が上書きする**約束**になっていた。
+ * 約束は守られないことがある（2026-09-08 に
+ * `[400] [CB_VA01] 入力内容が正しくありません。` で踏んだ）。
+ * 引数にすれば、渡し忘れた呼び出しを tsc が落とす。
+ *
+ * **呼び出しごとに変える値を既定にもしない。** 入力した値は実測データに
+ * そのまま残る（正規化は `type` で判定するので `SINGLE_LINE_TEXT` は伏せない）。
+ * 検証アプリのテストレコードが毎回違う値になると、週次のライブ検証で
+ * 本物の変化が差分に埋もれる。**固定にするか変えるかは用途で違う**ので、
+ * 呼び出し側が決める。
+ */
+export type UniqueValues = {
+	singleLineTextUnique: string;
+};
+
 export const filledRecord = (
 	fileKeys: string[],
 	loginCode: string,
+	unique: UniqueValues,
 ): Record<string, { value: unknown }> => ({
 	singleLineText: { value: "文字列1行の値" },
 	singleLineTextRequired: { value: "必須-入力済みケース" },
-	singleLineTextUnique: { value: "unique-001" },
+	singleLineTextUnique: { value: unique.singleLineTextUnique },
 	multiLineText: { value: "複数行\nの値" },
 	richText: { value: "<div>リッチ<b>テキスト</b></div>" },
 	number: { value: "1234.5" },

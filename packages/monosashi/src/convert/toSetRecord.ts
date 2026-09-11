@@ -1,8 +1,5 @@
-import type {
-	LooseField,
-	LooseRecord,
-	LooseSubtableRow,
-} from "../types/loose.js";
+import type { LooseField, LooseRecord } from "../types/loose.js";
+import { isSubtableRows } from "../types/loose.js";
 import type { SetRecord } from "../types/record.js";
 import { isExcludedOnSet } from "./setFieldTypes.js";
 
@@ -66,13 +63,6 @@ export const toSetRecord = (record: LooseRecord): SetRecord => {
 
 	return out;
 };
-
-const isSubtableRows = (value: unknown): value is LooseSubtableRow[] =>
-	Array.isArray(value) &&
-	value.every(
-		(row) =>
-			typeof row === "object" && row !== null && "value" in (row as object),
-	);
 
 /**
  * フィールド 1 つを `set()` に渡せる形にする。
