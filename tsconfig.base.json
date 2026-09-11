@@ -1,0 +1,26 @@
+{
+	// 3 パッケージ共通の compilerOptions。
+	//
+	// **同じ 14 項目が 3 つの tsconfig.json に写されていた。**
+	// 写した先が増えるほど、片方だけ緩めたときに気づけなくなる。
+	// 特に noUncheckedIndexedAccess と exactOptionalPropertyTypes は、
+	// 外すと「通るコードが増える」方向に効くので、ずれても誰も落ちない。
+	//
+	// 各パッケージの tsconfig.json には include / exclude だけを残す。
+	// そこはパッケージごとに本当に違う（monosashi だけ e2e と examples を持つ）。
+	"compilerOptions": {
+		"target": "ESNext",
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"types": ["node"]
+	}
+}
