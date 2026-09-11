@@ -4,7 +4,7 @@
  * 走査は `@jissoku/rig` が持つ（理由はそちらの JSDoc）。
  * ここは自分のツリーの根と、公開入口を渡すだけ。
  *
- * **monosashi にしか無かった。** biome がファイル内の未使用しか見ないのは
+ * **tsumekae にしか無かった。** biome がファイル内の未使用しか見ないのは
  * どちらのパッケージでも同じで、kisekae は `src` / `test` / `tools` の
  * 3 ツリーを持ちながら同じ穴が開いたままだった。
  */
@@ -17,7 +17,7 @@ import { describe, expect, test } from "vitest";
 /**
  * 公開 API を持つファイル。
  *
- * `package.json` の `exports` は `.` の 1 つだけ（monosashi と違って
+ * `package.json` の `exports` は `.` の 1 つだけ（tsumekae と違って
  * `declare global` を持たないのでサブパスが要らない）。
  */
 const PUBLIC_ENTRIES = ["src/index.ts"];

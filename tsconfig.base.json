@@ -7,7 +7,7 @@
 	// 外すと「通るコードが増える」方向に効くので、ずれても誰も落ちない。
 	//
 	// 各パッケージの tsconfig.json には include / exclude だけを残す。
-	// そこはパッケージごとに本当に違う（monosashi だけ e2e と examples を持つ）。
+	// そこはパッケージごとに本当に違う（tsumekae だけ e2e と examples を持つ）。
 	"compilerOptions": {
 		"target": "ESNext",
 		"lib": ["DOM", "DOM.Iterable", "ESNext"],

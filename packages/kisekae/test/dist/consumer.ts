@@ -4,7 +4,7 @@
  * ## なぜ src のテストでは足りないか
  *
  * `.d.ts` への出力は型推論とは別の処理で、**推論結果を保てないことがある**。
- * monosashi では TypeScript 7 へ上げたときに
+ * tsumekae では TypeScript 7 へ上げたときに
  * `field.subtableRow` の戻り値から `id?: never` が落ち、
  * src に対する tsc も vitest の型テストも全て通ったまま、
  * パッケージを入れた利用者側だけが壊れる状態になった。

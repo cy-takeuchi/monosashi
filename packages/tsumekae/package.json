@@ -1,6 +1,6 @@
 {
-	"name": "monosashi",
-	"version": "0.4.0",
+	"name": "tsumekae",
+	"version": "0.1.0",
 	"type": "module",
 	"description": "Measurement-backed TypeScript types, converters and typeguards for kintone records.",
 	"license": "MIT",
@@ -8,9 +8,9 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/cy-takeuchi/jissoku.git",
-		"directory": "packages/monosashi"
+		"directory": "packages/tsumekae"
 	},
-	"homepage": "https://github.com/cy-takeuchi/jissoku/tree/main/packages/monosashi#readme",
+	"homepage": "https://github.com/cy-takeuchi/jissoku/tree/main/packages/tsumekae#readme",
 	"bugs": {
 		"url": "https://github.com/cy-takeuchi/jissoku/issues"
 	},

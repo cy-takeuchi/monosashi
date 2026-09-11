@@ -15,7 +15,7 @@ import { OFFICIAL_JS_APIS } from "./jsApi";
  * ## dts-gen より狭くなっていないこと
  *
  * 併せて `@kintone/dts-gen` が宣言しているものをすべて含むかも見る。
- * monosashi が dts-gen の置き換えを名乗る以上、**狭くなったら意味が無い**。
+ * tsumekae が dts-gen の置き換えを名乗る以上、**狭くなったら意味が無い**。
  * dts-gen の 51 個は公式一覧の真部分集合なので、
  * 公式一覧を満たしていれば自動的に満たされる。それを明示的に確かめる。
  */

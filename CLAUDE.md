@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| `packages/monosashi` | レコードの値の型・変換関数・型ガード（公開） |
+| `packages/tsumekae` | レコードの値の型・変換関数・型ガード（公開） |
 | `packages/kisekae` | フォーム定義を整形して返す（公開） |
 | `packages/rig` | 実測の足場。認証・クライアント・実行の入口（**公開しない**） |
 
@@ -23,14 +23,14 @@ PR の説明、そして応答のすべて。
 
 | 根拠 | 場所 |
 |---|---|
-| レコードの値 | `packages/monosashi/fixtures/measured.json` |
+| レコードの値 | `packages/tsumekae/fixtures/measured.json` |
 | フォーム定義 | `packages/kisekae/fixtures/form/definition.json` |
 
 実測データを手で編集しない。採取スクリプトで生成する。
 
 **測った範囲より広いことを書かない。** キーの存在を確かめて値の意味まで
 結論した記述が実際に 1 つあり、実測で否定された
-（`packages/monosashi/docs/DECISIONS.md`「enabled は使える」）。
+（`packages/tsumekae/docs/DECISIONS.md`「enabled は使える」）。
 実測の記述には**何を確かめたのか**を書く。
 
 ## 根拠は 3 つの機構で縛る
@@ -68,19 +68,19 @@ CI のワークフローにステップを並べない。定義は `package.json
 実 kintone に接続するコマンド（`e2e` / `app:*` / `probe:*` / `fixture:form` の採取側）は
 認証情報が要り、実際のアプリを操作する。**依頼されていなければ実行しない。**
 
-認証情報の渡し方は `packages/monosashi/CONTRIBUTING.md`。
+認証情報の渡し方は `packages/tsumekae/CONTRIBUTING.md`。
 
 ## 検証アプリは 1 つ
 
 **2 つのパッケージが同じアプリを測る。** 定義は
-`packages/monosashi/tools/fixture-app/`（レコードの実測が主な用途なのでそこにある）。
+`packages/tsumekae/tools/fixture-app/`（レコードの実測が主な用途なのでそこにある）。
 kisekae は建ったアプリを読むだけ。
 
 そのため**ライブ検証は 1 つのワークフローに直列で入れ、concurrency を共有する**。
 分けると `app:build` が採取中に走る事故が「たまに落ちるジョブ」として現れる。
 
 kisekae が必要としてレイアウトに足したもの（`SPACER` / `LABEL` / `HR`）は
-レコードに現れないので monosashi の実測には影響しない。
+レコードに現れないので tsumekae の実測には影響しない。
 
 ## リリース
 
@@ -88,7 +88,7 @@ kisekae が必要としてレイアウトに足したもの（`SPACER` / `LABEL`
 
 | パッケージ | タグ | ワークフロー |
 |---|---|---|
-| monosashi | `monosashi-v*` | `release-monosashi.yml` |
+| tsumekae | `tsumekae-v*` | `release-tsumekae.yml` |
 | kisekae | `kisekae-v*` | `release-kisekae.yml` |
 
 **ワークフローのファイル名を変えない。** npm の Trusted Publishing は

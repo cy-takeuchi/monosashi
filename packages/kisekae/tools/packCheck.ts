@@ -29,7 +29,7 @@ import { runScript } from "@jissoku/rig/run";
  * 4 つめを外すと**型が黙って any に落ちる**のを見逃す。
  * 利用者は既定の `skipLibCheck: true` で使うので、こちらの `.d.ts` が
  * 壊れていてもエラーにならない。他のシナリオは「通ること」しか見ていないので
- * any でも緑になる（monosashi の DECISIONS
+ * any でも緑になる（tsumekae の DECISIONS
  * 「『通ること』しか見ない検査は any を捕まえられない」）。
  *
  * ## 利用者のコードは 1 本

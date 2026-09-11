@@ -11,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
  *
  * 一方 `pnpm run` はスクリプトを**そのパッケージのディレクトリ**で実行するので、
  * cwd 相対の `".env"` はパッケージの中を指してしまう。
- * モノレポにした時点で壊れる（`tools/` が `packages/monosashi/tools/` に移る）。
+ * モノレポにした時点で壊れる（`tools/` が `packages/tsumekae/tools/` に移る）。
  *
  * ## 目印は pnpm-workspace.yaml
  *

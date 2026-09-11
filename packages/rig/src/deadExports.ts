@@ -8,14 +8,14 @@ import { expandSources, withoutComments } from "./sources";
  *
  * `biome --error-on-warnings` は**ファイル内**の未使用は見るが、
  * **export した先が無いこと**は見ない。
- * monosashi でこれを足した時点で、1 度も呼ばれていない export が 2 つあった
+ * tsumekae でこれを足した時点で、1 度も呼ばれていない export が 2 つあった
  * （`e2e/panel.ts` の `sampleCount` は最初のコミットから、
  * `test/jsApi.ts` の `OfficialJsApi` は #10 から）。
  *
  * ## なぜ rig が持つのか
  *
  * 理由（biome はファイル内しか見ない）がパッケージに依存しないのに、
- * **monosashi にしか無かった。** kisekae は `src` / `test` / `tools` の
+ * **tsumekae にしか無かった。** kisekae は `src` / `test` / `tools` の
  * 3 ツリーを持ちながら、同じ穴が開いたままだった。
  * 写して回ると片方だけ古くなるので、走査をここに置いて
  * 各パッケージは根とその公開入口だけを渡す。

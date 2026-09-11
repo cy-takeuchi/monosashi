@@ -6,7 +6,7 @@
 **利用するだけなら読む必要はない**（使い方は [README](README.md)）。
 
 このパッケージが測るのは**フォーム定義**（`getFormFields` / `getFormLayout`）。
-**検証アプリを建てるのは monosashi 側で、kisekae は建ったアプリを読むだけ。**
+**検証アプリを建てるのは tsumekae 側で、kisekae は建ったアプリを読むだけ。**
 
 - [実測の手順](#実測の手順)
 - [型を足すとき](#型を足すとき)
@@ -26,14 +26,14 @@ kintone に接続するコマンドの実行の形は
 
 ### 前提: 検証アプリが建っていること
 
-**monosashi 側で建てる。** 定義は `../monosashi/tools/fixture-app/` にあり、
+**tsumekae 側で建てる。** 定義は `../tsumekae/tools/fixture-app/` にあり、
 `.env` の `FIXTURE_APP_ID` / `FIXTURE_LOOKUP_APP_ID` を kisekae も読む。
-手順は [monosashi の CONTRIBUTING](../monosashi/CONTRIBUTING.md#一度だけ-検証アプリを用意する)。
+手順は [tsumekae の CONTRIBUTING](../tsumekae/CONTRIBUTING.md#一度だけ-検証アプリを用意する)。
 
 **アプリは 1 つを 2 つのパッケージで共有している。**
 フォーム定義に要素（`SPACER` / `LABEL` / `HR`）やフィールドを足したいときは
-`../monosashi/tools/fixture-app/layout.ts` と `fields.ts` を直す。
-そこに足したものはレコードには現れないので monosashi の実測には影響しない
+`../tsumekae/tools/fixture-app/layout.ts` と `fields.ts` を直す。
+そこに足したものはレコードには現れないので tsumekae の実測には影響しない
 （理由は [`../../CLAUDE.md`](../../CLAUDE.md)「検証アプリは 1 つ」）。
 
 ### 毎回: 採取して基準データを作り直す
@@ -45,7 +45,7 @@ pnpm test                   # 型の主張を新しい実測に対して検証
 ```
 
 **ブラウザが要らない。** フォーム定義は REST の 2 つの API が返すもので経路が 1 つ。
-レコードの値は JS API / event / REST の 3 経路で形が違うので monosashi は
+レコードの値は JS API / event / REST の 3 経路で形が違うので tsumekae は
 Playwright で採っているが、こちらは Node から素直に採れる。
 
 **採取と正規化を分けてある。** `tools/collectForm.ts` は採るだけ、
@@ -63,11 +63,11 @@ pnpm run app:collect-form && pnpm run fixture:form \
   && git diff --stat fixtures/form/definition.json
 ```
 
-**`fixtures/` の直下に置かない。** monosashi の `test/fixtures.ts` の
+**`fixtures/` の直下に置かない。** tsumekae の `test/fixtures.ts` の
 `loadSamples` が `fixtures/` の `.json` を全部読んで `store.samples` を展開するので、
 `samples` を持たないファイルを直下に置くと**レコードのテストが全部壊れる**
 （実際に 22 件落とした。
-[`../monosashi/docs/DECISIONS.md`](../monosashi/docs/DECISIONS.md)「fixtures/ の直下は「実測サンプル」専用」）。
+[`../tsumekae/docs/DECISIONS.md`](../tsumekae/docs/DECISIONS.md)「fixtures/ の直下は「実測サンプル」専用」）。
 `fixtures/live/` と同じくサブディレクトリに置く。
 
 ## 型を足すとき
@@ -118,7 +118,7 @@ pnpm run pack:check
 | ブラウザの型が無い環境（Node / AWS Lambda 相当） | `lib` に DOM が無くても通る |
 | `dist/*.d.ts` 自体を検査（`skipLibCheck: false`） | 利用者は既定の `skipLibCheck: true` なので、**`.d.ts` が壊れていてもエラーにならず型が黙って `any` に落ちる**。上の 3 つは「通ること」しか見ていないので、`any` でも緑になる |
 
-**src のテストでは足りない。** monosashi で TS 7 に上げたときに
+**src のテストでは足りない。** tsumekae で TS 7 に上げたときに
 `field.subtableRow` の戻り値から `id?: never` が宣言出力から落ち、
 src に対する tsc も型テストも全部通ったまま**利用者側だけが壊れた**。
 `test/dist/consumer.ts` がその穴を塞いでいる。
@@ -148,7 +148,7 @@ git push origin main && git push origin kisekae-v0.1.1
 ### 測った範囲より広いことを書かない
 
 キーの存在を確かめただけで値の意味まで結論した記述が、実際に 1 件あって
-実測で否定された（[`../monosashi/docs/DECISIONS.md`](../monosashi/docs/DECISIONS.md)「enabled は使える」）。
+実測で否定された（[`../tsumekae/docs/DECISIONS.md`](../tsumekae/docs/DECISIONS.md)「enabled は使える」）。
 **実測の記述には何を確かめたのかを書く。**
 
 `enabled` については「設定を反映するか」を測って、反映することを確認した。
@@ -160,17 +160,17 @@ git push origin main && git push origin kisekae-v0.1.1
 `src/types/raw.ts` は `@kintone/rest-api-client` の型を再エクスポートしない。
 委譲すると、利用者がそれを入れていない場合に `skipLibCheck: true`（TS の既定）で
 **型が `any` に落ち、`strict` も `noImplicitAny` も警告も効かない**
-（monosashi で全ての緩和策が効かないことを確かめた。
+（tsumekae で全ての緩和策が効かないことを確かめた。
 [`../../docs/KINTONE.md`](../../docs/KINTONE.md)）。
 
 自前で持つと解決すべき外部モジュールが無くなり、この問題が構造的に消える。
 公式との乖離は `src/types/raw.test-d.ts` の等価性テストで縛る
 （devDependency はこのリポジトリに常に在る）。
 
-### monosashi に依存しない
+### tsumekae に依存しない
 
-`package.json` に `monosashi` は入っていない。
+`package.json` に `tsumekae` は入っていない。
 フォーム定義とレコードの値は別のもので、共有する型が無い
-（`docs/DECISIONS.md`「monosashi に依存しない」）。
+（`docs/DECISIONS.md`「tsumekae に依存しない」）。
 
 共有するのは実測の足場（`@jissoku/rig`）と検証アプリだけ。

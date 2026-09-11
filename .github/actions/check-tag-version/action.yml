@@ -4,7 +4,7 @@ description: タグの前置を外した値が package.json の version と一�
 # タグだけ進めて version を上げ忘れる事故を止める。
 # npm は同じ version を二度受け付けないので、気づくのが publish 失敗時では遅い。
 #
-# **release-monosashi.yml と release-kisekae.yml に同じ 8 行があった。**
+# **release-tsumekae.yml と release-kisekae.yml に同じ 8 行があった。**
 # ワークフロー自体は分けたままにする（Trusted Publishing がファイル名に
 # 紐づく。ルートの CLAUDE.md）が、中身の写しは分ける理由が無い。
 
@@ -13,7 +13,7 @@ inputs:
     description: packages/ 配下のディレクトリ名
     required: true
   prefix:
-    description: タグの前置（monosashi-v / kisekae-v）
+    description: タグの前置（tsumekae-v / kisekae-v）
     required: true
 
 runs:

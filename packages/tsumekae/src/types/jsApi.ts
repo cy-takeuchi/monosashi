@@ -177,7 +177,7 @@ export namespace Api {
 	 * 種別ごとに持つプロパティが違う。
 	 * ここは実測の対象外なので、共通部分だけを型にして残りは緩くしてある。
 	 * 厳密な型が要るなら `kintone-pretty-fields` を併用する
-	 * （monosashi はフォーム設定を守備範囲にしていない）。
+	 * （tsumekae はフォーム設定を守備範囲にしていない）。
 	 */
 	export type FormField = {
 		type: string;

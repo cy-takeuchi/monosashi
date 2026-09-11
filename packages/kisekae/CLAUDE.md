@@ -17,8 +17,8 @@ kintone の**フォーム定義**（`getFormFields` / `getFormLayout`）を、
 **`fixtures/form/definition.json` が唯一の根拠。** 手で編集しない。
 `pnpm run app:collect-form` → `pnpm run fixture:form` で生成する。
 
-測る対象は monosashi が建てた検証アプリ。**同じアプリを 2 つのパッケージが測る。**
-アプリの定義は `../monosashi/tools/fixture-app/` にある。
+測る対象は tsumekae が建てた検証アプリ。**同じアプリを 2 つのパッケージが測る。**
+アプリの定義は `../tsumekae/tools/fixture-app/` にある。
 レイアウトに要素（`SPACER` / `LABEL` / `HR`）が要るときはそこを直す。
 
 ## 根拠は 3 つの機構で縛る

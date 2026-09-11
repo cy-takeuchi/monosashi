@@ -6,6 +6,13 @@
 kintone 自体の事実は [`KINTONE.md`](KINTONE.md)、
 パッケージの設計判断は各 `packages/*/docs/DECISIONS.md`。
 
+> **この文書は日付つきの記録なので、当時の名前をそのまま残している。**
+> `tsumekae` は 0.4.0 まで `monosashi` という名前だった（2026-09-11 に改名）。
+> リポジトリ名（`cy-takeuchi/monosashi` → `cy-takeuchi/jissoku`）・npm の
+> publish 履歴・既に打ったタグ（`monosashi-v*`）はどれも実際に起きたことなので、
+> 書き換えると記録が嘘になる。**「いまこうなっている」を述べている節だけ**
+> 新しい名前にしてある（パッケージの一覧・リリースのタグ表）。
+
 ## モノレポは既存の monosashi のリポジトリを使う
 
 **2026-09-10。** kisekae を作るにあたって、リポジトリを分けるか 1 つにするかを決めた。
@@ -59,7 +66,7 @@ owner / repository / workflow filename に紐づいていて、
 
 | | 公開 | 中身 |
 |---|---|---|
-| `packages/monosashi` | する | レコード。検証アプリの定義もここ |
+| `packages/tsumekae` | する | レコード。検証アプリの定義もここ |
 | `packages/kisekae` | する | フォーム定義 |
 | `packages/rig` | **しない** | 認証・kintone クライアント・実行の入口 |
 
@@ -67,14 +74,14 @@ owner / repository / workflow filename に紐づいていて、
 
 **入れたのは 5 つだけ**（`env` / `repoRoot` / `client` / `describeError` / `run`）。
 
-**検証アプリの構築（`tools/fixture-app/`）は monosashi に残した。**
+**検証アプリの構築（`tools/fixture-app/`）は tsumekae に残した。**
 アプリの定義はレコードの実測が主な用途で、kisekae は建ったアプリを読むだけ。
 共有しているのは**建っているアプリそのもの**で、定義するコードではない。
 
 **`pack:check` も共有しない。** 土台（pack → 空プロジェクトへ install →
 依存の実体を確かめる → 2 モード × 2 バージョンで型検査）は共通だが、
-**シナリオが別物**。monosashi の 507 行のうち大半は利用者側のソースを
-文字列で埋め込んだシナリオで、25 箇所が monosashi 固有だった。
+**シナリオが別物**。tsumekae の 507 行のうち大半は利用者側のソースを
+文字列で埋め込んだシナリオで、25 箇所が tsumekae 固有だった。
 kisekae には `declare global` も `/kintone` サブパスも無い。
 
 引数化して一般化はしない。シナリオを書くための DSL を作ることになる。
@@ -111,7 +118,7 @@ cwd 相対の `".env"` はモノレポにした時点で壊れる。
 
 **`packages/*/dist` と書く。** `**/dist` にすると、検査対象のソースである
 `packages/*/test/dist/consumer.ts` まで巻き込む。
-monosashi は移行前から `.gitignore` に `/dist`（先頭スラッシュ）と書いて
+tsumekae は移行前から `.gitignore` に `/dist`（先頭スラッシュ）と書いて
 この罠を避けていた。モノレポではその手が使えないので、階層を明示する。
 
 **`biome.json` は JSON でコメントを置けない。** 理由はここに書く。
@@ -124,7 +131,7 @@ biome が処理しようとして警告が出た（`--error-on-warnings` なの�
 
 | パッケージ | タグ | ワークフロー |
 |---|---|---|
-| monosashi | `monosashi-v*` | `release-monosashi.yml` |
+| tsumekae | `tsumekae-v*` | `release-tsumekae.yml` |
 | kisekae | `kisekae-v*` | `release-kisekae.yml` |
 
 **1 つのワークフローで両方を publish しない。** Trusted Publishing の接続が
@@ -674,3 +681,50 @@ repository が変わる時点で作り直しが必要になる。同じ 1 回の
 
 タグの前置そのものは紐づけに含まれないので、いつでも変えられる。
 **変えにくいのはワークフローのファイル名の方**という非対称がある。
+
+## パッケージ名を monosashi から tsumekae に変えた
+
+**2026-09-11。** `monosashi` 0.4.0 を最後に、`tsumekae` 0.1.0 として出し直す。
+
+**理由はリポジトリ名と同じ層を指していたから。**
+
+| | 名前が指していたもの |
+|---|---|
+| `jissoku`（リポジトリ） | 方法論（推測ではなく実測で型を書く） |
+| `monosashi` | **方法論の比喩（測る道具）── リポジトリと同じ層** |
+| `kisekae` | パッケージの仕事（フォーム定義を整形する） |
+| `rig` | 役割（足場）。**実際に「測る道具」なのはこれ** |
+
+`kisekae` だけが「何をするか」で名付けられていて、`monosashi` は
+「このリポジトリがどういう前提か」で名付けられていた。
+しかも**測っているのは `rig` と `e2e/` と `src/probe/`** で、
+`monosashi` はその成果物。道具の名前が成果物に付いていた。
+
+`tsumekae`（詰め替え）は変換関数がやっていることの直訳で、
+`kisekae` と韻も軸も揃う。**同じ中身を別の容器に移す**
+── `toRestWrite` / `toSetRecord` はまさにそれで、
+「書き込みは REST と `set()` で要件が違う」は**容器ごとに詰め方が違う**と読める。
+
+### 0.4.0 の続きではなく 0.1.0 から始める
+
+npm 上は別のパッケージなので、版を引き継ぐ理由がない。
+`monosashi` 0.4.0 の利用者から見ると、`tsumekae` 0.1.0 は**中身が同じ別物**。
+版を 0.5.0 から始めると「0.4.0 からの続き」に見えて、
+npm 上に 0.1.0〜0.4.0 が無いことの説明が要る。
+
+### 初回公開は OIDC が使えない
+
+[新しいパッケージの初回公開は monosashi の前例が通らない](#2026-09-10-新しいパッケージの初回公開は-monosashi-の前例が通らない)
+と同じ壁を踏む。**その手順は 2027-01 以降は使えなくなる**ので、
+改名するなら今しかなかった、というのが時期を決めた理由でもある。
+
+| | |
+| --- | --- |
+| ワークフロー | `release-monosashi.yml` を `release-tsumekae.yml` にリネーム |
+| タグ | `monosashi-v*` → `tsumekae-v*` |
+| Trusted Publisher | **初回 publish のあとに npmjs.com で作る**（パッケージが存在しないと設定できない） |
+| 旧パッケージ | `npm deprecate monosashi "renamed to tsumekae"` を人が実行する |
+
+`release-monosashi.yml` は消した。`monosashi` はもう publish しないので、
+残しても `packages/monosashi` が無くて失敗するだけになる。
+

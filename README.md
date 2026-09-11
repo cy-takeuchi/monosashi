@@ -4,7 +4,7 @@ kintone が実際に返す形を測り、それを根拠に型を書く。
 
 | | |
 |---|---|
-| [monosashi](packages/monosashi) | レコードの値の型・変換関数・型ガード |
+| [tsumekae](packages/tsumekae) | レコードの値の型・変換関数・型ガード |
 | [kisekae](packages/kisekae) | フォーム定義を整形して返す |
 
 どちらも**実行時依存を持たない**。`@kintone/rest-api-client` は
@@ -28,7 +28,7 @@ kintone が実際に返す形を測り、それを根拠に型を書く。
 
 | | |
 |---|---|
-| `packages/monosashi` | 公開。レコード |
+| `packages/tsumekae` | 公開。レコード |
 | `packages/kisekae` | 公開。フォーム定義 |
 | `packages/rig` | 非公開。認証・クライアント・実行の入口を 2 つで共有する |
 
@@ -51,7 +51,7 @@ pnpm run check
 
 | | |
 |---|---|
-| [monosashi](packages/monosashi/CONTRIBUTING.md) | レコードの実測。検証アプリの構築と採取カスタマイズ |
+| [tsumekae](packages/tsumekae/CONTRIBUTING.md) | レコードの実測。検証アプリの構築と採取カスタマイズ |
 | [kisekae](packages/kisekae/CONTRIBUTING.md) | フォーム定義の実測 |
 
 ## ライセンス

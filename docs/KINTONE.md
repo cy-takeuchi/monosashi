@@ -8,14 +8,14 @@
 
 **測った範囲より広いことを書かない。** 「常に返る」を確かめて
 「判定できない」と結論した記述が実際に 1 つあり、実測で否定された
-（`packages/monosashi/docs/DECISIONS.md`「enabled は使える」）。
+（`packages/tsumekae/docs/DECISIONS.md`「enabled は使える」）。
 **何を確かめたのかを書く。**
 
 根拠のデータは 2 つ。
 
 | | |
 |---|---|
-| レコードの値 | `packages/monosashi/fixtures/measured.json` |
+| レコードの値 | `packages/tsumekae/fixtures/measured.json` |
 | フォーム定義 | `packages/kisekae/fixtures/form/definition.json` |
 
 ---
@@ -219,7 +219,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **アプリ削除の REST API が無い** | `AppClient` に `deleteApp` は存在しない。UI からしか消せない | 検証アプリ構築を再実行可能にし、既存アプリを再利用する（`tools/fixture-app/build.ts`） |
 | **カテゴリー設定の REST API が無い** | `getAppSettings` / `updateAppSettings` にも含まれない | 手動設定。`app:verify` がレコードの `type` から未設定を検出して警告 |
 | プロセス管理は自動化できる | `updateProcessManagement` が存在する | `build.ts` で `STATUS` / `STATUS_ASSIGNEE` を作る |
-| **`getFormFields` は CATEGORY / STATUS を、設定が無効でも常に返す** | プロセス管理を有効化していないアプリでも `カテゴリー` / `ステータス` / `作業者` が返る（2026-08-30 実測）。一方レコードにはこれらの type は現れない。**ただし `enabled` が設定を反映するので、返ってくること自体は判定の妨げにならない**（2026-09-10 実測。[`enabled` は使える。「判定できない」は測っていないことを書いていた](../packages/monosashi/docs/DECISIONS.md#enabled-は使える判定できないは測っていないことを書いていた)） | 検証はレコードの `type` から行う（`tools/fixture-app/verify.ts`）。`enabled` で判定する形にも変えられるが、レコード側の検証はそのままで正しいので急がない。フィールドコードは環境の言語で変わる（`カテゴリー` / `Categories`）ので**コード名ではなく `type` で判定する** |
+| **`getFormFields` は CATEGORY / STATUS を、設定が無効でも常に返す** | プロセス管理を有効化していないアプリでも `カテゴリー` / `ステータス` / `作業者` が返る（2026-08-30 実測）。一方レコードにはこれらの type は現れない。**ただし `enabled` が設定を反映するので、返ってくること自体は判定の妨げにならない**（2026-09-10 実測。[`enabled` は使える。「判定できない」は測っていないことを書いていた](../packages/tsumekae/docs/DECISIONS.md#enabled-は使える判定できないは測っていないことを書いていた)） | 検証はレコードの `type` から行う（`tools/fixture-app/verify.ts`）。`enabled` で判定する形にも変えられるが、レコード側の検証はそのままで正しいので急がない。フィールドコードは環境の言語で変わる（`カテゴリー` / `Categories`）ので**コード名ではなく `type` で判定する** |
 | **`addFormFields` は参照先フィールドが先に必要** | ルックアップの `fieldMappings`、関連レコード一覧の `condition.field` | 2パスに分割。1回にまとめると `CB_VA01` で弾かれる |
 | **`addApp` はプレビュー環境にしか作らない** | `deployApp` するまで運用環境の API（`getApp` / `getRecords`）からは 404 になる。デプロイ前に失敗するとアプリはプレビューにだけ残る | 参照するときは `preview: true` を使う。`tools/fixture-app/inspect.ts` で状態を確認できる |
 | **`op run` は環境変数側の `op://` も解決しようとする** | env ファイルだけでなく、継承した環境変数に含まれる参照も対象。`~/.claude/settings.json` などで設定された参照が別 vault を指していると、無関係なコマンドが vault エラーで落ちる | 実行時に `env -u` で外す。**外す変数を列挙してはいけない**（2026-09-02: 列挙していたら後から増えた変数で落ちた）。`op://` を値に持つ変数を毎回数え上げる形にする（README 参照） |
@@ -245,7 +245,7 @@ changes.row   = changes.field.value 内の行と同一オブジェクト（テ�
 | **`<button>` の `value` は `""` を返す** | 調査コードで `aria-label ?? title ?? value ?? textContent` と繋いだら、`value` が `""` で止まって**すべてのボタンの文字が消えた**。採取パネルのボタン 10 個を「無い」と読み違えた | 空でない最初の候補を選ぶ。`??` は空文字を通す |
 | **印刷画面は `window.print()` を呼ぶ** | Playwright ではブラウザの印刷ダイアログを閉じられず、開くと以降の操作が全て止まる（実測: テストが 30 秒でタイムアウト） | 遷移前に `addInitScript` で `window.print` を空関数に差し替える。kintone の DOM には触らない |
 | **委譲は「検出できない `any`」と引き換えだった** | `Rest` を `@kintone/rest-api-client` に委ねていたが、利用者がそれを入れていないと `skipLibCheck: true`（TS の既定）で型が `any` に落ち、`strict` も `noImplicitAny` も警告も効かない。緩和策も全て効かなかった（optional peer は無信号、必須 peer も pnpm は自動インストールも警告もしない、型側の `any` 検出はモジュール未解決時に型エイリアス全体が `any` になり条件型に到達しない） | **自前で持つ。** 解決すべき外部モジュールが無くなり構造的に消える。定義は 55 行で、`Entity` / `FileInformation` は既存のものを使える。乖離は `rest.test-d.ts` の等価性テストで縛る（devDependency はこのリポジトリに常に在る） |
-| **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `monosashi/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
+| **型だけの依存でも、利用者は実行時のコードを引く** | `@kintone/rest-api-client` を参照しているのは `RestRecord` の定義だけなのに、`dependencies` にあると全利用者が 7MB と axios ほか 5 個を入れることになる。さらに `skipLibCheck: false` の利用者は rest-api-client の `.d.ts` 経由で `@types/node` を要求される（`https` / `Buffer` / `stream`） | REST の型を `tsumekae/rest` に切り出し、依存を optional な peerDependency にする。本体は一切依存しない |
 | **peerDependency が無いと型は黙って `any` になる** | 入れずに読み、`Rest.Number` に `{ type: "SINGLE_LINE_TEXT", value: 123 }` を代入しても `skipLibCheck: true`（TS の既定）ではエラーにならない。`skipLibCheck: false` なら `TS2307` で落ちる | **消せない**ので、被る範囲を「REST の型を明示的に読んだ人」に限定する。挙動自体は `pack:check` で固定し、変わったら気づけるようにする |
 | **既定の registry が npmjs とは限らない** | この環境では `https://npm.flatt.tech/`（社内プロキシ）を向いていた。明示しないと `pnpm publish` がそちらへ行く | `publishConfig.registry` で公開先を固定する |
 | **CI がステップを並べると、手元と CI がずれる** | 手元で「CI と同じもの」を回すのに YAML を読む必要があり、片方だけ更新されても気づかない。実際、CI に `pack:check` が入っておらず `exports` が壊れても緑のままだった | 検査の定義は `package.json` の `check` 1 箇所に置き、CI はそれを呼ぶだけにする |
@@ -491,7 +491,7 @@ change イベントは行数の反映より遅れて飛ぶため、
 ## フォーム定義の実測でわかったこと
 
 **2026-09-10。** `app:collect-form` の初回。kisekae の型の骨格を決めるために採った
-（[フォーム定義を測れる状態にする](../packages/monosashi/docs/DECISIONS.md#フォーム定義を測れる状態にする)）。
+（[フォーム定義を測れる状態にする](../packages/tsumekae/docs/DECISIONS.md#フォーム定義を測れる状態にする)）。
 **4 件のうち 3 件で、ドキュメント由来の主張が外れた。**
 
 ### ルックアップのキーフィールドは 6 プロパティだけ返す（公式の型が正しい）

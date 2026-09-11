@@ -11,8 +11,8 @@ import { readdirSync, statSync } from "node:fs";
  * | 場所 | 何を集めていたか |
  * |---|---|
  * | `toolConvention.ts` | `tools/` の `.ts` |
- * | `monosashi/test/deadExports.test.ts` | `src` / `test` / `tools` / `e2e` の `.ts` |
- * | `monosashi/test/typecheckScope.test.ts` の `hasTypeScript` | `.ts` を 1 つでも持つか |
+ * | `tsumekae/test/deadExports.test.ts` | `src` / `test` / `tools` / `e2e` の `.ts` |
+ * | `tsumekae/test/typecheckScope.test.ts` の `hasTypeScript` | `.ts` を 1 つでも持つか |
  * | 同 `typeTests` | `*.test-d.ts` |
  *
  * しかもコメント落としが 2 実装あって**挙動が違った**。

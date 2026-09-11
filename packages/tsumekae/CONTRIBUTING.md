@@ -1,6 +1,6 @@
-# 開発する（monosashi）
+# 開発する（tsumekae）
 
-**monosashi 固有の手順**。共通の手順は
+**tsumekae 固有の手順**。共通の手順は
 [リポジトリのルートの CONTRIBUTING](../../CONTRIBUTING.md) にある
 （セットアップ / 認証情報 / スペース / 検査 / 依存 / 公開）。
 **利用するだけなら読む必要はない**（使い方は [README](README.md)）。
@@ -135,7 +135,7 @@ pnpm run pack:check
 ```
 
 `pnpm pack` した tarball を空のプロジェクトに入れ、
-**`monosashi` という名前で**読めるかを確かめる。kintone には接続しない。
+**`tsumekae` という名前で**読めるかを確かめる。kintone には接続しない。
 
 `build:check`（`test/dist/consumer.ts`）は `.d.ts` の劣化を捕まえるが、
 `../../dist/index` と**相対パスで**読んでいるので
@@ -153,21 +153,21 @@ pnpm run pack:check
 
 手順と npmjs.com 側の設定は
 [ルートの CONTRIBUTING](../../CONTRIBUTING.md#公開する)。
-monosashi 固有なのは次の 2 つだけ。
+tsumekae 固有なのは次の 2 つだけ。
 
 | | |
 |---|---|
-| タグ | **`monosashi-v*`**（`v*` ではない。モノレポではどちらのパッケージか言えないため） |
-| ワークフロー | `.github/workflows/release-monosashi.yml` |
+| タグ | **`tsumekae-v*`**（`v*` ではない。モノレポではどちらのパッケージか言えないため） |
+| ワークフロー | `.github/workflows/release-tsumekae.yml` |
 
 ```sh
-vim packages/monosashi/package.json      # version を上げる
-git commit -am "chore(monosashi): 0.3.1"
-git tag -a monosashi-v0.3.1 -m "monosashi 0.3.1"
-git push origin main && git push origin monosashi-v0.3.1
+vim packages/tsumekae/package.json      # version を上げる
+git commit -am "chore(tsumekae): 0.3.1"
+git tag -a tsumekae-v0.3.1 -m "tsumekae 0.3.1"
+git push origin main && git push origin tsumekae-v0.3.1
 ```
 
-承認は https://www.npmjs.com/package/monosashi で行う。
+承認は https://www.npmjs.com/package/tsumekae で行う。
 
 ## 設計上の要点
 

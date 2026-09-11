@@ -30,7 +30,7 @@ import { build } from "vite";
  *
  * `import` して使う形の入口にすると、**入口自身のコードが混ざる**。
  * 最初にそう書いて「型だけ」が 0 B にならず、73 B と出た。
- * 再輸出だけなら出た量がそのまま monosashi の分になる。
+ * 再輸出だけなら出た量がそのまま tsumekae の分になる。
  *
  * `sourcemap` は切る。`//# sourceMappingURL=` の 33 B が混ざる。
  */
@@ -39,24 +39,21 @@ import { build } from "vite";
 const CASES = [
 	{
 		label: "**型だけ**（`import type`）",
-		source: 'export type { SavedRecord } from "monosashi";\n',
+		source: 'export type { SavedRecord } from "tsumekae";\n',
 	},
-	{ label: "`guard.*` だけ", source: 'export { guard } from "monosashi";\n' },
-	{ label: "全部（`import * as`）", source: 'export * from "monosashi";\n' },
+	{ label: "`guard.*` だけ", source: 'export { guard } from "tsumekae";\n' },
+	{ label: "全部（`import * as`）", source: 'export * from "tsumekae";\n' },
 ] as const;
 
 type Measured = { label: string; raw: number; gzip: number };
 
 const measure = async (source: string): Promise<Omit<Measured, "label">> => {
-	const entry = join(
-		mkdtempSync(join(tmpdir(), "monosashi-size-")),
-		"entry.ts",
-	);
+	const entry = join(mkdtempSync(join(tmpdir(), "tsumekae-size-")), "entry.ts");
 	writeFileSync(entry, source);
 
 	const result = await build({
 		logLevel: "silent",
-		resolve: { alias: { monosashi: join(process.cwd(), "dist/index.js") } },
+		resolve: { alias: { tsumekae: join(process.cwd(), "dist/index.js") } },
 		build: {
 			write: false,
 			sourcemap: false,

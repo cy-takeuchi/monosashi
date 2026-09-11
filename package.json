@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"packageManager": "pnpm@12.3.4",
-	"description": "実測に基づく kintone の型のモノレポ。monosashi（レコード）と kisekae（フォーム定義）。",
+	"description": "実測に基づく kintone の型のモノレポ。tsumekae（レコード）と kisekae（フォーム定義）。",
 	"license": "MIT",
 	"scripts": {
 		"check": "pnpm run biome:check && pnpm -r --workspace-concurrency=1 run check",

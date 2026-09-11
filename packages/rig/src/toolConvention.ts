@@ -21,7 +21,7 @@ import { sources, withoutComments } from "./sources";
  * | トップレベルの `main()` 呼び出し | `runScript` を通さず `main()` を呼ぶ形 | **`main` を持たないスクリプト** |
  * | `package.json` の `tsx <path>` | 実際に叩かれる入口すべて | スクリプトに登録していないもの |
  *
- * **1 つめだけでは足りなかった。** `monosashi` の `tools/fixture/build.ts` は
+ * **1 つめだけでは足りなかった。** `tsumekae` の `tools/fixture/build.ts` は
  * `main` を定義せずトップレベルで実行していたので、`fixture:build` という
  * 立派な入口でありながら検査を素通りしていた。
  * 同じ役割の kisekae `tools/formDefinition.ts` は `runScript` を通しており、

@@ -1,6 +1,21 @@
-# monosashi
+# tsumekae
 
 実測に基づく kintone レコードの型・変換関数・型ガード。
+
+> **`monosashi` を改名したものです。** 0.4.0 まで `monosashi` という名前で
+> 公開していました。**中身は同じ**で、`tsumekae` 0.1.0 は `monosashi` 0.4.0 と
+> 同じコードです。import 元の名前だけ読み替えてください。
+>
+> ```diff
+> - import { guard, toRestWrite } from "monosashi";
+> - import "monosashi/kintone";
+> + import { guard, toRestWrite } from "tsumekae";
+> + import "tsumekae/kintone";
+> ```
+>
+> 名前を変えた理由は
+> [`docs/TOOLCHAIN.md`](https://github.com/cy-takeuchi/jissoku/blob/main/docs/TOOLCHAIN.md)
+> の「パッケージ名を monosashi から tsumekae に変えた」。
 
 `@kintone/dts-gen` の `kintone.d.ts` は `kintone.app.record.get()` も
 `kintone.events.on()` のハンドラ引数も `any` で、レコード周りの型を提供していない。
@@ -39,15 +54,15 @@ e2e が実 kintone を操作して採り直せる。
 ## 使い方
 
 ```sh
-pnpm add monosashi
+pnpm add tsumekae
 ```
 
 ```ts
 // kintone が用意しているグローバル変数 `kintone` に型を付けるための import。
 // 値は何も入ってこない（型だけ）。プロジェクトのどこかに 1 回書けば全体に効く
-import "monosashi/kintone";
+import "tsumekae/kintone";
 
-import { guard, setValue, toUpdateParams } from "monosashi";
+import { guard, setValue, toUpdateParams } from "tsumekae";
 
 // 同じ「数値」フィールドでも、どの画面のイベントかで value の型が違う
 kintone.events.on("app.record.detail.show", (event) => {
@@ -81,12 +96,12 @@ if (got !== null) {
 | 実行環境 | ブラウザと Node の両方 |
 | 実行時依存 | **ゼロ** |
 
-`monosashi/kintone` を import しなければ、`kintone` グローバルも DOM も要らない。
+`tsumekae/kintone` を import しなければ、`kintone` グローバルも DOM も要らない。
 AWS Lambda などサーバサイドで本体だけを使える。
 
 ```ts
 // lib に DOM を入れていなくても通る
-import { field, toUpdateParams } from "monosashi";
+import { field, toUpdateParams } from "tsumekae";
 ```
 
 ## API
@@ -109,8 +124,8 @@ import { field, toUpdateParams } from "monosashi";
 
 ### `kintone` グローバル
 
-`monosashi` を import しても `kintone` グローバルは型付けされない。
-有効にするには `monosashi/kintone` を明示的に import する
+`tsumekae` を import しても `kintone` グローバルは型付けされない。
+有効にするには `tsumekae/kintone` を明示的に import する
 （ライブラリが利用者のグローバルスコープを勝手に書き換えないため）。
 
 [公式ドキュメントの JS API 一覧](https://cybozu.dev/ja/kintone/docs/js-api/)
@@ -125,16 +140,16 @@ import { field, toUpdateParams } from "monosashi";
 | **公式ドキュメント** | それ以外すべて（`Api` 名前空間）。返る値の形は確かめていない |
 
 **自前の `kintone.d.ts` を持っているなら、置き換えればよい。**
-残したい場合は `monosashi/kintone` を import せず、自分の `declare global` の中で
+残したい場合は `tsumekae/kintone` を import せず、自分の `declare global` の中で
 `EditingRecord` / `SetRecord` / `EventOf` を参照する
-（理由と手順は [DECISIONS](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/docs/DECISIONS.md)）。
+（理由と手順は [DECISIONS](https://github.com/cy-takeuchi/jissoku/blob/main/packages/tsumekae/docs/DECISIONS.md)）。
 
 ### `guard.*`
 
 **28 種別すべてにある。** 判定は `field.type === "その種別"` の一点で、構造は見ない。
 
 ```ts
-import { guard } from "monosashi";
+import { guard } from "tsumekae";
 
 // undefined と null を受ける。前もって存在チェックを書かなくてよい
 if (!guard.isSubtable(record[code])) return;
@@ -191,7 +206,7 @@ if (guard.isSingleLineText(text) && guard.hasValue(text)) {
 ### REST で取ったレコードを画面に反映する
 
 ```ts
-import { toSetRecord } from "monosashi";
+import { toSetRecord } from "tsumekae";
 
 const { record } = await client.record.getRecord({ app, id });
 kintone.app.record.set({ record: toSetRecord(record) });
@@ -199,12 +214,12 @@ kintone.app.record.set({ record: toSetRecord(record) });
 
 ## もっと詳しく
 
-- [`fixtures/measured.json`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
-- [`fixtures/write-behavior.md`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
-- [`fixtures/set-behavior.md`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
-- [設計判断の記録](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
+- [`fixtures/measured.json`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/tsumekae/fixtures/measured.json) — 型の唯一の根拠。実測データそのもの
+- [`fixtures/write-behavior.md`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/tsumekae/fixtures/write-behavior.md) — REST 書き込みの受け入れ挙動（20 ケース）
+- [`fixtures/set-behavior.md`](https://github.com/cy-takeuchi/jissoku/blob/main/packages/tsumekae/fixtures/set-behavior.md) — `kintone.app.record.set()` の受け入れ挙動（22 ケース）
+- [設計判断の記録](https://github.com/cy-takeuchi/jissoku/blob/main/packages/tsumekae/docs/DECISIONS.md) — 何を決めたか、**何を捨てたか、なぜ捨てたか**。
   実測で判明した kintone / API の制約と、**測り方を間違えた記録**も入っている
-- [開発する](https://github.com/cy-takeuchi/jissoku/blob/main/packages/monosashi/CONTRIBUTING.md) — 実測の手順。共通の手順は[ルート](https://github.com/cy-takeuchi/jissoku/blob/main/CONTRIBUTING.md)
+- [開発する](https://github.com/cy-takeuchi/jissoku/blob/main/packages/tsumekae/CONTRIBUTING.md) — 実測の手順。共通の手順は[ルート](https://github.com/cy-takeuchi/jissoku/blob/main/CONTRIBUTING.md)
 
 ## ライセンス
 

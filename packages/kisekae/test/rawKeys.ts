@@ -15,7 +15,7 @@
  * 型だけを直しても同じ。実測が変わったら `rawFixture.test.ts` が落ちる。
  * **3 つのうち 2 つが一致していても通らない**ので、写し間違いが残らない。
  *
- * monosashi の `test/fieldTypes.ts` + `coverage.test.ts` / `coverage.test-d.ts` と
+ * tsumekae の `test/fieldTypes.ts` + `coverage.test.ts` / `coverage.test-d.ts` と
  * 同じ手口。あちらは 28 種別を 4 箇所に書き下すことを縛っている。
  *
  * ## ルックアップだけ type で引けない

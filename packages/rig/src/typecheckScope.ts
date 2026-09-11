@@ -6,7 +6,7 @@ import { sourceDirs, sources } from "./sources";
  *
  * ## なぜ要るか
  *
- * monosashi の `tsconfig.json` の `include` に `e2e/**` が無く、**840 行の
+ * tsumekae の `tsconfig.json` の `include` に `e2e/**` が無く、**840 行の
  * `e2e/panel.ts` と 491 行の `e2e/collect.spec.ts` が長期間、型を誰にも
  * 見られていなかった**（`const x: number = "文字列"` を入れても check が緑）。
  *
@@ -18,13 +18,13 @@ import { sourceDirs, sources } from "./sources";
  *
  * 2 つ目は vitest の `typecheck`。**`enabled: false` にすると
  * `*.test-d.ts` は落ちるのではなく収集されなくなる**
- * （monosashi で実測: 16 → 11 ファイル、356 → 287 テスト。
+ * （tsumekae で実測: 16 → 11 ファイル、356 → 287 テスト。
  * 嘘の型主張を入れたまま緑になる）。減ったことは表示されない。
  *
  * ## なぜ rig が持つのか
  *
- * **monosashi にしか無かったのに、kisekae と rig の `tsconfig.json` は
- * 「漏れを test/typecheckScope.test.ts が縛っている（monosashi と同じ）」と
+ * **tsumekae にしか無かったのに、kisekae と rig の `tsconfig.json` は
+ * 「漏れを test/typecheckScope.test.ts が縛っている（tsumekae と同じ）」と
  * 書いていた。** kisekae の `vitest.config.ts` も同じ主張をしていた。
  * どれも嘘で、kisekae で `typecheck.enabled` を false にすれば
  * `raw.test-d.ts` / `field.test-d.ts` / `rawKeys.test-d.ts` が黙って消える。
