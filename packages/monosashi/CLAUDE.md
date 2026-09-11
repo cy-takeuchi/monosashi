@@ -116,6 +116,12 @@ biome はリポジトリのルートで 1 回だけ回すので、ここには�
 
 ## 採取コード（`src/probe/`）の制約
 
+- **`any` を使わない。`unknown` で書く。** 「測定対象の型を信じない」は
+  `any` ではなく `unknown` で表す。`any` は綴りを間違えても通るので、
+  採取が丸ごと空振りしても実行時まで分からない（しかも `set()` の失敗は
+  例外にならないので表に出てこない）。`src/probe/kintoneApi.ts` が
+  kintone グローバルを最小限だけ宣言する。**測定対象は `unknown`、
+  測定対象でない足場（アプリ ID・ヘッダ要素）は形を書く**
 - **`JSON.stringify` を使わない。** `{ error: undefined }` がキーごと消える。
   測定目的は optional かどうか、つまりキーの有無そのもの。
   `src/probe/serialize.ts` が `Object.keys()` でキー集合を保持する
